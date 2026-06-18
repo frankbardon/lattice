@@ -1,0 +1,28 @@
+# Flow workflow scratch — never committed
+.planning/
+
+# Go build artifacts
+/lattice
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+
+# SQLite / local data
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+/data/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
