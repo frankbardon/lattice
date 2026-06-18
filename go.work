@@ -1,0 +1,12 @@
+go 1.26.1
+
+// Wire the four in-house sibling repos against local source. They may not be
+// go-gettable, so the build resolves them from these sibling checkouts. This
+// story does not import them yet, but later stories will.
+use (
+	.
+	../nexus
+	../parsec
+	../prism
+	../pulse
+)
