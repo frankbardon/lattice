@@ -56,11 +56,123 @@
         <button class="btn btn-sm btn-secondary" @click="addBrick('pulse_prism')" :disabled="status !== 'connected'">
           + Pulse/Prism
         </button>
+        <button class="btn btn-sm btn-ghost" @click="showVars = !showVars">
+          <span x-text="showVars ? 'Hide variables' : 'Variables'"></span>
+          <span class="badge badge-sm" x-text="doc.variables.length"></span>
+        </button>
         <button class="btn btn-sm btn-ghost" @click="showLog = !showLog">
           <span x-text="showLog ? 'Hide log' : 'Show log'"></span>
         </button>
       </div>
     </header>
+
+    <!-- Variables panel. Board-level parameters that brick templates reference
+         via ${name} (resolved server-side at render — E3-S2; this panel only
+         defines/edits/removes them). Every change flows through the same
+         intent → RFC6902 patch → broadcast path as bricks: defining or removing
+         a variable, or editing a value, emits an intent and the authoritative
+         patch updates doc.variables for every connected browser. -->
+    <section class="bg-base-100 rounded-box shadow mb-4 p-4" x-show="showVars">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold">Variables</h2>
+        <span class="text-xs text-base-content/50">
+          Referenced in templates as <code class="font-mono">${name}</code>
+        </span>
+      </div>
+
+      <!-- Existing definitions: edit current value (typed input per kind) or
+           remove. Name/type/default are fixed once defined; redefine to change
+           the shape (define_variable replaces by name). -->
+      <template x-if="doc.variables.length === 0">
+        <p class="text-base-content/50 text-sm">No variables defined yet.</p>
+      </template>
+      <div class="overflow-x-auto" x-show="doc.variables.length > 0">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Name</th><th>Type</th><th>Default</th><th>Value</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="v in doc.variables" :key="v.name">
+              <tr>
+                <td class="font-mono" x-text="v.name"></td>
+                <td><span class="badge badge-sm badge-outline" x-text="v.type"></span></td>
+                <td class="font-mono text-xs text-base-content/60" x-text="v.default"></td>
+                <td>
+                  <!-- enum: select among options -->
+                  <template x-if="v.type === 'enum'">
+                    <select
+                      class="select select-bordered select-sm w-full max-w-xs"
+                      :value="v.value"
+                      @change="setVariable(v.name, $event.target.value)"
+                      :disabled="status !== 'connected'"
+                    >
+                      <template x-for="opt in (v.options || [])" :key="opt">
+                        <option :value="opt" :selected="opt === v.value" x-text="opt"></option>
+                      </template>
+                    </select>
+                  </template>
+                  <!-- number / string: typed text input, committed on change -->
+                  <template x-if="v.type !== 'enum'">
+                    <input
+                      :type="v.type === 'number' ? 'number' : 'text'"
+                      class="input input-bordered input-sm w-full max-w-xs"
+                      :value="v.value"
+                      @change="setVariable(v.name, $event.target.value)"
+                      :disabled="status !== 'connected'"
+                    />
+                  </template>
+                </td>
+                <td>
+                  <button
+                    class="btn btn-xs btn-error btn-outline"
+                    title="Remove variable"
+                    @click="removeVariable(v.name)"
+                    :disabled="status !== 'connected'"
+                  >✕</button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Add a new definition. Emits define_variable; enum requires a
+           comma-separated options list. Client-side checks mirror the server's
+           minimal validation (number parses; enum value in options) so the
+           common rejection is caught before the round-trip, but the server is
+           authoritative — a rejected intent surfaces in newVar.error. -->
+      <div class="divider my-2"></div>
+      <form class="flex flex-wrap items-end gap-2" @submit.prevent="addVariable()">
+        <div>
+          <label class="label py-0"><span class="label-text text-xs">Name</span></label>
+          <input class="input input-bordered input-sm w-36" x-model="newVar.name" placeholder="region" />
+        </div>
+        <div>
+          <label class="label py-0"><span class="label-text text-xs">Type</span></label>
+          <select class="select select-bordered select-sm" x-model="newVar.type">
+            <option value="string">string</option>
+            <option value="number">number</option>
+            <option value="enum">enum</option>
+          </select>
+        </div>
+        <div x-show="newVar.type === 'enum'">
+          <label class="label py-0"><span class="label-text text-xs">Options (comma-sep)</span></label>
+          <input class="input input-bordered input-sm w-48" x-model="newVar.options" placeholder="us, eu, ap" />
+        </div>
+        <div>
+          <label class="label py-0"><span class="label-text text-xs">Default</span></label>
+          <input
+            :type="newVar.type === 'number' ? 'number' : 'text'"
+            class="input input-bordered input-sm w-36"
+            x-model="newVar.default"
+          />
+        </div>
+        <button class="btn btn-sm btn-primary" type="submit" :disabled="status !== 'connected'">Add variable</button>
+        <span class="text-error text-xs" x-text="newVar.error"></span>
+      </form>
+    </section>
 
     <!-- Empty state -->
     <template x-if="doc.bricks.length === 0">
@@ -275,6 +387,11 @@
         viewers: 0,
         status: "connecting",
         showLog: false,
+        // Variables panel UI. showVars toggles the panel; newVar holds the
+        // add-a-definition form (options is a comma-separated string the UI
+        // splits into a list; error surfaces a rejected define_variable intent).
+        showVars: false,
+        newVar: { name: "", type: "string", default: "", options: "", error: "" },
         logEntries: [],
         centrifuge: null,
         sub: null,
@@ -480,6 +597,61 @@
             height: clampMin(brick.layout.size.height + dh, 1),
           };
           this.sendIntent({ type: "resize_brick", brick_id: brick.id, size });
+        },
+
+        // --- variables -------------------------------------------------------
+
+        // addVariable emits a define_variable intent from the new-variable form.
+        // It does minimal client-side validation that mirrors the server (name
+        // required; number default parses; enum needs options and an in-list
+        // default) and clears the form on a successful intent. The server is
+        // authoritative — a rejected intent's message lands in newVar.error.
+        async addVariable() {
+          const nv = this.newVar;
+          nv.error = "";
+          const name = (nv.name || "").trim();
+          if (!name) { nv.error = "name is required"; return; }
+          if (this.doc.variables.some((v) => v.name === name)) {
+            nv.error = "a variable named " + name + " already exists";
+            return;
+          }
+          const options = nv.type === "enum"
+            ? nv.options.split(",").map((s) => s.trim()).filter((s) => s !== "")
+            : [];
+          if (nv.type === "enum" && options.length === 0) {
+            nv.error = "enum needs at least one option";
+            return;
+          }
+          const def = (nv.default || "").trim();
+          if (nv.type === "number" && def !== "" && Number.isNaN(Number(def))) {
+            nv.error = "default must be a number";
+            return;
+          }
+          if (nv.type === "enum" && def !== "" && !options.includes(def)) {
+            nv.error = "default must be one of the options";
+            return;
+          }
+          const res = await this.sendIntent({
+            type: "define_variable",
+            name,
+            var_type: nv.type,
+            default: def,
+            value: def,
+            options,
+          });
+          if (!res.ok) { nv.error = res.message || "rejected"; return; }
+          // The authoritative patch adds it to doc.variables; reset the form.
+          this.newVar = { name: "", type: "string", default: "", options: "", error: "" };
+        },
+
+        // setVariable emits a set_variable intent for an existing variable's
+        // current value. The authoritative patch reflects it for every browser.
+        setVariable(name, value) {
+          this.sendIntent({ type: "set_variable", name, value: String(value) });
+        },
+
+        removeVariable(name) {
+          this.sendIntent({ type: "remove_variable", name });
         },
 
         // --- template editor -------------------------------------------------

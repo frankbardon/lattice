@@ -25,8 +25,16 @@ const (
 	IntentDeleteBrick IntentType = "delete_brick"
 	// IntentEditTemplate replaces a brick's parameterized template payload.
 	IntentEditTemplate IntentType = "edit_template"
-	// IntentSetVariable sets (or adds) a board-level variable.
+	// IntentDefineVariable adds a board-level variable definition (name, type,
+	// default, options) or replaces an existing definition with the same name.
+	// Its Value is seeded from the definition's default when omitted.
+	IntentDefineVariable IntentType = "define_variable"
+	// IntentSetVariable sets the current value of a board-level variable. It
+	// also adds the variable (as an untyped string) if no definition exists, so
+	// the existing add-or-replace behaviour is preserved.
 	IntentSetVariable IntentType = "set_variable"
+	// IntentRemoveVariable deletes a board-level variable definition by name.
+	IntentRemoveVariable IntentType = "remove_variable"
 	// IntentRearrange replaces the whole brick ordering with a new sequence of
 	// brick ids (a reorder of the existing set).
 	IntentRearrange IntentType = "rearrange"
@@ -55,9 +63,16 @@ type Intent struct {
 	// Template is the new template payload (edit_template only).
 	Template string `json:"template,omitempty"`
 
-	// Name and Value carry a board variable (set_variable only).
-	Name  string `json:"name,omitempty"`
-	Value string `json:"value,omitempty"`
+	// Name identifies a board variable (define/set/remove_variable). Value is
+	// the variable's current value (define_variable seeds it from Default when
+	// omitted; set_variable assigns it). VarType, Default and Options carry the
+	// variable's definition (define_variable only); VarType is one of the
+	// dashboard.Var* tags and Options is the allowed-values list for an enum.
+	Name    string   `json:"name,omitempty"`
+	Value   string   `json:"value,omitempty"`
+	VarType string   `json:"var_type,omitempty"`
+	Default string   `json:"default,omitempty"`
+	Options []string `json:"options,omitempty"`
 
 	// Order is the desired brick id sequence (rearrange only). It must be a
 	// permutation of the current brick ids.
@@ -125,15 +140,60 @@ func patchFor(doc *dashboard.Dashboard, in Intent) (jsonpatch.Patch, error) {
 		}
 		return buildPatch(op{Op: "replace", Path: brickPath(i) + "/template", Value: in.Template})
 
-	case IntentSetVariable:
+	case IntentDefineVariable:
 		if in.Name == "" {
-			return nil, newError(InvalidIntent, "set_variable requires a name")
+			return nil, newError(InvalidIntent, "define_variable requires a name")
 		}
-		v := dashboard.Variable{Name: in.Name, Value: in.Value}
+		v := dashboard.Variable{
+			Name:    in.Name,
+			Type:    in.VarType,
+			Default: in.Default,
+			Value:   in.Value,
+			Options: in.Options,
+		}
+		if v.Type == "" {
+			v.Type = dashboard.VarString
+		}
+		// A freshly-defined variable defaults its current value to its default.
+		if v.Value == "" {
+			v.Value = v.Default
+		}
+		if err := dashboard.ValidateVariable(v); err != nil {
+			return nil, wrapError(InvalidIntent, "define_variable", err)
+		}
 		if i := indexOfVariable(doc, in.Name); i >= 0 {
 			return buildPatch(op{Op: "replace", Path: "/variables/" + strconv.Itoa(i), Value: v})
 		}
 		return buildPatch(op{Op: "add", Path: "/variables/-", Value: v})
+
+	case IntentSetVariable:
+		if in.Name == "" {
+			return nil, newError(InvalidIntent, "set_variable requires a name")
+		}
+		// Set the value on an existing definition (preserving its type/default/
+		// options), validating the new value against that definition. If the
+		// variable is not yet defined, add it as an untyped string — preserving
+		// the original add-or-replace behaviour.
+		if i := indexOfVariable(doc, in.Name); i >= 0 {
+			v := doc.Variables[i]
+			v.Value = in.Value
+			if err := dashboard.ValidateVariable(v); err != nil {
+				return nil, wrapError(InvalidIntent, "set_variable", err)
+			}
+			return buildPatch(op{Op: "replace", Path: "/variables/" + strconv.Itoa(i), Value: v})
+		}
+		v := dashboard.Variable{Name: in.Name, Type: dashboard.VarString, Value: in.Value}
+		return buildPatch(op{Op: "add", Path: "/variables/-", Value: v})
+
+	case IntentRemoveVariable:
+		if in.Name == "" {
+			return nil, newError(InvalidIntent, "remove_variable requires a name")
+		}
+		i := indexOfVariable(doc, in.Name)
+		if i < 0 {
+			return nil, newError(InvalidIntent, "remove_variable: variable not found: "+in.Name)
+		}
+		return buildPatch(op{Op: "remove", Path: "/variables/" + strconv.Itoa(i)})
 
 	case IntentRearrange:
 		ordered, err := reorderBricks(doc, in.Order)

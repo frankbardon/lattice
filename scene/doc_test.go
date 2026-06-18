@@ -75,7 +75,7 @@ func seedDoc(t *testing.T, st *memStore, id string) *dashboard.Dashboard {
 	d := &dashboard.Dashboard{
 		ID:        id,
 		Name:      "Board",
-		Variables: []dashboard.Variable{{Name: "env", Value: "prod"}},
+		Variables: []dashboard.Variable{{Name: "env", Type: dashboard.VarString, Value: "prod"}},
 		Bricks: []dashboard.Brick{
 			{ID: "b1", Kind: "markdown", Template: "# one", Layout: dashboard.Layout{Pos: dashboard.Position{X: 0, Y: 0}, Size: dashboard.Size{Width: 2, Height: 2}}},
 			{ID: "b2", Kind: "markdown", Template: "# two", Layout: dashboard.Layout{Pos: dashboard.Position{X: 2, Y: 0}, Size: dashboard.Size{Width: 2, Height: 2}}},
@@ -170,6 +170,52 @@ func TestApplyIntents(t *testing.T) {
 			},
 		},
 		{
+			name: "define_variable_new",
+			intent: Intent{Type: IntentDefineVariable, Name: "region", VarType: dashboard.VarEnum,
+				Default: "us", Options: []string{"us", "eu"}},
+			verify: func(t *testing.T, d *dashboard.Dashboard) {
+				if len(d.Variables) != 2 {
+					t.Fatalf("variable not added: %+v", d.Variables)
+				}
+				v := d.Variables[1]
+				// Value seeds from default; type/options are stored.
+				if v.Name != "region" || v.Type != dashboard.VarEnum || v.Value != "us" || len(v.Options) != 2 {
+					t.Fatalf("definition wrong: %+v", v)
+				}
+			},
+		},
+		{
+			name: "define_variable_replace",
+			intent: Intent{Type: IntentDefineVariable, Name: "env", VarType: dashboard.VarEnum,
+				Default: "dev", Options: []string{"dev", "prod"}},
+			verify: func(t *testing.T, d *dashboard.Dashboard) {
+				if len(d.Variables) != 1 {
+					t.Fatalf("variable count changed: %+v", d.Variables)
+				}
+				if d.Variables[0].Type != dashboard.VarEnum || d.Variables[0].Value != "dev" {
+					t.Fatalf("definition not replaced: %+v", d.Variables[0])
+				}
+			},
+		},
+		{
+			name:   "define_variable_number",
+			intent: Intent{Type: IntentDefineVariable, Name: "limit", VarType: dashboard.VarNumber, Value: "42"},
+			verify: func(t *testing.T, d *dashboard.Dashboard) {
+				if d.Variables[1].Type != dashboard.VarNumber || d.Variables[1].Value != "42" {
+					t.Fatalf("number not defined: %+v", d.Variables[1])
+				}
+			},
+		},
+		{
+			name:   "remove_variable",
+			intent: Intent{Type: IntentRemoveVariable, Name: "env"},
+			verify: func(t *testing.T, d *dashboard.Dashboard) {
+				if len(d.Variables) != 0 {
+					t.Fatalf("variable not removed: %+v", d.Variables)
+				}
+			},
+		},
+		{
 			name:   "rearrange",
 			intent: Intent{Type: IntentRearrange, Order: []string{"b2", "b1"}},
 			verify: func(t *testing.T, d *dashboard.Dashboard) {
@@ -227,6 +273,13 @@ func TestApplyRejectsInvalidIntent(t *testing.T) {
 		{"add duplicate id", Intent{Type: IntentAddBrick, Brick: &dashboard.Brick{ID: "b1"}}, InvalidIntent},
 		{"delete missing brick", Intent{Type: IntentDeleteBrick, BrickID: "ghost"}, InvalidIntent},
 		{"set variable no name", Intent{Type: IntentSetVariable, Value: "x"}, InvalidIntent},
+		{"define variable no name", Intent{Type: IntentDefineVariable, VarType: dashboard.VarString}, InvalidIntent},
+		{"define unknown type", Intent{Type: IntentDefineVariable, Name: "x", VarType: "color"}, InvalidIntent},
+		{"define number bad default", Intent{Type: IntentDefineVariable, Name: "n", VarType: dashboard.VarNumber, Default: "abc"}, InvalidIntent},
+		{"define enum no options", Intent{Type: IntentDefineVariable, Name: "e", VarType: dashboard.VarEnum, Default: "x"}, InvalidIntent},
+		{"define enum bad default", Intent{Type: IntentDefineVariable, Name: "e", VarType: dashboard.VarEnum, Default: "z", Options: []string{"a", "b"}}, InvalidIntent},
+		{"remove variable no name", Intent{Type: IntentRemoveVariable}, InvalidIntent},
+		{"remove missing variable", Intent{Type: IntentRemoveVariable, Name: "ghost"}, InvalidIntent},
 		{"rearrange wrong length", Intent{Type: IntentRearrange, Order: []string{"b1"}}, InvalidIntent},
 		{"rearrange unknown id", Intent{Type: IntentRearrange, Order: []string{"b1", "ghost"}}, InvalidIntent},
 		{"rearrange duplicate", Intent{Type: IntentRearrange, Order: []string{"b1", "b1"}}, InvalidIntent},
@@ -252,6 +305,37 @@ func TestApplyRejectsInvalidIntent(t *testing.T) {
 				t.Fatal("a rejected intent must not broadcast")
 			}
 		})
+	}
+}
+
+// TestSetVariableValidatesAgainstDefinition proves set_variable enforces the
+// variable's declared type: setting an enum to an off-list value is rejected
+// and leaves the document untouched, while a valid option is accepted.
+func TestSetVariableValidatesAgainstDefinition(t *testing.T) {
+	ctx := context.Background()
+	st := newMemStore()
+	bc := newRecBroadcaster()
+	seedDoc(t, st, "d1")
+	d := openDoc(t, st, bc, "d1")
+
+	// Define an enum variable.
+	if _, err := d.Apply(ctx, Intent{Type: IntentDefineVariable, Name: "tier",
+		VarType: dashboard.VarEnum, Default: "free", Options: []string{"free", "pro"}}); err != nil {
+		t.Fatalf("define: %v", err)
+	}
+
+	// An off-list value is rejected as an invalid intent.
+	if _, err := d.Apply(ctx, Intent{Type: IntentSetVariable, Name: "tier", Value: "enterprise"}); err == nil || CodeOf(err) != InvalidIntent {
+		t.Fatalf("off-list set: want InvalidIntent, got %v", err)
+	}
+
+	// A valid option is accepted and the definition (type/options) is preserved.
+	if _, err := d.Apply(ctx, Intent{Type: IntentSetVariable, Name: "tier", Value: "pro"}); err != nil {
+		t.Fatalf("valid set: %v", err)
+	}
+	v := d.Snapshot().Variables[1]
+	if v.Value != "pro" || v.Type != dashboard.VarEnum || len(v.Options) != 2 {
+		t.Fatalf("set_variable did not preserve the definition: %+v", v)
 	}
 }
 

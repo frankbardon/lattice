@@ -5,6 +5,7 @@ package storetest
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/frankbardon/lattice/dashboard"
@@ -178,7 +179,9 @@ func assertEqual(t *testing.T, want, got *dashboard.Dashboard) {
 		t.Fatalf("variables len = %d, want %d", len(got.Variables), len(want.Variables))
 	}
 	for i := range want.Variables {
-		if got.Variables[i] != want.Variables[i] {
+		// Variable carries an Options slice, so it is no longer comparable with
+		// ==; compare its JSON form instead (the stored shape is what matters).
+		if !jsonEqual(got.Variables[i], want.Variables[i]) {
 			t.Fatalf("variables[%d] = %+v, want %+v", i, got.Variables[i], want.Variables[i])
 		}
 	}
@@ -190,4 +193,12 @@ func assertEqual(t *testing.T, want, got *dashboard.Dashboard) {
 			t.Fatalf("bricks[%d] = %+v, want %+v", i, got.Bricks[i], want.Bricks[i])
 		}
 	}
+}
+
+// jsonEqual reports whether two values have identical JSON encodings. Used to
+// compare values that are no longer == comparable (e.g. they hold a slice).
+func jsonEqual(a, b any) bool {
+	ra, _ := json.Marshal(a)
+	rb, _ := json.Marshal(b)
+	return string(ra) == string(rb)
 }
