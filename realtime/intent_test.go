@@ -96,5 +96,50 @@ func TestBroadcastPatchPublishesOnPatchesTopic(t *testing.T) {
 	}
 }
 
+// TestRenderedDataWireShape pins the rendered-topic envelope body to the
+// client contract: realtime/dashboard.html slots data.html by data.brick_id, so
+// the JSON must be exactly {brick_id, html}.
+func TestRenderedDataWireShape(t *testing.T) {
+	raw, err := json.Marshal(RenderedData{BrickID: "b1", HTML: "<h1>hi</h1>"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	// encoding/json HTML-escapes <,>,& by default; the client unescapes on the
+	// way in. What matters for the contract is the exact field names brick_id
+	// and html, so assert on the decoded map.
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got["brick_id"] != "b1" {
+		t.Fatalf("brick_id = %v, want b1", got["brick_id"])
+	}
+	if got["html"] != "<h1>hi</h1>" {
+		t.Fatalf("html = %v, want <h1>hi</h1>", got["html"])
+	}
+	if len(got) != 2 {
+		t.Fatalf("envelope body has unexpected fields: %v", got)
+	}
+}
+
+// TestBroadcastRenderedPublishesOnRenderedTopic drives the broker and confirms a
+// rendered fragment publishes without error.
+func TestBroadcastRenderedPublishesOnRenderedTopic(t *testing.T) {
+	h := newIntentHub(t, func(context.Context, string, json.RawMessage) (IntentResult, error) {
+		return IntentResult{}, nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { _ = h.Run(ctx); close(done) }()
+	for !h.Started() {
+		time.Sleep(2 * time.Millisecond)
+	}
+	t.Cleanup(func() { cancel(); <-done })
+
+	if err := h.BroadcastRendered(context.Background(), "d1", "b1", "<h1>hi</h1>"); err != nil {
+		t.Fatalf("BroadcastRendered: %v", err)
+	}
+}
+
 // guard: IntentHandler errors should remain *Error-typed through the stack.
 var _ = errors.Is

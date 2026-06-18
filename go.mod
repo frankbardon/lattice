@@ -6,11 +6,14 @@ require (
 	github.com/centrifugal/centrifuge v0.38.0
 	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/frankbardon/parsec v0.3.1
+	github.com/microcosm-cc/bluemonday v1.0.27
+	github.com/yuin/goldmark v1.7.13
 	modernc.org/sqlite v1.52.0
 )
 
 require (
 	github.com/FZambia/eagle v0.2.0 // indirect
+	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/centrifugal/protocol v0.19.2 // indirect
@@ -23,6 +26,7 @@ require (
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gorilla/css v1.0.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect

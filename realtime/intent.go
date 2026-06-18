@@ -57,3 +57,21 @@ func (h *Hub) handleRPC(ctx context.Context, _ string, event centrifuge.RPCEvent
 func (h *Hub) BroadcastPatch(ctx context.Context, dashboardID string, patch json.RawMessage) error {
 	return h.Publish(ctx, dashboardID, TopicPatches, patch)
 }
+
+// RenderedData is the body of a TopicRendered envelope: a server-rendered
+// HTML/SVG fragment for one brick. The shape is the client contract — the thin
+// client (realtime/dashboard.html) slots Data.HTML by BrickID — so the field
+// names must not drift from {brick_id, html}.
+type RenderedData struct {
+	// BrickID is the brick the fragment belongs to.
+	BrickID string `json:"brick_id"`
+	// HTML is the finished, server-rendered fragment to slot into that brick.
+	HTML string `json:"html"`
+}
+
+// BroadcastRendered publishes a server-rendered brick fragment on the dashboard's
+// rendered topic. The render pipeline calls this after rendering a brick (e.g.
+// following a template edit) so every subscriber slots the same fragment.
+func (h *Hub) BroadcastRendered(ctx context.Context, dashboardID, brickID, html string) error {
+	return h.Publish(ctx, dashboardID, TopicRendered, RenderedData{BrickID: brickID, HTML: html})
+}

@@ -52,10 +52,23 @@ type Broadcaster interface {
 	BroadcastPatch(ctx context.Context, dashboardID string, patch json.RawMessage) error
 }
 
+// RenderHook is invoked after a brick's template successfully changes (an
+// applied edit_template intent), so the server can render the brick's fragment
+// and broadcast it on the rendered topic. It is the decoupling seam: scene owns
+// patch application and knows *what* changed, but it does not know *how* to
+// render — the hook (wired in cmd/server) bridges to the render package and the
+// realtime hub, so render stays out of the core patch path and scene never
+// imports render. brick is the post-apply state of the changed brick.
+type RenderHook func(ctx context.Context, dashboardID string, brick dashboard.Brick)
+
 // Options configures a Doc.
 type Options struct {
 	// Logger receives engine events. Defaults to slog.Default().
 	Logger *slog.Logger
+	// RenderHook, when set, fires after an applied edit_template intent with the
+	// changed brick so the server can render and broadcast its fragment. Leave
+	// nil to disable render-on-change (patches still broadcast normally).
+	RenderHook RenderHook
 }
 
 // Doc is the in-memory, server-authoritative dashboard document. Construct with
@@ -64,6 +77,7 @@ type Options struct {
 type Doc struct {
 	store       Store
 	broadcaster Broadcaster
+	onRender    RenderHook
 	logger      *slog.Logger
 
 	mu  sync.Mutex
@@ -92,6 +106,7 @@ func Open(ctx context.Context, id string, st Store, bc Broadcaster, opts Options
 	return &Doc{
 		store:       st,
 		broadcaster: bc,
+		onRender:    opts.RenderHook,
 		logger:      logger,
 		doc:         doc,
 	}, nil
@@ -150,6 +165,16 @@ func (d *Doc) Apply(ctx context.Context, in Intent) (json.RawMessage, error) {
 		// authoritative document advanced (a re-open rehydrates the truth).
 		d.logger.Warn("scene: patch broadcast failed", "dashboard", next.ID, "error", err)
 		return raw, wrapError(Internal, "broadcast patch", err)
+	}
+
+	// Render-on-change: a template edit changes what a brick should display, so
+	// hand the renderer the new brick state to render and broadcast its fragment.
+	// This is decoupled from patch application via the hook — render never blocks
+	// or fails the (already persisted, already broadcast) convergence step.
+	if d.onRender != nil && in.Type == IntentEditTemplate {
+		if i := indexOfBrick(next, in.BrickID); i >= 0 {
+			d.onRender(ctx, next.ID, next.Bricks[i])
+		}
 	}
 	return raw, nil
 }

@@ -336,6 +336,53 @@ func TestConvergence(t *testing.T) {
 	}
 }
 
+// TestEditTemplateFiresRenderHook proves render-on-change: an applied
+// edit_template intent invokes the render hook with the brick's new state, while
+// other intents do not. The hook is what cmd/server wires to render and
+// broadcast the fragment on the rendered topic.
+func TestEditTemplateFiresRenderHook(t *testing.T) {
+	ctx := context.Background()
+	st := newMemStore()
+	bc := newRecBroadcaster()
+	seedDoc(t, st, "d1")
+
+	type call struct {
+		dashboardID string
+		brick       dashboard.Brick
+	}
+	var calls []call
+	hook := func(_ context.Context, dashboardID string, b dashboard.Brick) {
+		calls = append(calls, call{dashboardID, b})
+	}
+
+	d, err := Open(ctx, "d1", st, bc, Options{Logger: slog.New(slog.DiscardHandler), RenderHook: hook})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	// A non-template intent must not trigger a render.
+	if _, err := d.Apply(ctx, Intent{Type: IntentMoveBrick, BrickID: "b1", Pos: &dashboard.Position{X: 1, Y: 1}}); err != nil {
+		t.Fatalf("Apply move: %v", err)
+	}
+	if len(calls) != 0 {
+		t.Fatalf("move_brick fired the render hook: %+v", calls)
+	}
+
+	// An edit_template intent must fire the hook once with the changed brick.
+	if _, err := d.Apply(ctx, Intent{Type: IntentEditTemplate, BrickID: "b1", Template: "# rendered me"}); err != nil {
+		t.Fatalf("Apply edit: %v", err)
+	}
+	if len(calls) != 1 {
+		t.Fatalf("render hook call count = %d, want 1", len(calls))
+	}
+	if calls[0].dashboardID != "d1" {
+		t.Fatalf("hook dashboard = %q, want d1", calls[0].dashboardID)
+	}
+	if calls[0].brick.ID != "b1" || calls[0].brick.Template != "# rendered me" {
+		t.Fatalf("hook brick = %+v, want b1 with edited template", calls[0].brick)
+	}
+}
+
 func jsonEqual(t *testing.T, a, b any) bool {
 	t.Helper()
 	ra, _ := json.Marshal(a)

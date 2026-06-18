@@ -19,6 +19,7 @@ import (
 
 	"github.com/frankbardon/lattice/dashboard"
 	"github.com/frankbardon/lattice/realtime"
+	"github.com/frankbardon/lattice/render"
 	"github.com/frankbardon/lattice/scene"
 	"github.com/frankbardon/lattice/store"
 )
@@ -89,7 +90,27 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 
-	mgr, err = scene.NewManager(st, hub, scene.Options{Logger: logger})
+	// Render seam: a registry dispatches by brick.kind. v1 ships the markdown
+	// kind; pulse_prism registers here in a later epic. The hook bridges scene
+	// (which knows a template changed) to render+realtime (which know how to
+	// render and broadcast), keeping render out of scene's patch path.
+	registry := render.NewRegistry(render.Options{Logger: logger})
+	if err := registry.Register(render.KindMarkdown, render.NewMarkdown()); err != nil {
+		return err
+	}
+	renderHook := func(ctx context.Context, dashboardID string, brick dashboard.Brick) {
+		// resolvedVars is empty until the DataResolver lands (E3); plumbed now.
+		html, err := registry.Render(brick.Kind, brick.Template, render.ResolvedVars{})
+		if err != nil {
+			logger.Warn("render brick failed", "dashboard", dashboardID, "brick", brick.ID, "kind", brick.Kind, "code", render.CodeOf(err), "error", err)
+			return
+		}
+		if err := hub.BroadcastRendered(ctx, dashboardID, brick.ID, html); err != nil {
+			logger.Warn("broadcast rendered fragment failed", "dashboard", dashboardID, "brick", brick.ID, "error", err)
+		}
+	}
+
+	mgr, err = scene.NewManager(st, hub, scene.Options{Logger: logger, RenderHook: renderHook})
 	if err != nil {
 		return err
 	}

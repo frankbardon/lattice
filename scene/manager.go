@@ -15,6 +15,7 @@ import (
 type Manager struct {
 	store       Store
 	broadcaster Broadcaster
+	onRender    RenderHook
 	logger      *slog.Logger
 
 	mu   sync.Mutex
@@ -37,6 +38,7 @@ func NewManager(st Store, bc Broadcaster, opts Options) (*Manager, error) {
 	return &Manager{
 		store:       st,
 		broadcaster: bc,
+		onRender:    opts.RenderHook,
 		logger:      logger,
 		docs:        make(map[string]*Doc),
 	}, nil
@@ -54,7 +56,7 @@ func (m *Manager) Doc(ctx context.Context, id string) (*Doc, error) {
 
 	// Open outside the lock (it does store I/O); a racing opener is resolved by
 	// a re-check under the lock so the map holds a single Doc per id.
-	d, err := Open(ctx, id, m.store, m.broadcaster, Options{Logger: m.logger})
+	d, err := Open(ctx, id, m.store, m.broadcaster, Options{Logger: m.logger, RenderHook: m.onRender})
 	if err != nil {
 		return nil, err
 	}
