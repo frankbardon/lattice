@@ -105,6 +105,10 @@ type Options struct {
 	// builder agent with a chat message). Leave nil to disable the build loop;
 	// the RPC method is then rejected.
 	BrickChatHandler BrickChatHandler
+	// BoardChatHandler, when set, receives board_chat RPCs (drive the board's
+	// LAYOUT coordinator agent with a chat message). Leave nil to disable the
+	// layout build loop; the RPC method is then rejected.
+	BoardChatHandler BoardChatHandler
 }
 
 // Hub is the realtime façade for lattice. It embeds a Parsec instance, tracks
@@ -116,6 +120,7 @@ type Hub struct {
 	logger      *slog.Logger
 	onIntent    IntentHandler
 	onBrickChat BrickChatHandler
+	onBoardChat BoardChatHandler
 	docOf       DocProvider
 
 	mu      sync.Mutex
@@ -152,6 +157,7 @@ func NewHub(secret []byte, opts Options) (*Hub, error) {
 		logger:      logger,
 		onIntent:    opts.IntentHandler,
 		onBrickChat: opts.BrickChatHandler,
+		onBoardChat: opts.BoardChatHandler,
 		docOf:       opts.DocProvider,
 		viewers:     make(map[string]int),
 	}
@@ -302,7 +308,7 @@ func brokerOptions(h *Hub) brokerOpts {
 		SubscribeAuthorizer: newSubscribeAuthorizer(h),
 		OnSubscriberChange:  h.onSubscriberChange,
 	}
-	if h.onIntent != nil || h.onBrickChat != nil {
+	if h.onIntent != nil || h.onBrickChat != nil || h.onBoardChat != nil {
 		opts.OnClientRPC = h.handleRPC
 	}
 	return opts

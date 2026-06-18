@@ -22,6 +22,17 @@ const intentMethod = "intent"
 // chat UI) calls this method.
 const brickChatMethod = "brick_chat"
 
+// boardChatMethod is the RPC method clients call to drive the board's LAYOUT
+// coordinator agent with a chat message (E5-S1). The server routes it to the
+// layout build loop, which drives the layout agent, validates the emitted plan,
+// applies each layout action (add/move/resize/delete) as a server-authoritative
+// scene intent, and delegates the content of each created brick to that brick's
+// own agent. Every patch + rendered fragment reaches viewers over the normal
+// topics; the RPC reply summarizes the applied patches + created bricks (an ack
+// for the requesting client). It mirrors brick_chat's shape but targets the
+// whole board rather than one brick. E5-S2 (the board chat UI) calls this.
+const boardChatMethod = "board_chat"
+
 // IntentRequest is the RPC payload a client sends to mutate a dashboard. The
 // dashboard id is explicit so the server can route the intent to the right
 // authoritative document; Intent is the opaque intent body (decoded by the
@@ -59,6 +70,42 @@ type BrickChatResult struct {
 // template, or a coded error on rejection.
 type BrickChatHandler func(ctx context.Context, dashboardID, brickID, message string) (BrickChatResult, error)
 
+// BoardChatRequest is the RPC payload a client sends to drive the board's LAYOUT
+// coordinator agent. DashboardID targets the board; Message is the user's
+// chat input. There is no agent id on the wire — the server keys the layout
+// engine off the dashboard id (mirroring brick_chat keeping the brick's
+// agent_id off the wire).
+type BoardChatRequest struct {
+	DashboardID string `json:"dashboard_id"`
+	Message     string `json:"message"`
+}
+
+// BoardChatResult is the RPC reply for a board_chat call: the applied RFC6902
+// patches (one per layout action) and the bricks created + delegated this turn.
+// The rendered SVG fragments reach every viewer over the rendered topic (via the
+// scene RenderHook), not in this reply.
+type BoardChatResult struct {
+	Patches []json.RawMessage `json:"patches,omitempty"`
+	Created []BoardChatBrick  `json:"created,omitempty"`
+}
+
+// BoardChatBrick reports one brick the coordinator created and delegated.
+type BoardChatBrick struct {
+	BrickID       string `json:"brick_id"`
+	AgentID       string `json:"agent_id"`
+	Prompt        string `json:"prompt,omitempty"`
+	DelegateError string `json:"delegate_error,omitempty"`
+}
+
+// BoardChatHandler runs the layout build loop for one board-level chat message:
+// it drives the layout coordinator agent, validates the emitted plan, applies
+// each layout action as a server-authoritative scene intent, and delegates the
+// content of each created brick to that brick's agent. It is satisfied by the
+// layoutagent Coordinator (bound in cmd/server). dashboardID targets the board;
+// message is the chat input; it returns the applied patches + created bricks, or
+// a coded error on rejection.
+type BoardChatHandler func(ctx context.Context, dashboardID, message string) (BoardChatResult, error)
+
 // handleRPC dispatches an inbound client RPC. Two methods are supported — intent
 // (board mutations) and brick_chat (drive a brick's AI builder) — and anything
 // else is rejected so the surface stays small and the server remains the sole
@@ -69,6 +116,8 @@ func (h *Hub) handleRPC(ctx context.Context, _ string, event centrifuge.RPCEvent
 		return h.handleIntentRPC(ctx, event)
 	case brickChatMethod:
 		return h.handleBrickChatRPC(ctx, event)
+	case boardChatMethod:
+		return h.handleBoardChatRPC(ctx, event)
 	default:
 		return nil, newError(InvalidArgument, "unknown rpc method")
 	}
@@ -122,6 +171,32 @@ func (h *Hub) handleBrickChatRPC(ctx context.Context, event centrifuge.RPCEvent)
 	body, err := json.Marshal(res)
 	if err != nil {
 		return nil, wrapError(Internal, "marshal brick_chat result", err)
+	}
+	return body, nil
+}
+
+// handleBoardChatRPC routes a board-level chat message to the layout build loop.
+func (h *Hub) handleBoardChatRPC(ctx context.Context, event centrifuge.RPCEvent) ([]byte, error) {
+	if h.onBoardChat == nil {
+		return nil, newError(Internal, "board chat handling not configured")
+	}
+	var req BoardChatRequest
+	if err := json.Unmarshal(event.Data, &req); err != nil {
+		return nil, newError(InvalidArgument, "malformed board_chat request")
+	}
+	if req.DashboardID == "" {
+		return nil, newError(InvalidArgument, "board_chat requires a dashboard_id")
+	}
+	if req.Message == "" {
+		return nil, newError(InvalidArgument, "board_chat requires a message")
+	}
+	res, err := h.onBoardChat(ctx, req.DashboardID, req.Message)
+	if err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(res)
+	if err != nil {
+		return nil, wrapError(Internal, "marshal board_chat result", err)
 	}
 	return body, nil
 }

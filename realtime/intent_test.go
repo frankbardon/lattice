@@ -152,6 +152,82 @@ func TestHandleRPCBrickChatNotConfigured(t *testing.T) {
 	}
 }
 
+func newBoardChatHub(t *testing.T, handler BoardChatHandler) *Hub {
+	t.Helper()
+	h, err := NewHub([]byte(testSecret), Options{Logger: slog.New(slog.DiscardHandler), BoardChatHandler: handler})
+	if err != nil {
+		t.Fatalf("NewHub: %v", err)
+	}
+	return h
+}
+
+func TestHandleRPCDispatchesBoardChat(t *testing.T) {
+	var gotDash, gotMsg string
+	h := newBoardChatHub(t, func(_ context.Context, dashboardID, message string) (BoardChatResult, error) {
+		gotDash, gotMsg = dashboardID, message
+		return BoardChatResult{
+			Patches: []json.RawMessage{json.RawMessage(`[{"op":"add","path":"/bricks/-","value":{}}]`)},
+			Created: []BoardChatBrick{{BrickID: "brk_1", AgentID: "brick:brk_1", Prompt: "sales"}},
+		}, nil
+	})
+
+	req, _ := json.Marshal(BoardChatRequest{DashboardID: "d1", Message: "build a sales overview"})
+	out, err := h.handleRPC(context.Background(), "", centrifuge.RPCEvent{Method: boardChatMethod, Data: req})
+	if err != nil {
+		t.Fatalf("handleRPC: %v", err)
+	}
+	if gotDash != "d1" || gotMsg != "build a sales overview" {
+		t.Fatalf("forwarded args = (%q,%q)", gotDash, gotMsg)
+	}
+	var res BoardChatResult
+	if err := json.Unmarshal(out, &res); err != nil {
+		t.Fatalf("decode reply: %v", err)
+	}
+	if len(res.Patches) != 1 || len(res.Created) != 1 {
+		t.Fatalf("reply missing patches/created: %+v", res)
+	}
+	if res.Created[0].AgentID != "brick:brk_1" {
+		t.Fatalf("created agent_id = %q", res.Created[0].AgentID)
+	}
+}
+
+func TestHandleRPCBoardChatErrors(t *testing.T) {
+	h := newBoardChatHub(t, func(context.Context, string, string) (BoardChatResult, error) {
+		return BoardChatResult{}, newError(InvalidArgument, "nope")
+	})
+	// Missing fields are rejected before the handler runs.
+	for _, body := range []BoardChatRequest{
+		{Message: "m"},
+		{DashboardID: "d1"},
+	} {
+		raw, _ := json.Marshal(body)
+		if _, err := h.handleRPC(context.Background(), "", centrifuge.RPCEvent{Method: boardChatMethod, Data: raw}); err == nil {
+			t.Fatalf("expected rejection for %+v", body)
+		}
+	}
+	// Malformed payload.
+	if _, err := h.handleRPC(context.Background(), "", centrifuge.RPCEvent{Method: boardChatMethod, Data: []byte("nope")}); err == nil {
+		t.Fatal("malformed board_chat must error")
+	}
+	// Handler error propagates with its code.
+	ok, _ := json.Marshal(BoardChatRequest{DashboardID: "d1", Message: "m"})
+	if _, err := h.handleRPC(context.Background(), "", centrifuge.RPCEvent{Method: boardChatMethod, Data: ok}); err == nil || CodeOf(err) != InvalidArgument {
+		t.Fatalf("handler error not propagated: %v", err)
+	}
+}
+
+// TestHandleRPCBoardChatNotConfigured: a board_chat RPC with no handler wired is
+// rejected rather than panicking.
+func TestHandleRPCBoardChatNotConfigured(t *testing.T) {
+	h := newIntentHub(t, func(context.Context, string, json.RawMessage) (IntentResult, error) {
+		return IntentResult{}, nil
+	})
+	req, _ := json.Marshal(BoardChatRequest{DashboardID: "d1", Message: "m"})
+	if _, err := h.handleRPC(context.Background(), "", centrifuge.RPCEvent{Method: boardChatMethod, Data: req}); err == nil {
+		t.Fatal("board_chat with no handler must error")
+	}
+}
+
 func TestBroadcastPatchPublishesOnPatchesTopic(t *testing.T) {
 	h := newIntentHub(t, func(context.Context, string, json.RawMessage) (IntentResult, error) {
 		return IntentResult{}, nil

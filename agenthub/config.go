@@ -1,6 +1,7 @@
 package agenthub
 
 import (
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -84,6 +85,37 @@ type Config struct {
 	// emit a parameterized {pulse_request, prism_spec} template with ${var}
 	// placeholders). The build loop leaves this empty to use the built-in.
 	SystemPrompt string
+
+	// LayoutOutputSchema is the JSON Schema the LAYOUT coordinator agent's final
+	// output must satisfy (the layout-actions plan envelope, distinct from the
+	// brick template schema above). When non-empty, an engine keyed with the
+	// LayoutAgentPrefix renders a DIFFERENT config: the layout system prompt and
+	// this schema (via the json_schema gate), and NO Pulse/Prism MCP tools (the
+	// coordinator decides structure — what bricks exist + where — and delegates
+	// the data detail to per-brick agents, so it needs no data tools of its own).
+	// Set by the layout coordinator (E5-S1) to layoutagent.PlanSchema. Empty
+	// leaves a layout-keyed engine free-form.
+	LayoutOutputSchema string
+
+	// LayoutSystemPrompt overrides the layout-coordinator system prompt. Empty
+	// uses the built-in defaultLayoutPrompt (which, when LayoutOutputSchema is
+	// set, instructs the agent to emit a layout-actions plan). The coordinator
+	// leaves this empty to use the built-in.
+	LayoutSystemPrompt string
+}
+
+// LayoutAgentPrefix is the agentID prefix that marks an engine as the board
+// LAYOUT coordinator (one per dashboard, e.g. "layout:<dashboard_id>") rather
+// than a per-brick builder. The hub renders a DIFFERENT config for these
+// engines — the layout system prompt + LayoutOutputSchema, no Pulse/Prism MCP
+// tools — so the layout coordinator and brick builders share one Hub but run
+// distinct agent types keyed apart. IsLayoutAgent reports the match.
+const LayoutAgentPrefix = "layout:"
+
+// IsLayoutAgent reports whether agentID names the board layout coordinator (it
+// carries LayoutAgentPrefix) rather than a per-brick builder.
+func IsLayoutAgent(agentID string) bool {
+	return strings.HasPrefix(agentID, LayoutAgentPrefix)
 }
 
 const (
@@ -137,6 +169,46 @@ Rules:
     which case the column is that label.
   - The prism_spec must have a "mark" and an "encoding" whose field names match
     the columns the pulse_request produces.`
+
+// defaultLayoutPrompt is the layout coordinator's prompt for the E5-S1 board
+// build loop: it instructs the agent to translate a board-level request into a
+// PLAN of layout actions (create / move / resize / delete / rearrange bricks)
+// and emit it as its FINAL message. The coordinator decides WHAT bricks exist
+// and WHERE on the masonry grid; for each brick it creates it supplies a
+// per-brick prompt that the server hands to that brick's own agent to fill in
+// the data detail — the coordinator never authors Pulse/Prism templates itself.
+// The json_schema gate (wired when LayoutOutputSchema is set) enforces the
+// envelope shape.
+const defaultLayoutPrompt = `You are the LAYOUT COORDINATOR for a collaborative masonry dashboard. You
+arrange the board: you decide WHAT bricks exist and WHERE they sit on a grid,
+and you DELEGATE the contents of each brick to that brick's own AI builder
+agent. You do NOT write chart specs or data queries yourself.
+
+The board is a grid: position {x,y} is the top-left cell (0-based) and size
+{width,height} is the span in grid cells. A typical board is 12 columns wide.
+
+Your job: turn the user's board-level request into a PLAN and emit it as your
+final message. The plan is a single JSON object with one key:
+
+  {
+    "actions": [ { "type": "create_brick", ... }, ... ]
+  }
+
+Each action is one of:
+  - {"type":"create_brick","position":{"x":0,"y":0},"size":{"width":6,"height":4},"prompt":"a description of what this brick should show, for the brick agent"}
+  - {"type":"move_brick","brick_id":"<id>","position":{"x":..,"y":..}}
+  - {"type":"resize_brick","brick_id":"<id>","size":{"width":..,"height":..}}
+  - {"type":"delete_brick","brick_id":"<id>"}
+
+Rules:
+  - Emit ONLY that JSON object as your final message. No prose, no code fences.
+  - For a NEW board, emit create_brick actions that lay out a sensible,
+    non-overlapping grid. Give each a clear "prompt" describing the chart or
+    panel it should contain (e.g. "a bar chart of total sales by region") — the
+    server routes that prompt to a dedicated brick agent that builds the actual
+    Pulse query + Prism chart. Do not invent field names or data here.
+  - When the user asks to rearrange or resize existing bricks, reference them by
+    their brick_id (the server tells you the current board state).`
 
 // DefaultConfig returns a Config with sensible defaults. PulseBinaryPath and
 // PulseDataDir are left empty and MUST be set by the caller before NewHub.
@@ -199,6 +271,10 @@ func (c *Config) validate() error {
 // a text template so arbitrary multi-line prompt / JSON-schema content is
 // encoded safely (no manual YAML indentation of an embedded JSON schema).
 func (c *Config) renderConfig(agentID string) ([]byte, error) {
+	if IsLayoutAgent(agentID) {
+		return c.renderLayoutConfig(agentID)
+	}
+
 	systemPrompt := c.SystemPrompt
 	if systemPrompt == "" {
 		if c.OutputSchema != "" {
@@ -278,31 +354,106 @@ func (c *Config) renderConfig(agentID string) ([]byte, error) {
 	}
 
 	cfg := map[string]any{
-		"core": map[string]any{
-			"log_level":             "warn",
-			"tick_interval":         "5s",
-			"max_concurrent_events": 100,
-			"agent_id":              agentID,
-			"models": map[string]any{
-				"default": "balanced",
-				"balanced": map[string]any{
-					"provider":   "nexus.llm.anthropic",
-					"model":      c.Model,
-					"max_tokens": c.MaxTokens,
-				},
-			},
-			"sessions": map[string]any{
-				"root":      c.SessionsRoot,
-				"retention": "7d",
-				"id_format": "datetime_short",
-			},
-		},
+		"core":    c.coreConfig(agentID),
 		"plugins": plugins,
 	}
 
 	out, err := yaml.Marshal(cfg)
 	if err != nil {
 		return nil, wrapError(InvalidConfig, "render agent config", err)
+	}
+	return out, nil
+}
+
+// coreConfig builds the shared core.* block (models, sessions, agent_id) used
+// by both the brick-builder and layout-coordinator configs.
+func (c *Config) coreConfig(agentID string) map[string]any {
+	return map[string]any{
+		"log_level":             "warn",
+		"tick_interval":         "5s",
+		"max_concurrent_events": 100,
+		"agent_id":              agentID,
+		"models": map[string]any{
+			"default": "balanced",
+			"balanced": map[string]any{
+				"provider":   "nexus.llm.anthropic",
+				"model":      c.Model,
+				"max_tokens": c.MaxTokens,
+			},
+		},
+		"sessions": map[string]any{
+			"root":      c.SessionsRoot,
+			"retention": "7d",
+			"id_format": "datetime_short",
+		},
+	}
+}
+
+// renderLayoutConfig is the Nexus engine config for the board LAYOUT
+// coordinator (one engine per dashboard, keyed layout:<dashboard_id>). It
+// differs from the brick-builder config in two deliberate ways:
+//
+//   - NO nexus.mcp.client: the coordinator decides board STRUCTURE (what bricks
+//     exist + where) and delegates the per-brick data detail to brick agents,
+//     so it needs no Pulse/Prism data tools of its own (and we avoid spawning an
+//     extra pulse child per layout engine);
+//   - it uses the layout system prompt + LayoutOutputSchema (the layout-actions
+//     plan envelope) rather than the brick template prompt/schema.
+//
+// When LayoutOutputSchema is set the nexus.gate.json_schema gate is activated so
+// the coordinator is FORCED to emit a conforming plan; absent a schema it is
+// free-form.
+func (c *Config) renderLayoutConfig(agentID string) ([]byte, error) {
+	systemPrompt := c.LayoutSystemPrompt
+	if systemPrompt == "" {
+		systemPrompt = defaultLayoutPrompt
+	}
+
+	active := []string{
+		"nexus.io.test",
+		"nexus.llm.anthropic",
+		"nexus.agent.react",
+		"nexus.gate.endless_loop",
+		"nexus.memory.capped",
+	}
+
+	plugins := map[string]any{
+		"active": active,
+		"nexus.llm.anthropic": map[string]any{
+			"api_key_env": c.AnthropicKeyEnv,
+		},
+		"nexus.agent.react": map[string]any{
+			"system_prompt": systemPrompt,
+		},
+		"nexus.gate.endless_loop": map[string]any{
+			"max_iterations": 8,
+		},
+		"nexus.memory.capped": map[string]any{
+			"max_messages": 50,
+			"persist":      false,
+		},
+	}
+
+	if c.LayoutOutputSchema != "" {
+		retries := c.OutputRetries
+		if retries == 0 {
+			retries = defaultOutputRetries
+		}
+		plugins["active"] = append(active, "nexus.gate.json_schema")
+		plugins["nexus.gate.json_schema"] = map[string]any{
+			"schema":      c.LayoutOutputSchema,
+			"max_retries": retries,
+		}
+	}
+
+	cfg := map[string]any{
+		"core":    c.coreConfig(agentID),
+		"plugins": plugins,
+	}
+
+	out, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, wrapError(InvalidConfig, "render layout agent config", err)
 	}
 	return out, nil
 }

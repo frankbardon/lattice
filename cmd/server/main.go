@@ -20,6 +20,7 @@ import (
 	"github.com/frankbardon/lattice/agenthub"
 	"github.com/frankbardon/lattice/brickagent"
 	"github.com/frankbardon/lattice/dashboard"
+	"github.com/frankbardon/lattice/layoutagent"
 	"github.com/frankbardon/lattice/pulsemcp"
 	"github.com/frankbardon/lattice/realtime"
 	"github.com/frankbardon/lattice/render"
@@ -95,6 +96,33 @@ func run(logger *slog.Logger) error {
 		return realtime.BrickChatResult{Patch: res.Patch, Template: res.Template}, nil
 	}
 
+	// The layout build loop (E5-S1) drives the board's LAYOUT coordinator agent
+	// from a board-level chat message: it arranges the masonry (add/move/resize/
+	// delete bricks via scene intents) and delegates each created brick's content
+	// to that brick's own agent (the brick builder above). Like the brick_chat
+	// handler it dispatches through a holder bound once the Coordinator exists, and
+	// stays nil (RPC rejected) when no agent hub is wired (no Pulse configured).
+	var coordinator *layoutagent.Coordinator
+	boardChatHandler := func(ctx context.Context, dashboardID, message string) (realtime.BoardChatResult, error) {
+		if coordinator == nil {
+			return realtime.BoardChatResult{}, errors.New("layout agent not available: PULSE_DATA_DIR is not configured")
+		}
+		res, err := coordinator.Coordinate(ctx, dashboardID, message)
+		if err != nil {
+			return realtime.BoardChatResult{}, err
+		}
+		created := make([]realtime.BoardChatBrick, 0, len(res.Created))
+		for _, cb := range res.Created {
+			created = append(created, realtime.BoardChatBrick{
+				BrickID:       cb.BrickID,
+				AgentID:       cb.AgentID,
+				Prompt:        cb.Prompt,
+				DelegateError: cb.DelegateError,
+			})
+		}
+		return realtime.BoardChatResult{Patches: res.Patches, Created: created}, nil
+	}
+
 	// docProvider backs the thin client's initial-snapshot read endpoint. A
 	// dashboard the client opens for the first time is seeded as an empty board
 	// (v1 has no separate create flow yet); the scene Manager then owns it as
@@ -115,6 +143,7 @@ func run(logger *slog.Logger) error {
 		IntentHandler:    intentHandler,
 		DocProvider:      docProvider,
 		BrickChatHandler: brickChatHandler,
+		BoardChatHandler: boardChatHandler,
 	})
 	if err != nil {
 		return err
@@ -173,6 +202,11 @@ func run(logger *slog.Logger) error {
 		ahCfg.PulseBinaryPath = cfg.BinaryPath
 		ahCfg.PulseDataDir = dataDir
 		ahCfg.OutputSchema = brickagent.TemplateSchema
+		// One Hub serves BOTH agent types: per-brick builders (keyed by agent_id)
+		// and the board LAYOUT coordinator (keyed layout:<dashboard_id>). The layout
+		// schema forces the coordinator to emit a layout-actions plan; the hub picks
+		// the layout config for layout:* keys (no Pulse/Prism MCP — it delegates).
+		ahCfg.LayoutOutputSchema = layoutagent.PlanSchema
 		agentHub, err = agenthub.NewHub(ahCfg, agenthub.Options{Logger: logger})
 		if err != nil {
 			return err
@@ -219,7 +253,16 @@ func run(logger *slog.Logger) error {
 	// through mgr (the authoritative scene path: snapshot + broadcast + render
 	// hook). Only when an agent hub was wired (Pulse configured).
 	if agentHub != nil {
-		builder, err = brickagent.NewBuilder(agentHub, brickagent.SceneManagerStore{Manager: mgr}, brickagent.Options{Logger: logger})
+		sceneStore := brickagent.SceneManagerStore{Manager: mgr}
+		builder, err = brickagent.NewBuilder(agentHub, sceneStore, brickagent.Options{Logger: logger})
+		if err != nil {
+			return err
+		}
+		// Bind the layout coordinator (E5-S1): it drives the layout engine (also in
+		// the agent hub, keyed layout:*), arranges the board through mgr (the same
+		// authoritative scene path), and delegates each created brick's content to
+		// the brick builder above — cross-engine delegation through the hub.
+		coordinator, err = layoutagent.NewCoordinator(agentHub, sceneStore, brickBuilderAdapter{builder}, layoutagent.Options{Logger: logger})
 		if err != nil {
 			return err
 		}
@@ -265,6 +308,19 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	return nil
+}
+
+// brickBuilderAdapter bridges *brickagent.Builder to layoutagent.BrickBuilder.
+// The layout coordinator only needs to know whether delegating a created
+// brick's content succeeded, so the adapter drops the brickagent.Result and
+// returns just the error — keeping layoutagent independent of brickagent's
+// concrete result type.
+type brickBuilderAdapter struct{ b *brickagent.Builder }
+
+// BuildBrick delegates a created brick's content build to its own agent.
+func (a brickBuilderAdapter) BuildBrick(ctx context.Context, dashboardID, brickID, prompt string) error {
+	_, err := a.b.Build(ctx, dashboardID, brickID, prompt)
+	return err
 }
 
 // ensureDashboard guarantees a dashboard document exists for id, seeding an

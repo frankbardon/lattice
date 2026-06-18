@@ -103,6 +103,54 @@ func TestRenderConfig_StructuredOutput(t *testing.T) {
 	}
 }
 
+// TestRenderConfig_Layout: an engine keyed with the layout prefix renders the
+// LAYOUT coordinator config — the layout system prompt, the layout schema gate,
+// and NO Pulse/Prism MCP client (the coordinator delegates data detail to brick
+// agents) — distinct from the brick-builder config.
+func TestRenderConfig_Layout(t *testing.T) {
+	const layoutSchema = `{"type":"object","required":["actions"]}`
+	c := DefaultConfig()
+	c.PulseBinaryPath = "/usr/bin/pulse"
+	c.PulseDataDir = "/data"
+	c.OutputSchema = `{"type":"object","required":["pulse_request","prism_spec"]}`
+	c.LayoutOutputSchema = layoutSchema
+
+	cfg := renderFor(t, c, LayoutAgentPrefix+"d1")
+	plugins := pluginsOf(t, cfg)
+	active := activeOf(t, plugins)
+
+	// No MCP client for the layout coordinator.
+	if contains(active, "nexus.mcp.client") {
+		t.Fatal("layout agent must not activate the MCP client")
+	}
+	if _, ok := plugins["nexus.mcp.client"]; ok {
+		t.Fatal("layout agent must not carry an MCP client config")
+	}
+	// The layout schema gate is wired with the LAYOUT schema, not the brick one.
+	if !contains(active, "nexus.gate.json_schema") {
+		t.Fatal("layout schema gate must be active with a LayoutOutputSchema")
+	}
+	gate := plugins["nexus.gate.json_schema"].(map[string]any)
+	if gate["schema"] != layoutSchema {
+		t.Fatalf("gate schema = %v, want the layout schema", gate["schema"])
+	}
+	// The agent_id is the layout-keyed id.
+	core := cfg["core"].(map[string]any)
+	if core["agent_id"] != LayoutAgentPrefix+"d1" {
+		t.Fatalf("agent_id = %v, want %sd1", core["agent_id"], LayoutAgentPrefix)
+	}
+}
+
+// TestIsLayoutAgent covers the key discrimination.
+func TestIsLayoutAgent(t *testing.T) {
+	if !IsLayoutAgent(LayoutAgentPrefix + "d1") {
+		t.Fatal("layout-keyed id not recognized")
+	}
+	if IsLayoutAgent("brick:abc") {
+		t.Fatal("brick id misrecognized as layout")
+	}
+}
+
 // TestRenderConfig_PrismOptional: the prism MCP server is only wired when a
 // binary is configured.
 func TestRenderConfig_PrismOptional(t *testing.T) {
