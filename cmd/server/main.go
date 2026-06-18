@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/frankbardon/lattice/dashboard"
+	"github.com/frankbardon/lattice/pulsemcp"
 	"github.com/frankbardon/lattice/realtime"
 	"github.com/frankbardon/lattice/render"
 	"github.com/frankbardon/lattice/scene"
@@ -32,6 +33,12 @@ const (
 	// triggers an ephemeral random secret (logged loudly) for local dev only.
 	secretEnv = "LATTICE_HMAC_SECRET"
 	addrEnv   = "LATTICE_ADDR"
+	// pulseBinEnv and pulseDataDirEnv configure the Pulse stdio MCP child the
+	// pulse_prism renderer queries for data. When pulseDataDirEnv is unset the
+	// pulse manager is not started and the pulse_prism kind is not registered,
+	// so markdown-only boards run with no Pulse dependency.
+	pulseBinEnv     = "LATTICE_PULSE_BIN"
+	pulseDataDirEnv = "PULSE_DATA_DIR"
 )
 
 func main() {
@@ -97,6 +104,37 @@ func run(logger *slog.Logger) error {
 	registry := render.NewRegistry(render.Options{Logger: logger})
 	if err := registry.Register(render.KindMarkdown, render.NewMarkdown()); err != nil {
 		return err
+	}
+
+	// pulse_prism kind: register only when a Pulse data dir is configured. The
+	// renderer needs the Pulse MCP manager (E2-S1) to fetch data, so the manager
+	// is started here and injected into the renderer at construction (the
+	// Renderer interface signature cannot carry it). The manager is stopped on
+	// shutdown. Absent PULSE_DATA_DIR, markdown boards still serve.
+	if dataDir := os.Getenv(pulseDataDirEnv); dataDir != "" {
+		cfg := pulsemcp.DefaultConfig()
+		cfg.DataDir = dataDir
+		if bin := os.Getenv(pulseBinEnv); bin != "" {
+			cfg.BinaryPath = bin
+		}
+		pulseMgr, err := pulsemcp.NewManager(cfg, pulsemcp.Options{Logger: logger})
+		if err != nil {
+			return err
+		}
+		if err := pulseMgr.Start(ctx); err != nil {
+			return err
+		}
+		defer func() {
+			sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_ = pulseMgr.Stop(sctx)
+		}()
+		if err := registry.Register(render.KindPulsePrism, render.NewPulsePrism(pulseMgr)); err != nil {
+			return err
+		}
+		logger.Info("pulse_prism renderer registered", "data_dir", dataDir, "binary", cfg.BinaryPath)
+	} else {
+		logger.Info("PULSE_DATA_DIR unset; pulse_prism renderer disabled")
 	}
 	renderHook := func(ctx context.Context, dashboardID string, brick dashboard.Brick) {
 		// resolvedVars is empty until the DataResolver lands (E3); plumbed now.

@@ -16,6 +16,16 @@ const (
 	// Internal wraps an unexpected lower-level failure (e.g. a markdown
 	// conversion error).
 	Internal Code = "RENDER_INTERNAL"
+	// InvalidTemplate is returned when a brick template cannot be parsed into
+	// the shape its renderer expects (e.g. a malformed pulse_prism template
+	// envelope, an undecodable Pulse request or Prism spec).
+	InvalidTemplate Code = "RENDER_INVALID_TEMPLATE"
+	// DataSource wraps a failure fetching the data a renderer needs (e.g. the
+	// Pulse MCP call behind a pulse_prism brick failed).
+	DataSource Code = "RENDER_DATA_SOURCE"
+	// Compile wraps a failure turning a spec + data into renderable output
+	// (e.g. a Prism compile or SVG render error).
+	Compile Code = "RENDER_COMPILE"
 )
 
 // Error is a coded render error. Cause is preserved for log/debug.
