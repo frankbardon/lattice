@@ -122,6 +122,33 @@ func TestRenderedDataWireShape(t *testing.T) {
 	}
 }
 
+// TestRenderedDataErrorWireShape pins the render-FAILURE envelope body: on a bad
+// template the client receives {brick_id, code, error} (html omitted) and shows
+// the typed error against the brick. The success path stays {brick_id, html}
+// (asserted by TestRenderedDataWireShape) since code/error are omitempty.
+func TestRenderedDataErrorWireShape(t *testing.T) {
+	raw, err := json.Marshal(RenderedData{BrickID: "b1", Code: "RENDER_INVALID_TEMPLATE", Error: "bad json"})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got["brick_id"] != "b1" {
+		t.Fatalf("brick_id = %v, want b1", got["brick_id"])
+	}
+	if got["code"] != "RENDER_INVALID_TEMPLATE" {
+		t.Fatalf("code = %v, want RENDER_INVALID_TEMPLATE", got["code"])
+	}
+	if got["error"] != "bad json" {
+		t.Fatalf("error = %v, want bad json", got["error"])
+	}
+	if got["html"] != "" {
+		t.Fatalf("html must be empty on error, got %v", got["html"])
+	}
+}
+
 // TestBroadcastRenderedPublishesOnRenderedTopic drives the broker and confirms a
 // rendered fragment publishes without error.
 func TestBroadcastRenderedPublishesOnRenderedTopic(t *testing.T) {

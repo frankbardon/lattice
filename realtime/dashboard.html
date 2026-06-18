@@ -50,8 +50,11 @@
         <span class="badge badge-info" x-text="'viewers: ' + viewers"></span>
       </div>
       <div class="flex-none gap-2">
-        <button class="btn btn-sm btn-primary" @click="addBrick()" :disabled="status !== 'connected'">
-          + Add brick
+        <button class="btn btn-sm btn-primary" @click="addBrick('markdown')" :disabled="status !== 'connected'">
+          + Markdown
+        </button>
+        <button class="btn btn-sm btn-secondary" @click="addBrick('pulse_prism')" :disabled="status !== 'connected'">
+          + Pulse/Prism
         </button>
         <button class="btn btn-sm btn-ghost" @click="showLog = !showLog">
           <span x-text="showLog ? 'Hide log' : 'Show log'"></span>
@@ -65,9 +68,14 @@
         <div class="hero-content text-center">
           <div>
             <p class="text-base-content/60">No bricks yet.</p>
-            <button class="btn btn-primary mt-3" @click="addBrick()" :disabled="status !== 'connected'">
-              Add your first brick
-            </button>
+            <div class="flex gap-2 justify-center mt-3">
+              <button class="btn btn-primary" @click="addBrick('markdown')" :disabled="status !== 'connected'">
+                Add markdown brick
+              </button>
+              <button class="btn btn-secondary" @click="addBrick('pulse_prism')" :disabled="status !== 'connected'">
+                Add pulse_prism brick
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -89,6 +97,7 @@
                 <span class="text-xs text-base-content/50 truncate" x-text="brick.id"></span>
               </div>
               <div class="flex items-center gap-1">
+                <button class="btn btn-xs btn-ghost" title="Edit template" @click="openEditor(brick)">✎</button>
                 <button class="btn btn-xs btn-ghost" title="Move up" @click="moveBrick(brick, 0, -1)">↑</button>
                 <button class="btn btn-xs btn-ghost" title="Move down" @click="moveBrick(brick, 0, 1)">↓</button>
                 <button class="btn btn-xs btn-ghost" title="Narrower" @click="resizeBrick(brick, -1, 0)">－w</button>
@@ -99,14 +108,122 @@
               </div>
             </div>
 
+            <!-- Server render error for this brick (from the `rendered` topic
+                 with an error set). A bad hand-edited template surfaces here
+                 instead of crashing the board; the last good fragment stays put. -->
+            <template x-if="renderErrors[brick.id]">
+              <div class="alert alert-error text-xs p-2 mb-1" role="alert">
+                <div class="min-w-0">
+                  <span class="font-mono opacity-70" x-text="renderErrors[brick.id].code"></span>
+                  <span class="block break-words" x-text="renderErrors[brick.id].message"></span>
+                </div>
+              </div>
+            </template>
+
             <!-- Rendered fragment SLOT. Server-rendered HTML/SVG is injected
                  here via the `rendered` topic. The client NEVER computes brick
-                 content. Until E1-S5 wires renderers, markdown bricks show a
-                 placeholder. -->
+                 content. -->
             <div class="brick-slot flex-1" x-html="fragments[brick.id] || placeholder(brick)"></div>
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- Brick template editor. A DaisyUI modal that edits the targeted brick's
+         template and emits edit_template on save. Generic over brick.kind: a
+         pulse_prism brick gets two JSON textareas (pulse_request + prism_spec)
+         with inline JSON.parse validation; every other kind (markdown today)
+         gets a single plain-text textarea. The server is authoritative — save
+         only emits the intent; the chart/HTML arrives back on the rendered
+         topic, and a bad template comes back as a typed render error shown
+         inline (editor.serverError) without crashing the board. -->
+    <div class="modal" :class="{ 'modal-open': editor.open }" role="dialog">
+      <div class="modal-box max-w-3xl">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-lg">
+            Edit template
+            <span class="badge badge-outline ml-1" x-text="editor.kind"></span>
+          </h3>
+          <span class="text-xs text-base-content/50 font-mono" x-text="editor.brickId"></span>
+        </div>
+
+        <!-- pulse_prism: structured JSON editor (Pulse request + Prism spec) -->
+        <template x-if="editor.kind === 'pulse_prism'">
+          <div class="flex flex-col gap-3">
+            <div>
+              <label class="label py-1">
+                <span class="label-text font-medium">Pulse request (JSON)</span>
+                <span class="label-text-alt text-error" x-text="editor.errors.pulse"></span>
+              </label>
+              <textarea
+                class="textarea textarea-bordered font-mono text-xs w-full h-40"
+                :class="{ 'textarea-error': editor.errors.pulse }"
+                x-model="editor.pulse"
+                @input="validateEditor()"
+                spellcheck="false"
+              ></textarea>
+            </div>
+            <div>
+              <label class="label py-1">
+                <span class="label-text font-medium">Prism spec (JSON)</span>
+                <span class="label-text-alt text-error" x-text="editor.errors.prism"></span>
+              </label>
+              <textarea
+                class="textarea textarea-bordered font-mono text-xs w-full h-40"
+                :class="{ 'textarea-error': editor.errors.prism }"
+                x-model="editor.prism"
+                @input="validateEditor()"
+                spellcheck="false"
+              ></textarea>
+            </div>
+            <div class="text-xs text-base-content/60 leading-relaxed">
+              Tip: aggregated Pulse columns are named
+              <code class="font-mono">AGG_&lt;TYPE&gt;_&lt;field&gt;</code>
+              (e.g. <code class="font-mono">AGG_SUM_amount</code>) unless you set a
+              <code class="font-mono">label</code> on the aggregation — then the column
+              uses that label. Reference those exact names in the Prism spec's
+              <code class="font-mono">encoding</code> fields. The spec's data is
+              replaced with the Pulse result server-side, so any inline data is ignored.
+            </div>
+          </div>
+        </template>
+
+        <!-- everything else (markdown): a plain-text editor, not JSON. -->
+        <template x-if="editor.kind !== 'pulse_prism'">
+          <div>
+            <label class="label py-1">
+              <span class="label-text font-medium" x-text="editor.kind + ' template'"></span>
+            </label>
+            <textarea
+              class="textarea textarea-bordered font-mono text-xs w-full h-64"
+              x-model="editor.text"
+              spellcheck="false"
+            ></textarea>
+          </div>
+        </template>
+
+        <!-- Server-side render error, slotted from the rendered topic after save.
+             The intent itself succeeds (template is just stored); a bad template
+             only fails at render, and that typed error lands here. -->
+        <template x-if="editor.serverError">
+          <div class="alert alert-error mt-3 text-sm" role="alert">
+            <div class="min-w-0">
+              <span class="font-mono opacity-70" x-text="editor.serverError.code"></span>
+              <span class="block break-words" x-text="editor.serverError.message"></span>
+            </div>
+          </div>
+        </template>
+
+        <div class="modal-action">
+          <button class="btn btn-ghost" @click="closeEditor()">Cancel</button>
+          <button
+            class="btn btn-primary"
+            @click="saveEditor()"
+            :disabled="!editorValid()"
+          >Save</button>
+        </div>
+      </div>
+      <div class="modal-backdrop" @click="closeEditor()"></div>
     </div>
 
     <!-- Envelope log (debugging / proof of sync) -->
@@ -136,6 +253,24 @@
         doc: { id: dashboardId, name: "", variables: [], bricks: [] },
         // brickId -> server-rendered HTML/SVG fragment (from `rendered` topic).
         fragments: {},
+        // brickId -> {code, message} when the server failed to render the brick.
+        // A typed render error (e.g. a bad hand-edited template) is shown against
+        // the brick instead of crashing the board; cleared on the next good render.
+        renderErrors: {},
+        // Template editor state. brickId/kind target the brick being edited;
+        // pulse/prism hold the two JSON textareas for pulse_prism; text holds the
+        // plain-text body for every other kind; errors.* are inline JSON.parse
+        // messages; serverError is the typed render error echoed back after save.
+        editor: {
+          open: false,
+          brickId: "",
+          kind: "",
+          pulse: "",
+          prism: "",
+          text: "",
+          errors: { pulse: "", prism: "" },
+          serverError: null,
+        },
         cols: 12,
         viewers: 0,
         status: "connecting",
@@ -238,21 +373,38 @@
               /* mutate */ false,
             );
             this.doc = normalizeDoc(result.newDocument);
-            // Drop fragments for bricks that no longer exist.
+            // Drop fragments + render errors for bricks that no longer exist.
             const ids = new Set(this.doc.bricks.map((b) => b.id));
             for (const id of Object.keys(this.fragments)) {
               if (!ids.has(id)) delete this.fragments[id];
+            }
+            for (const id of Object.keys(this.renderErrors)) {
+              if (!ids.has(id)) delete this.renderErrors[id];
             }
           } catch (e) {
             this.log("patch apply error", { message: e.message, patch });
           }
         },
 
-        // applyRendered slots a server-rendered fragment for a brick. The
-        // payload shape is owned by E1-S5; we accept {brick_id, html} and store
-        // the HTML/SVG verbatim. (Slot wired here; renderers land in E1-S5.)
+        // applyRendered handles a `rendered` envelope for a brick. On success it
+        // slots the {brick_id, html} fragment verbatim and clears any prior error.
+        // On failure the envelope carries {brick_id, code, error}: the brick's
+        // last good fragment is kept, the typed error is shown against the brick,
+        // and — if the editor is open on that brick — surfaced inline in the panel.
         applyRendered(data) {
           if (!data || !data.brick_id) return;
+          if (data.error) {
+            const err = { code: data.code || "", message: data.error };
+            this.renderErrors[data.brick_id] = err;
+            if (this.editor.open && this.editor.brickId === data.brick_id) {
+              this.editor.serverError = err;
+            }
+            return;
+          }
+          delete this.renderErrors[data.brick_id];
+          if (this.editor.open && this.editor.brickId === data.brick_id) {
+            this.editor.serverError = null;
+          }
           this.fragments[data.brick_id] = data.html != null ? data.html : "";
         },
 
@@ -263,8 +415,14 @@
 
         // --- intent emission (client→server over centrifuge RPC) -------------
 
+        // sendIntent submits an intent over RPC and resolves to {ok, code, message}.
+        // The RPC reply is the only place the server reports that an intent itself
+        // was rejected (e.g. unknown brick), so we capture centrifuge's error reply
+        // (code + message) rather than swallowing it. Note: a render failure is NOT
+        // an intent failure — edit_template succeeds, and a bad template comes back
+        // later on the `rendered` topic (see applyRendered).
         async sendIntent(intent) {
-          if (!this.centrifuge) return;
+          if (!this.centrifuge) return { ok: false, message: "not connected" };
           try {
             await this.centrifuge.rpc("intent", {
               dashboard_id: this.dashboardId,
@@ -272,20 +430,31 @@
             });
             // The applied patch is broadcast on the `patches` topic, so the
             // local view updates from the authoritative stream — not here.
+            return { ok: true };
           } catch (e) {
-            this.log("intent error", { intent: intent.type, message: e.message });
+            const code = e && e.code != null ? String(e.code) : "";
+            const message = (e && e.message) || "intent rejected";
+            this.log("intent error", { intent: intent.type, code, message });
+            return { ok: false, code, message };
           }
         },
 
-        addBrick() {
+        // addBrick creates a brick of the given kind, seeded with a small WORKING
+        // example template so the first render is not blank. The kind selects both
+        // the seed template and (later) which editor the panel shows.
+        addBrick(kind) {
+          kind = kind || "markdown";
           const id = "brick-" + Math.random().toString(36).slice(2, 10);
           // New bricks land below the current bottom row (column-flow masonry).
           const maxY = this.doc.bricks.reduce((m, b) => Math.max(m, (b.layout.pos.y || 0)), 0);
+          const size = kind === "pulse_prism"
+            ? { width: 6, height: 8 }
+            : { width: 4, height: 4 };
           const brick = {
             id,
-            kind: "markdown",
-            layout: { pos: { x: 0, y: maxY + 1 }, size: { width: 4, height: 4 } },
-            template: "",
+            kind,
+            layout: { pos: { x: 0, y: maxY + 1 }, size },
+            template: exampleTemplate(kind),
             agent_id: "",
           };
           this.sendIntent({ type: "add_brick", brick_id: id, brick });
@@ -311,6 +480,94 @@
             height: clampMin(brick.layout.size.height + dh, 1),
           };
           this.sendIntent({ type: "resize_brick", brick_id: brick.id, size });
+        },
+
+        // --- template editor -------------------------------------------------
+
+        // openEditor loads a brick's template into the editor. For pulse_prism it
+        // splits the template JSON into its pulse_request / prism_spec halves and
+        // pretty-prints each into its own textarea; any other kind edits the raw
+        // template as plain text. A render error already known for the brick is
+        // pre-loaded so the panel shows why the last save did not render.
+        openEditor(brick) {
+          const ed = this.editor;
+          ed.brickId = brick.id;
+          ed.kind = brick.kind;
+          ed.errors = { pulse: "", prism: "" };
+          ed.serverError = this.renderErrors[brick.id] || null;
+          if (brick.kind === "pulse_prism") {
+            let tmpl = {};
+            try { tmpl = JSON.parse(brick.template || "{}") || {}; } catch (e) { tmpl = {}; }
+            ed.pulse = prettyJSON(tmpl.pulse_request);
+            ed.prism = prettyJSON(tmpl.prism_spec);
+            ed.text = "";
+          } else {
+            ed.text = brick.template || "";
+            ed.pulse = "";
+            ed.prism = "";
+          }
+          ed.open = true;
+          this.validateEditor();
+        },
+
+        closeEditor() {
+          this.editor.open = false;
+        },
+
+        // validateEditor runs client-side JSON.parse on the pulse_prism textareas
+        // and records inline parse errors. Plain-text kinds have nothing to parse.
+        validateEditor() {
+          const ed = this.editor;
+          if (ed.kind !== "pulse_prism") {
+            ed.errors = { pulse: "", prism: "" };
+            return;
+          }
+          ed.errors = {
+            pulse: jsonError(ed.pulse),
+            prism: jsonError(ed.prism),
+          };
+        },
+
+        // editorValid reports whether Save should be enabled: pulse_prism needs
+        // both textareas to parse as JSON; other kinds are always saveable.
+        editorValid() {
+          if (this.editor.kind !== "pulse_prism") return true;
+          return !this.editor.errors.pulse && !this.editor.errors.prism;
+        },
+
+        // saveEditor assembles the new template and emits the edit_template intent.
+        // For pulse_prism it re-wraps the two halves into the {pulse_request,
+        // prism_spec} envelope the renderer expects. It does NOT close on a render
+        // failure: the server re-renders after the intent acks and a bad template
+        // comes back on the `rendered` topic, shown inline via editor.serverError.
+        async saveEditor() {
+          this.validateEditor();
+          if (!this.editorValid()) return;
+          const ed = this.editor;
+          let template;
+          if (ed.kind === "pulse_prism") {
+            template = JSON.stringify({
+              pulse_request: JSON.parse(ed.pulse),
+              prism_spec: JSON.parse(ed.prism),
+            });
+          } else {
+            template = ed.text;
+          }
+          ed.serverError = null;
+          const res = await this.sendIntent({
+            type: "edit_template",
+            brick_id: ed.brickId,
+            template,
+          });
+          if (!res.ok) {
+            // The intent itself was rejected (e.g. brick gone). Surface it inline
+            // and keep the panel open so the edit is not lost.
+            ed.serverError = { code: res.code || "", message: res.message };
+            return;
+          }
+          // Intent accepted. Close the editor; the chart (or a typed render error)
+          // arrives on the `rendered` topic and updates the brick for both browsers.
+          this.closeEditor();
         },
 
         // --- layout / rendering helpers --------------------------------------
@@ -356,6 +613,43 @@
           },
         })),
       };
+    }
+
+    // exampleTemplate returns a small WORKING seed template for a new brick of
+    // the given kind, so the first render is meaningful rather than blank. The
+    // pulse_prism example mirrors render/pulseprism_*_test.go: it sums `amount`
+    // by `region` (labelled `amount`, so the column is `amount` not
+    // AGG_SUM_amount) and plots it as a bar chart. Users edit it via the panel.
+    function exampleTemplate(kind) {
+      if (kind === "pulse_prism") {
+        return JSON.stringify({
+          pulse_request: {
+            cohort: { filename: "sales.pulse" },
+            groups: [{ type: "GROUP_CATEGORY", field: "region" }],
+            aggregations: [{ type: "AGG_SUM", field: "amount", label: "amount" }],
+          },
+          prism_spec: {
+            mark: "bar",
+            encoding: {
+              x: { field: "region", type: "nominal" },
+              y: { field: "amount", type: "quantitative" },
+            },
+          },
+        });
+      }
+      return "# New brick\n\nEdit this markdown.";
+    }
+
+    // prettyJSON renders a value as indented JSON for a textarea, tolerating
+    // undefined (a missing template half) by showing an empty object.
+    function prettyJSON(v) {
+      try { return JSON.stringify(v === undefined ? {} : v, null, 2); } catch (e) { return ""; }
+    }
+
+    // jsonError returns a human-readable parse error for s, or "" if it is valid
+    // JSON. Used for inline editor validation feedback.
+    function jsonError(s) {
+      try { JSON.parse(s); return ""; } catch (e) { return e.message; }
     }
 
     function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }

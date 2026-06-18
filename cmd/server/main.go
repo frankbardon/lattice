@@ -140,7 +140,16 @@ func run(logger *slog.Logger) error {
 		// resolvedVars is empty until the DataResolver lands (E3); plumbed now.
 		html, err := registry.Render(brick.Kind, brick.Template, render.ResolvedVars{})
 		if err != nil {
-			logger.Warn("render brick failed", "dashboard", dashboardID, "brick", brick.ID, "kind", brick.Kind, "code", render.CodeOf(err), "error", err)
+			code := render.CodeOf(err)
+			logger.Warn("render brick failed", "dashboard", dashboardID, "brick", brick.ID, "kind", brick.Kind, "code", code, "error", err)
+			// Surface the typed render error to every subscriber on the rendered
+			// topic. The edit_template intent already acked (it only stores the
+			// template string), so this is the only path the failure reaches the
+			// client; the thin client shows it against the brick / in the editor
+			// panel without crashing the board.
+			if berr := hub.BroadcastRenderError(ctx, dashboardID, brick.ID, string(code), err.Error()); berr != nil {
+				logger.Warn("broadcast render error failed", "dashboard", dashboardID, "brick", brick.ID, "error", berr)
+			}
 			return
 		}
 		if err := hub.BroadcastRendered(ctx, dashboardID, brick.ID, html); err != nil {

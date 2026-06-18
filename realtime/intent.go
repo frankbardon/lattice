@@ -58,15 +58,28 @@ func (h *Hub) BroadcastPatch(ctx context.Context, dashboardID string, patch json
 	return h.Publish(ctx, dashboardID, TopicPatches, patch)
 }
 
-// RenderedData is the body of a TopicRendered envelope: a server-rendered
-// HTML/SVG fragment for one brick. The shape is the client contract — the thin
-// client (realtime/dashboard.html) slots Data.HTML by BrickID — so the field
-// names must not drift from {brick_id, html}.
+// RenderedData is the body of a TopicRendered envelope: the outcome of rendering
+// one brick. The shape is the client contract — the thin client
+// (realtime/dashboard.html) slots Data.HTML by BrickID on success — so the
+// success-path field names must not drift from {brick_id, html}.
+//
+// A render can also FAIL (e.g. a hand-edited pulse_prism template with bad JSON
+// or an unknown column): rendering is decoupled from the edit_template intent
+// (the intent only stores the template string and succeeds), so a render failure
+// has no other path back to the client. When Error is set, Code carries the
+// server's typed render error code and HTML is empty; subscribers surface the
+// error against the brick (and, for the editor, inline in the edit panel) instead
+// of slotting a fragment, so the board never crashes on a bad template. Both
+// fields are omitempty so the success envelope stays exactly {brick_id, html}.
 type RenderedData struct {
-	// BrickID is the brick the fragment belongs to.
+	// BrickID is the brick the outcome belongs to.
 	BrickID string `json:"brick_id"`
 	// HTML is the finished, server-rendered fragment to slot into that brick.
 	HTML string `json:"html"`
+	// Error is the human-readable render error message, set only on failure.
+	Error string `json:"error,omitempty"`
+	// Code is the server's typed render error code (render.Code), set on failure.
+	Code string `json:"code,omitempty"`
 }
 
 // BroadcastRendered publishes a server-rendered brick fragment on the dashboard's
@@ -74,4 +87,14 @@ type RenderedData struct {
 // following a template edit) so every subscriber slots the same fragment.
 func (h *Hub) BroadcastRendered(ctx context.Context, dashboardID, brickID, html string) error {
 	return h.Publish(ctx, dashboardID, TopicRendered, RenderedData{BrickID: brickID, HTML: html})
+}
+
+// BroadcastRenderError publishes a render FAILURE on the dashboard's rendered
+// topic so every subscriber learns the brick's template did not render. It
+// carries the server's typed code and message; the thin client shows it against
+// the brick (and inline in the editor) rather than treating the silence as a
+// blank chart. This is the only path a render error reaches the client, since
+// rendering is decoupled from the (already-acked) edit_template intent.
+func (h *Hub) BroadcastRenderError(ctx context.Context, dashboardID, brickID, code, msg string) error {
+	return h.Publish(ctx, dashboardID, TopicRendered, RenderedData{BrickID: brickID, Code: code, Error: msg})
 }
