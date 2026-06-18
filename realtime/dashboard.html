@@ -50,6 +50,13 @@
         <span class="badge badge-info" x-text="'viewers: ' + viewers"></span>
       </div>
       <div class="flex-none gap-2">
+        <!-- Board-level AI chat (E5-S2). DISTINCT from the per-brick "✨" panels:
+             this drives the board's LAYOUT coordinator agent (board_chat RPC),
+             which arranges/creates bricks board-wide and delegates each new
+             brick's content to its own agent. One board-wide conversation. -->
+        <button class="btn btn-sm btn-accent" @click="openBoardChat()" :disabled="status !== 'connected'">
+          ✨ AI board
+        </button>
         <button class="btn btn-sm btn-primary" @click="addBrick('markdown')" :disabled="status !== 'connected'">
           + Markdown
         </button>
@@ -433,6 +440,111 @@
       <div class="modal-backdrop" @click="closeChat()"></div>
     </div>
 
+    <!-- Board-level AI chat panel (E5-S2). DISTINCT from the per-brick panel
+         above: one board-wide conversation that drives the LAYOUT coordinator
+         agent via the board_chat RPC (E5-S1). Each message routes to the layout
+         agent, which applies server-authoritative scene intents (add/move/resize/
+         delete bricks) and delegates each created brick's content to that brick's
+         own agent. The board itself updates LIVE for every viewer through the
+         existing `patches` (bricks appear/move) and `rendered` (bricks fill in)
+         apply loops — this panel does NOT touch the board; it only sends the
+         message and reflects the layout agent's progress. The server surfaces
+         only a FINAL reply (the applied patches + created/delegated bricks; no
+         incremental token / tool-call stream), so the panel uses the same
+         working…→confirmation pattern as the per-brick panel: a generic
+         "working…" state, then a summary of what the layout agent did (bricks
+         created and delegated, any per-brick delegation errors) or a typed
+         error. The conversation is board-wide (one history). -->
+    <div class="modal" :class="{ 'modal-open': boardChat.open }" role="dialog">
+      <div class="modal-box max-w-2xl flex flex-col" style="max-height: 85vh;">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-lg">
+            AI board
+            <span class="badge badge-accent badge-outline ml-1">layout</span>
+          </h3>
+          <span class="text-xs text-base-content/50 font-mono" x-text="dashboardId"></span>
+        </div>
+
+        <p class="text-xs text-base-content/60 mb-2 leading-relaxed">
+          Describe the dashboard you want. The layout agent arranges the board
+          and delegates each brick to its own builder agent; bricks appear and
+          fill in live for everyone.
+        </p>
+
+        <!-- Conversation transcript (DaisyUI chat bubbles). user → chat-end;
+             agent/system → chat-start. -->
+        <div class="flex-1 overflow-y-auto bg-base-200 rounded-box p-3 mb-2 min-h-32" x-ref="boardChatLog">
+          <template x-if="boardChat.messages.length === 0">
+            <p class="text-base-content/40 text-sm italic text-center py-6">
+              No messages yet. Ask the layout agent to build your board.
+            </p>
+          </template>
+          <template x-for="(m, i) in boardChat.messages" :key="i">
+            <div class="chat" :class="m.role === 'user' ? 'chat-end' : 'chat-start'">
+              <div
+                class="chat-bubble text-sm whitespace-pre-wrap break-words"
+                :class="m.role === 'user' ? 'chat-bubble-primary'
+                  : (m.role === 'error' ? 'chat-bubble-error' : 'chat-bubble-accent')"
+                x-text="m.text"
+              ></div>
+              <!-- Per-turn detail: the bricks the layout agent created and
+                   delegated (and any delegation errors), from the board_chat
+                   reply's `created` list. The bricks themselves arrive on the
+                   patches/rendered topics; this is just a receipt. -->
+              <template x-if="m.created && m.created.length">
+                <div class="chat-footer opacity-70 mt-1 w-full">
+                  <span class="text-xs">Bricks created &amp; delegated:</span>
+                  <ul class="text-xs mt-1 space-y-0.5">
+                    <template x-for="(b, j) in m.created" :key="j">
+                      <li>
+                        <code class="font-mono" x-text="b.brick_id"></code>
+                        <span x-show="b.prompt" class="text-base-content/60" x-text="' — ' + (b.prompt || '')"></span>
+                        <span x-show="b.delegate_error" class="text-error" x-text="' (delegation failed: ' + (b.delegate_error || '') + ')'"></span>
+                      </li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- In-flight "thinking" indicator. The server exposes no incremental
+               agent io, so this is a single generic working state until the RPC
+               reply lands (the layout agent may take a while: it plans, applies
+               scene intents, and delegates each brick). -->
+          <template x-if="boardChat.pending">
+            <div class="chat chat-start">
+              <div class="chat-bubble chat-bubble-accent text-sm flex items-center gap-2">
+                <span class="loading loading-dots loading-sm"></span>
+                <span>working…</span>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Composer -->
+        <form class="flex items-end gap-2" @submit.prevent="sendBoardChat()">
+          <textarea
+            class="textarea textarea-bordered flex-1 text-sm h-16"
+            x-model="boardChat.draft"
+            placeholder="e.g. build a sales dashboard: revenue by region, top products, and monthly trend"
+            :disabled="boardChat.pending || status !== 'connected'"
+            @keydown.enter.prevent="sendBoardChat()"
+          ></textarea>
+          <button
+            class="btn btn-accent"
+            type="submit"
+            :disabled="boardChat.pending || status !== 'connected' || !boardChat.draft.trim()"
+          >Send</button>
+        </form>
+
+        <div class="modal-action mt-2">
+          <button class="btn btn-ghost btn-sm" @click="closeBoardChat()">Close</button>
+        </div>
+      </div>
+      <div class="modal-backdrop" @click="closeBoardChat()"></div>
+    </div>
+
     <!-- Envelope log (debugging / proof of sync) -->
     <div class="mt-6" x-show="showLog">
       <h2 class="text-sm font-semibold mb-2">Envelope log</h2>
@@ -484,6 +596,11 @@
         // brick the modal targets and the current composer draft.
         chats: {},
         chat: { open: false, brickId: "", draft: "" },
+        // Board-level AI chat (E5-S2). ONE board-wide conversation that drives
+        // the layout coordinator agent via board_chat — distinct from the
+        // per-brick `chats` above. messages is the transcript; pending is the
+        // single working-state flag (the server returns a final reply only).
+        boardChat: { open: false, draft: "", pending: false, messages: [] },
         cols: 12,
         viewers: 0,
         status: "connecting",
@@ -960,6 +1077,95 @@
             const code = e && e.code != null ? String(e.code) : "";
             const message = (e && e.message) || "brick_chat rejected";
             this.log("brick_chat error", { brickId, code, message });
+            return { ok: false, code, message };
+          }
+        },
+
+        // --- AI board chat (layout coordinator) ------------------------------
+
+        // openBoardChat opens the board-wide AI panel. Unlike the per-brick
+        // panel it is not scoped to a brick — it drives the layout coordinator
+        // agent for the whole dashboard, so there is a single conversation.
+        openBoardChat() {
+          this.boardChat.open = true;
+          this.boardChat.draft = "";
+          this.$nextTick(() => this.scrollBoardChat());
+        },
+
+        closeBoardChat() {
+          this.boardChat.open = false;
+        },
+
+        scrollBoardChat() {
+          const el = this.$refs.boardChatLog;
+          if (el) el.scrollTop = el.scrollHeight;
+        },
+
+        // sendBoardChat routes the composer text to the layout coordinator agent
+        // over the board_chat RPC (E5-S1). The server plans the layout, applies
+        // each action as a server-authoritative scene intent, and delegates each
+        // created brick to its own agent; the board itself converges for every
+        // viewer via the `patches` (bricks appear/move) and `rendered` (bricks
+        // fill in) topics handled by applyPatch/applyRendered — NOT here. The
+        // server surfaces only a final reply (the applied patches + created
+        // bricks, no token stream), so the UI shows one generic "working…"
+        // state, then a confirmation summarizing what the layout agent did, or a
+        // typed error.
+        async sendBoardChat() {
+          const text = this.boardChat.draft.trim();
+          if (!text || this.boardChat.pending) return;
+
+          this.boardChat.messages.push({ role: "user", text });
+          this.boardChat.draft = "";
+          this.boardChat.pending = true;
+          this.$nextTick(() => this.scrollBoardChat());
+
+          const res = await this.boardChatRPC(text);
+          this.boardChat.pending = false;
+
+          if (res.ok) {
+            const created = res.created || [];
+            const n = created.length;
+            const patched = (res.patches || []).length;
+            let summary;
+            if (n > 0) {
+              summary = "Arranged the board and delegated "
+                + n + (n === 1 ? " brick" : " bricks")
+                + " to their builder agents. They will fill in live.";
+            } else if (patched > 0) {
+              summary = "Updated the board layout.";
+            } else {
+              summary = "Done. No layout changes were needed.";
+            }
+            this.boardChat.messages.push({ role: "agent", text: summary, created });
+          } else {
+            this.boardChat.messages.push({
+              role: "error",
+              text: (res.code ? res.code + ": " : "") + (res.message || "the layout agent failed"),
+            });
+          }
+          this.$nextTick(() => this.scrollBoardChat());
+        },
+
+        // boardChatRPC performs the board_chat RPC and resolves to
+        // {ok, patches?, created?, code?, message?}. The reply shape mirrors the
+        // server's BoardChatResult ({patches, created:[{brick_id, agent_id,
+        // prompt, delegate_error}]}). A rejection comes back as a centrifuge
+        // error reply; we capture its code + message so the panel can show it
+        // without crashing the board.
+        async boardChatRPC(message) {
+          if (!this.centrifuge) return { ok: false, message: "not connected" };
+          try {
+            const reply = await this.centrifuge.rpc("board_chat", {
+              dashboard_id: this.dashboardId,
+              message,
+            });
+            const data = (reply && reply.data) || {};
+            return { ok: true, patches: data.patches || [], created: data.created || [] };
+          } catch (e) {
+            const code = e && e.code != null ? String(e.code) : "";
+            const message = (e && e.message) || "board_chat rejected";
+            this.log("board_chat error", { code, message });
             return { ok: false, code, message };
           }
         },
