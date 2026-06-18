@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/frankbardon/lattice/agenthub"
+	"github.com/frankbardon/lattice/brickagent"
 	"github.com/frankbardon/lattice/dashboard"
 	"github.com/frankbardon/lattice/pulsemcp"
 	"github.com/frankbardon/lattice/realtime"
@@ -74,6 +76,25 @@ func run(logger *slog.Logger) error {
 		return realtime.IntentResult{Patch: patch}, nil
 	}
 
+	// The brick build loop (E4-S2) drives a brick's AI builder agent from a chat
+	// message and applies the emitted parameterized template as an edit_template
+	// intent. The Builder needs the scene Manager (which needs the hub), so — like
+	// the intent handler — the brick_chat handler dispatches through a holder bound
+	// once both exist. It stays nil (RPC rejected) when no agent hub is wired
+	// (no Pulse configured, see below), since the brick agent reaches data via the
+	// Pulse MCP child.
+	var builder *brickagent.Builder
+	brickChatHandler := func(ctx context.Context, dashboardID, brickID, message string) (realtime.BrickChatResult, error) {
+		if builder == nil {
+			return realtime.BrickChatResult{}, errors.New("brick agent not available: PULSE_DATA_DIR is not configured")
+		}
+		res, err := builder.Build(ctx, dashboardID, brickID, message)
+		if err != nil {
+			return realtime.BrickChatResult{}, err
+		}
+		return realtime.BrickChatResult{Patch: res.Patch, Template: res.Template}, nil
+	}
+
 	// docProvider backs the thin client's initial-snapshot read endpoint. A
 	// dashboard the client opens for the first time is seeded as an empty board
 	// (v1 has no separate create flow yet); the scene Manager then owns it as
@@ -90,9 +111,10 @@ func run(logger *slog.Logger) error {
 	}
 
 	hub, err := realtime.NewHub(secret, realtime.Options{
-		Logger:        logger,
-		IntentHandler: intentHandler,
-		DocProvider:   docProvider,
+		Logger:           logger,
+		IntentHandler:    intentHandler,
+		DocProvider:      docProvider,
+		BrickChatHandler: brickChatHandler,
 	})
 	if err != nil {
 		return err
@@ -106,6 +128,11 @@ func run(logger *slog.Logger) error {
 	if err := registry.Register(render.KindMarkdown, render.NewMarkdown()); err != nil {
 		return err
 	}
+
+	// agentHub is the brick AI builder engine pool; it is wired only when Pulse
+	// is configured (the agent fetches data via the Pulse MCP child). Left nil
+	// otherwise, leaving the brick_chat RPC to report the agent unavailable.
+	var agentHub *agenthub.Hub
 
 	// pulse_prism kind: register only when a Pulse data dir is configured. The
 	// renderer needs the Pulse MCP manager (E2-S1) to fetch data, so the manager
@@ -134,8 +161,26 @@ func run(logger *slog.Logger) error {
 			return err
 		}
 		logger.Info("pulse_prism renderer registered", "data_dir", dataDir, "binary", cfg.BinaryPath)
+
+		// Brick AI builder (E4-S2): one agenthub.Hub per process boots a Nexus
+		// builder engine per brick (keyed by agent_id) lazily on first chat. The
+		// agent reaches data through the SAME pulse binary + data dir the renderer
+		// uses (so it reasons over the cohorts the board renders), and is forced to
+		// emit a parameterized {pulse_request, prism_spec} template via the
+		// json_schema gate (brickagent.TemplateSchema). The Builder (constructed
+		// after the scene Manager exists) routes brick_chat RPCs through it.
+		ahCfg := agenthub.DefaultConfig()
+		ahCfg.PulseBinaryPath = cfg.BinaryPath
+		ahCfg.PulseDataDir = dataDir
+		ahCfg.OutputSchema = brickagent.TemplateSchema
+		agentHub, err = agenthub.NewHub(ahCfg, agenthub.Options{Logger: logger})
+		if err != nil {
+			return err
+		}
+		defer func() { _ = agentHub.Close() }()
+		logger.Info("brick agent hub started", "data_dir", dataDir, "binary", ahCfg.PulseBinaryPath)
 	} else {
-		logger.Info("PULSE_DATA_DIR unset; pulse_prism renderer disabled")
+		logger.Info("PULSE_DATA_DIR unset; pulse_prism renderer + brick agent disabled")
 	}
 	renderHook := func(ctx context.Context, dashboardID string, brick dashboard.Brick, vars []dashboard.Variable) {
 		// Server-side variable resolution (E3-S2): substitute the brick's ${var}
@@ -167,6 +212,17 @@ func run(logger *slog.Logger) error {
 	mgr, err = scene.NewManager(st, hub, scene.Options{Logger: logger, RenderHook: renderHook})
 	if err != nil {
 		return err
+	}
+
+	// Now that the scene Manager exists, bind the brick build loop. The Builder
+	// drives the agent hub (per-brick engines) and applies emitted templates
+	// through mgr (the authoritative scene path: snapshot + broadcast + render
+	// hook). Only when an agent hub was wired (Pulse configured).
+	if agentHub != nil {
+		builder, err = brickagent.NewBuilder(agentHub, brickagent.SceneManagerStore{Manager: mgr}, brickagent.Options{Logger: logger})
+		if err != nil {
+			return err
+		}
 	}
 
 	runErr := make(chan error, 1)

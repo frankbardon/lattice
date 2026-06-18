@@ -13,6 +13,15 @@ import (
 // client learns the outcome (applied patch or rejection) from the RPC reply.
 const intentMethod = "intent"
 
+// brickChatMethod is the RPC method clients call to drive a brick's AI builder
+// agent with a chat message (E4-S2). The server routes it to the brick build
+// loop, which drives the agent, validates the emitted parameterized template,
+// and applies it as an edit_template intent through the scene engine — so the
+// rendered fragment reaches every viewer via the normal rendered topic, and the
+// RPC reply is the applied patch (an ack for the requesting client). E4-S3 (the
+// chat UI) calls this method.
+const brickChatMethod = "brick_chat"
+
 // IntentRequest is the RPC payload a client sends to mutate a dashboard. The
 // dashboard id is explicit so the server can route the intent to the right
 // authoritative document; Intent is the opaque intent body (decoded by the
@@ -22,13 +31,51 @@ type IntentRequest struct {
 	Intent      json.RawMessage `json:"intent"`
 }
 
-// handleRPC dispatches an inbound client RPC. Only the intent method is
-// supported; anything else is rejected so the surface stays small and the
-// server remains the sole authority over board state.
+// BrickChatRequest is the RPC payload a client sends to drive a brick's AI
+// builder agent. DashboardID + BrickID target the brick (the server resolves
+// its agent_id authoritatively); Message is the user's chat input. The brick's
+// agent_id is intentionally NOT on the wire — the client never picks which
+// engine runs; the server reads it from the brick.
+type BrickChatRequest struct {
+	DashboardID string `json:"dashboard_id"`
+	BrickID     string `json:"brick_id"`
+	Message     string `json:"message"`
+}
+
+// BrickChatResult is the RPC reply for a brick_chat call: the applied RFC6902
+// patch (the edit_template the agent's template produced) and the canonical
+// template that was applied. The rendered SVG fragment reaches every viewer over
+// the rendered topic (via the scene RenderHook), not in this reply.
+type BrickChatResult struct {
+	Patch    json.RawMessage `json:"patch,omitempty"`
+	Template string          `json:"template,omitempty"`
+}
+
+// BrickChatHandler runs the brick build loop for one chat message: it drives the
+// brick's agent, validates the emitted parameterized template, and applies it as
+// an edit_template intent (server-authoritative). It is satisfied by the
+// brickagent Builder (bound in cmd/server). dashboardID + brickID target the
+// brick; message is the chat input; it returns the applied patch + canonical
+// template, or a coded error on rejection.
+type BrickChatHandler func(ctx context.Context, dashboardID, brickID, message string) (BrickChatResult, error)
+
+// handleRPC dispatches an inbound client RPC. Two methods are supported — intent
+// (board mutations) and brick_chat (drive a brick's AI builder) — and anything
+// else is rejected so the surface stays small and the server remains the sole
+// authority over board state.
 func (h *Hub) handleRPC(ctx context.Context, _ string, event centrifuge.RPCEvent) ([]byte, error) {
-	if event.Method != intentMethod {
+	switch event.Method {
+	case intentMethod:
+		return h.handleIntentRPC(ctx, event)
+	case brickChatMethod:
+		return h.handleBrickChatRPC(ctx, event)
+	default:
 		return nil, newError(InvalidArgument, "unknown rpc method")
 	}
+}
+
+// handleIntentRPC applies a board-mutation intent.
+func (h *Hub) handleIntentRPC(ctx context.Context, event centrifuge.RPCEvent) ([]byte, error) {
 	if h.onIntent == nil {
 		return nil, newError(Internal, "intent handling not configured")
 	}
@@ -46,6 +93,35 @@ func (h *Hub) handleRPC(ctx context.Context, _ string, event centrifuge.RPCEvent
 	body, err := json.Marshal(res)
 	if err != nil {
 		return nil, wrapError(Internal, "marshal intent result", err)
+	}
+	return body, nil
+}
+
+// handleBrickChatRPC routes a chat message to the brick build loop.
+func (h *Hub) handleBrickChatRPC(ctx context.Context, event centrifuge.RPCEvent) ([]byte, error) {
+	if h.onBrickChat == nil {
+		return nil, newError(Internal, "brick chat handling not configured")
+	}
+	var req BrickChatRequest
+	if err := json.Unmarshal(event.Data, &req); err != nil {
+		return nil, newError(InvalidArgument, "malformed brick_chat request")
+	}
+	if req.DashboardID == "" {
+		return nil, newError(InvalidArgument, "brick_chat requires a dashboard_id")
+	}
+	if req.BrickID == "" {
+		return nil, newError(InvalidArgument, "brick_chat requires a brick_id")
+	}
+	if req.Message == "" {
+		return nil, newError(InvalidArgument, "brick_chat requires a message")
+	}
+	res, err := h.onBrickChat(ctx, req.DashboardID, req.BrickID, req.Message)
+	if err != nil {
+		return nil, err
+	}
+	body, err := json.Marshal(res)
+	if err != nil {
+		return nil, wrapError(Internal, "marshal brick_chat result", err)
 	}
 	return body, nil
 }

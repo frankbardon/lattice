@@ -101,17 +101,22 @@ type Options struct {
 	// DocProvider, when set, backs the GET /dashboards/{id}/doc read endpoint
 	// the thin client calls for its initial snapshot. Leave nil to disable it.
 	DocProvider DocProvider
+	// BrickChatHandler, when set, receives brick_chat RPCs (drive a brick's AI
+	// builder agent with a chat message). Leave nil to disable the build loop;
+	// the RPC method is then rejected.
+	BrickChatHandler BrickChatHandler
 }
 
 // Hub is the realtime façade for lattice. It embeds a Parsec instance, tracks
 // per-dashboard viewer counts, and mints scoped subscribe tokens. Construct
 // with NewHub and start the underlying broker with Run.
 type Hub struct {
-	parsec   *parsec.Parsec
-	verifier *auth.Verifier
-	logger   *slog.Logger
-	onIntent IntentHandler
-	docOf    DocProvider
+	parsec      *parsec.Parsec
+	verifier    *auth.Verifier
+	logger      *slog.Logger
+	onIntent    IntentHandler
+	onBrickChat BrickChatHandler
+	docOf       DocProvider
 
 	mu      sync.Mutex
 	viewers map[string]int // channel name -> live subscriber count
@@ -143,11 +148,12 @@ func NewHub(secret []byte, opts Options) (*Hub, error) {
 	}
 
 	h := &Hub{
-		verifier: verifier,
-		logger:   logger,
-		onIntent: opts.IntentHandler,
-		docOf:    opts.DocProvider,
-		viewers:  make(map[string]int),
+		verifier:    verifier,
+		logger:      logger,
+		onIntent:    opts.IntentHandler,
+		onBrickChat: opts.BrickChatHandler,
+		docOf:       opts.DocProvider,
+		viewers:     make(map[string]int),
 	}
 
 	p, err := parsec.New(parsec.Options{
@@ -296,7 +302,7 @@ func brokerOptions(h *Hub) brokerOpts {
 		SubscribeAuthorizer: newSubscribeAuthorizer(h),
 		OnSubscriberChange:  h.onSubscriberChange,
 	}
-	if h.onIntent != nil {
+	if h.onIntent != nil || h.onBrickChat != nil {
 		opts.OnClientRPC = h.handleRPC
 	}
 	return opts
