@@ -1,0 +1,28 @@
+# Example pulsemcp configuration.
+#
+# Loaded via pulsemcp.LoadConfig(path). Any string value may reference an
+# environment variable with ${VAR}; unset variables interpolate to empty.
+#
+# Pulse is spawned as a stdio MCP child process: `pulse mcp --data-dir <data_dir>`
+# (PULSE_DATA_DIR is also exported to the child).
+
+# Path to the pulse binary. Use ${PULSE_BIN} to inject it from the environment,
+# or a bare "pulse" to resolve it from PATH. Never hardcode a machine-specific
+# absolute path in committed config.
+binary_path: ${PULSE_BIN}
+
+# Directory holding .pulse cohort files (passed as --data-dir / PULSE_DATA_DIR).
+data_dir: ${PULSE_DATA_DIR}
+
+# Optional extra args appended after `mcp --data-dir <dir>`.
+# extra_args:
+#   - --bind-on-open=false
+
+# Optional extra KEY=VALUE env exported to the child (on top of PULSE_DATA_DIR).
+# extra_env:
+#   - PULSE_LOG=debug
+
+# Optional timeouts / supervision tuning (Go duration strings).
+# call_timeout: 15s      # per tool-call bound (0 = rely on caller context)
+# start_timeout: 30s     # spawn + MCP handshake bound (default 30s)
+# restart_backoff: 1s    # delay before respawn on crash (default 1s; <0 disables restart)
