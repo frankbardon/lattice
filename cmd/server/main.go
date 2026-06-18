@@ -8,6 +8,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/frankbardon/lattice/realtime"
+	"github.com/frankbardon/lattice/scene"
 	"github.com/frankbardon/lattice/store"
 )
 
@@ -49,7 +51,25 @@ func run(logger *slog.Logger) error {
 	defer func() { _ = st.Close() }()
 
 	secret := hmacSecret(logger)
-	hub, err := realtime.NewHub(secret, realtime.Options{Logger: logger})
+
+	// The hub needs an intent handler at construction, but the scene manager
+	// needs the hub as its broadcaster — break the cycle with a holder the hub
+	// dispatches through and that is bound to the manager once both exist.
+	var mgr *scene.Manager
+	intentHandler := func(ctx context.Context, dashboardID string, raw json.RawMessage) (realtime.IntentResult, error) {
+		patch, err := mgr.HandleIntent(ctx, dashboardID, raw)
+		if err != nil {
+			return realtime.IntentResult{}, err
+		}
+		return realtime.IntentResult{Patch: patch}, nil
+	}
+
+	hub, err := realtime.NewHub(secret, realtime.Options{Logger: logger, IntentHandler: intentHandler})
+	if err != nil {
+		return err
+	}
+
+	mgr, err = scene.NewManager(st, hub, scene.Options{Logger: logger})
 	if err != nil {
 		return err
 	}

@@ -69,10 +69,28 @@ type PresenceData struct {
 	Viewers int `json:"viewers"`
 }
 
+// IntentResult is what an IntentHandler returns: the applied RFC6902 patch
+// (echoed back to the originating client as the RPC ack). The patch is also
+// broadcast to all subscribers by the handler itself via the Hub.
+type IntentResult struct {
+	// Patch is the canonical RFC6902 patch that was applied, or nil on failure.
+	Patch json.RawMessage `json:"patch,omitempty"`
+}
+
+// IntentHandler processes one inbound client intent against the server's
+// authoritative state. dashboardID identifies the target board; raw is the
+// intent's JSON body. The handler applies it (server-authoritative), persists,
+// and broadcasts the patch; it returns the applied patch for the client ack, or
+// an error if the intent/patch was rejected.
+type IntentHandler func(ctx context.Context, dashboardID string, raw json.RawMessage) (IntentResult, error)
+
 // Options configures a Hub.
 type Options struct {
 	// Logger receives hub events. Defaults to slog.Default().
 	Logger *slog.Logger
+	// IntentHandler, when set, receives client intents sent over the RPC
+	// channel (method "intent"). Leave nil to disable inbound intents.
+	IntentHandler IntentHandler
 }
 
 // Hub is the realtime façade for lattice. It embeds a Parsec instance, tracks
@@ -82,6 +100,7 @@ type Hub struct {
 	parsec   *parsec.Parsec
 	verifier *auth.Verifier
 	logger   *slog.Logger
+	onIntent IntentHandler
 
 	mu      sync.Mutex
 	viewers map[string]int // channel name -> live subscriber count
@@ -115,6 +134,7 @@ func NewHub(secret []byte, opts Options) (*Hub, error) {
 	h := &Hub{
 		verifier: verifier,
 		logger:   logger,
+		onIntent: opts.IntentHandler,
 		viewers:  make(map[string]int),
 	}
 
@@ -260,8 +280,12 @@ func (h *Hub) onSubscriberChange(ch channels.Name, delta int) {
 // that gates dashboard channels on a token scoping them, plus the
 // subscriber-change hook that drives presence.
 func brokerOptions(h *Hub) brokerOpts {
-	return brokerOpts{
+	opts := brokerOpts{
 		SubscribeAuthorizer: newSubscribeAuthorizer(h),
 		OnSubscriberChange:  h.onSubscriberChange,
 	}
+	if h.onIntent != nil {
+		opts.OnClientRPC = h.handleRPC
+	}
+	return opts
 }

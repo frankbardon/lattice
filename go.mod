@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	github.com/centrifugal/centrifuge v0.38.0
+	github.com/evanphx/json-patch/v5 v5.9.11
 	github.com/frankbardon/parsec v0.3.1
 	modernc.org/sqlite v1.52.0
 )
