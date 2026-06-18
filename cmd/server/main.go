@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/frankbardon/lattice/dashboard"
 	"github.com/frankbardon/lattice/realtime"
 	"github.com/frankbardon/lattice/scene"
 	"github.com/frankbardon/lattice/store"
@@ -64,7 +65,26 @@ func run(logger *slog.Logger) error {
 		return realtime.IntentResult{Patch: patch}, nil
 	}
 
-	hub, err := realtime.NewHub(secret, realtime.Options{Logger: logger, IntentHandler: intentHandler})
+	// docProvider backs the thin client's initial-snapshot read endpoint. A
+	// dashboard the client opens for the first time is seeded as an empty board
+	// (v1 has no separate create flow yet); the scene Manager then owns it as
+	// the authoritative document and the client converges via the patch stream.
+	docProvider := func(ctx context.Context, dashboardID string) (json.RawMessage, error) {
+		if err := ensureDashboard(ctx, st, dashboardID, logger); err != nil {
+			return nil, err
+		}
+		d, err := mgr.Doc(ctx, dashboardID)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(d.Snapshot())
+	}
+
+	hub, err := realtime.NewHub(secret, realtime.Options{
+		Logger:        logger,
+		IntentHandler: intentHandler,
+		DocProvider:   docProvider,
+	})
 	if err != nil {
 		return err
 	}
@@ -113,6 +133,33 @@ func run(logger *slog.Logger) error {
 	if err := <-runErr; err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
+	return nil
+}
+
+// ensureDashboard guarantees a dashboard document exists for id, seeding an
+// empty board the first time one is opened. v1 has no separate create flow, so
+// opening a board link is what brings it into being. Create races (two clients
+// opening the same fresh board) collapse harmlessly: a store Exists result is
+// not an error here.
+func ensureDashboard(ctx context.Context, st store.Store, id string, logger *slog.Logger) error {
+	if _, err := st.Load(ctx, id); err == nil {
+		return nil
+	} else if store.CodeOf(err) != store.NotFound {
+		return err
+	}
+	doc := &dashboard.Dashboard{
+		ID:        id,
+		Name:      "",
+		Variables: []dashboard.Variable{},
+		Bricks:    []dashboard.Brick{},
+	}
+	if err := st.Create(ctx, doc); err != nil {
+		if store.CodeOf(err) == store.Exists {
+			return nil
+		}
+		return err
+	}
+	logger.Info("seeded empty dashboard", "id", id)
 	return nil
 }
 

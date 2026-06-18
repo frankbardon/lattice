@@ -1,131 +1,375 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="lattice">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>lattice dashboard {{DASHBOARD_ID}}</title>
-  <style>
-    :root { color-scheme: light dark; }
-    body {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.45;
-    }
-    h1 { margin: 0 0 .25rem; font-size: 1.1rem; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .8rem; }
-    .status { background: #eee; color: #222; }
-    .status.connected { background: #2c8a3e; color: #fff; }
-    .status.error { background: #c33; color: #fff; }
-    .viewers { background: #2563eb; color: #fff; margin-left: .5rem; }
-    .channel { background: #f4f4f4; color: #222; margin-left: .5rem; }
-    #log { list-style: none; padding: 0; margin: 1rem 0 0; max-height: 60vh;
-      overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; }
-    #log li { padding: .5rem .75rem; border-bottom: 1px solid #eee; font-size: .85rem; }
-    #log li:last-child { border-bottom: none; }
-    .ts { color: #666; }
-    .body { display: block; margin-top: .25rem; word-break: break-all; }
-    @media (prefers-color-scheme: dark) {
-      .channel { background: #1a1a1a; color: #ddd; }
-      #log { border-color: #333; } #log li { border-bottom-color: #222; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>lattice dashboard
-      <span id="status" class="pill status">connecting…</span>
-      <span id="viewers" class="pill viewers">viewers: …</span>
-      <span id="channel" class="pill channel"></span>
-    </h1>
-    <p>v1 is anonymous — the link is the access grant. This thin client mints a
-       scoped subscribe token, connects via centrifuge-js, logs every envelope,
-       and shows the live viewer count. Open this URL in a second browser to see
-       the count rise.</p>
-  </header>
 
-  <ul id="log"></ul>
-
+  <!-- v1: pull the frontend stack from CDN (Tailwind+DaisyUI, AlpineJS,
+       centrifuge-js). Noted in FOLLOWUPS as a vendoring candidate. -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" type="text/css" />
   <script src="https://unpkg.com/centrifuge@5.4.0/dist/centrifuge.js"></script>
   <script>
+    // fast-json-patch (RFC6902) — apply patches broadcast by the server to the
+    // local view document. The thin client never computes board state itself;
+    // it only replays the authoritative patch stream.
+    window.LATTICE_JSONPATCH_SRC = "https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/dist/fast-json-patch.min.js";
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/fast-json-patch@3.1.1/dist/fast-json-patch.min.js"></script>
+
+  <style>
+    /* The board is a fixed-column masonry grid. Bricks flow into columns; a
+       brick's layout.size.width spans grid columns and layout.size.height sets
+       a row span unit. layout.pos.y drives ordering (column-flow masonry), and
+       layout.pos.x is advisory in v1 (see FOLLOWUPS). */
+    [x-cloak] { display: none !important; }
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(var(--cols, 12), minmax(0, 1fr));
+      grid-auto-rows: 40px;
+      grid-auto-flow: row dense;
+      gap: 0.75rem;
+    }
+    .brick-slot { overflow: auto; }
+    .brick-slot svg { max-width: 100%; height: auto; }
+  </style>
+</head>
+<body class="bg-base-200 min-h-screen">
+  <div
+    x-data="board()"
+    x-init="init()"
+    x-cloak
+    class="max-w-screen-2xl mx-auto p-4"
+  >
+    <!-- Header / toolbar -->
+    <header class="navbar bg-base-100 rounded-box shadow mb-4 px-4">
+      <div class="flex-1 gap-2 items-center">
+        <h1 class="text-lg font-semibold" x-text="doc.name || ('board ' + dashboardId)"></h1>
+        <span class="badge" :class="statusClass" x-text="status"></span>
+        <span class="badge badge-info" x-text="'viewers: ' + viewers"></span>
+      </div>
+      <div class="flex-none gap-2">
+        <button class="btn btn-sm btn-primary" @click="addBrick()" :disabled="status !== 'connected'">
+          + Add brick
+        </button>
+        <button class="btn btn-sm btn-ghost" @click="showLog = !showLog">
+          <span x-text="showLog ? 'Hide log' : 'Show log'"></span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Empty state -->
+    <template x-if="doc.bricks.length === 0">
+      <div class="hero bg-base-100 rounded-box py-16">
+        <div class="hero-content text-center">
+          <div>
+            <p class="text-base-content/60">No bricks yet.</p>
+            <button class="btn btn-primary mt-3" @click="addBrick()" :disabled="status !== 'connected'">
+              Add your first brick
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Masonry board -->
+    <div class="board-grid" :style="`--cols: ${cols}`">
+      <template x-for="brick in orderedBricks()" :key="brick.id">
+        <div
+          class="card bg-base-100 shadow border border-base-300"
+          :style="brickStyle(brick)"
+          :data-brick-id="brick.id"
+        >
+          <div class="card-body p-3 gap-2">
+            <!-- Brick chrome / controls -->
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="badge badge-sm badge-outline" x-text="brick.kind"></span>
+                <span class="text-xs text-base-content/50 truncate" x-text="brick.id"></span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button class="btn btn-xs btn-ghost" title="Move up" @click="moveBrick(brick, 0, -1)">↑</button>
+                <button class="btn btn-xs btn-ghost" title="Move down" @click="moveBrick(brick, 0, 1)">↓</button>
+                <button class="btn btn-xs btn-ghost" title="Narrower" @click="resizeBrick(brick, -1, 0)">－w</button>
+                <button class="btn btn-xs btn-ghost" title="Wider" @click="resizeBrick(brick, 1, 0)">＋w</button>
+                <button class="btn btn-xs btn-ghost" title="Shorter" @click="resizeBrick(brick, 0, -1)">－h</button>
+                <button class="btn btn-xs btn-ghost" title="Taller" @click="resizeBrick(brick, 0, 1)">＋h</button>
+                <button class="btn btn-xs btn-error btn-outline" title="Delete" @click="deleteBrick(brick)">✕</button>
+              </div>
+            </div>
+
+            <!-- Rendered fragment SLOT. Server-rendered HTML/SVG is injected
+                 here via the `rendered` topic. The client NEVER computes brick
+                 content. Until E1-S5 wires renderers, markdown bricks show a
+                 placeholder. -->
+            <div class="brick-slot flex-1" x-html="fragments[brick.id] || placeholder(brick)"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Envelope log (debugging / proof of sync) -->
+    <div class="mt-6" x-show="showLog">
+      <h2 class="text-sm font-semibold mb-2">Envelope log</h2>
+      <ul class="bg-base-100 rounded-box p-2 max-h-72 overflow-y-auto text-xs font-mono">
+        <template x-for="(entry, i) in logEntries" :key="i">
+          <li class="border-b border-base-200 py-1">
+            <span class="text-base-content/50" x-text="entry.ts + ' — ' + entry.label"></span>
+            <code class="block break-all" x-text="entry.body"></code>
+          </li>
+        </template>
+      </ul>
+    </div>
+  </div>
+
+  <!-- AlpineJS must load after the component definition is registered. We
+       register the factory on alpine:init, then load Alpine. -->
+  <script>
     const dashboardId = "{{DASHBOARD_ID}}";
-    const statusEl = document.getElementById("status");
-    const viewersEl = document.getElementById("viewers");
-    const channelEl = document.getElementById("channel");
-    const logEl = document.getElementById("log");
 
-    function log(label, data) {
-      const li = document.createElement("li");
-      const ts = document.createElement("span");
-      ts.className = "ts";
-      ts.textContent = new Date().toISOString() + " — " + label;
-      const body = document.createElement("code");
-      body.className = "body";
-      body.textContent = JSON.stringify(data);
-      li.appendChild(ts);
-      li.appendChild(body);
-      logEl.insertBefore(li, logEl.firstChild);
-      while (logEl.children.length > 100) logEl.removeChild(logEl.lastChild);
+    function boardFactory() {
+      return {
+        dashboardId,
+        // Local view document; the single source of truth for rendering, kept
+        // in sync by replaying the authoritative RFC6902 patch stream.
+        doc: { id: dashboardId, name: "", variables: [], bricks: [] },
+        // brickId -> server-rendered HTML/SVG fragment (from `rendered` topic).
+        fragments: {},
+        cols: 12,
+        viewers: 0,
+        status: "connecting",
+        showLog: false,
+        logEntries: [],
+        centrifuge: null,
+        sub: null,
+
+        get statusClass() {
+          if (this.status === "connected") return "badge-success";
+          if (this.status === "error") return "badge-error";
+          return "badge-ghost";
+        },
+
+        log(label, data) {
+          this.logEntries.unshift({
+            ts: new Date().toISOString(),
+            label,
+            body: JSON.stringify(data),
+          });
+          if (this.logEntries.length > 100) this.logEntries.pop();
+        },
+
+        async init() {
+          // 1. Load the initial authoritative document snapshot over HTTP.
+          await this.loadDoc();
+          // 2. Connect to the realtime channel and replay the live stream.
+          await this.connect();
+        },
+
+        async loadDoc() {
+          try {
+            const res = await fetch(`/dashboards/${this.dashboardId}/doc`);
+            if (!res.ok) throw new Error("doc fetch failed: " + res.status);
+            const body = await res.json();
+            this.doc = normalizeDoc(body);
+          } catch (e) {
+            this.log("doc load error", { message: e.message });
+          }
+        },
+
+        // mintToken asks the server for a short-lived JWT scoped to this
+        // dashboard. centrifuge-js re-invokes it on reconnect so tokens refresh
+        // transparently after expiry or a dropped connection.
+        async mintToken() {
+          const res = await fetch(`/dashboards/${this.dashboardId}/token`, { method: "POST" });
+          if (!res.ok) throw new Error("token mint failed: " + res.status);
+          return res.json();
+        },
+
+        async connect() {
+          const first = await this.mintToken();
+          const channel = first.channel;
+          const c = new Centrifuge("ws://" + location.host + "/connection/websocket");
+          this.centrifuge = c;
+
+          c.on("connected", () => { this.status = "connected"; this.log("connected", { channel }); });
+          c.on("connecting", (ctx) => { this.status = "connecting"; this.log("connecting", { code: ctx.code }); });
+          c.on("disconnected", (ctx) => { this.status = "error"; this.log("disconnected", { reason: ctx.reason }); });
+          c.on("error", (ctx) => { this.status = "error"; this.log("error", { message: ctx.error && ctx.error.message }); });
+
+          const sub = c.newSubscription(channel, {
+            getToken: async () => (await this.mintToken()).token,
+            token: first.token,
+          });
+          this.sub = sub;
+
+          sub.on("publication", (ctx) => this.onEnvelope(ctx.data || {}));
+          sub.on("subscribed", () => this.log("subscribed", { channel }));
+          sub.on("error", (ctx) => this.log("sub error", { message: ctx.error && ctx.error.message }));
+
+          sub.subscribe();
+          c.connect();
+        },
+
+        // onEnvelope dispatches one server envelope by topic.
+        onEnvelope(env) {
+          this.log("publication[" + (env.topic || "?") + "]", env);
+          switch (env.topic) {
+            case "patches":
+              this.applyPatch(env.data);
+              break;
+            case "rendered":
+              this.applyRendered(env.data);
+              break;
+            case "presence":
+              if (env.data && typeof env.data.viewers === "number") this.viewers = env.data.viewers;
+              break;
+          }
+        },
+
+        // applyPatch replays an RFC6902 patch onto the local view document.
+        applyPatch(patch) {
+          if (!patch) return;
+          try {
+            const result = jsonpatch.applyPatch(
+              normalizeDoc(this.doc),
+              patch,
+              /* validate */ false,
+              /* mutate */ false,
+            );
+            this.doc = normalizeDoc(result.newDocument);
+            // Drop fragments for bricks that no longer exist.
+            const ids = new Set(this.doc.bricks.map((b) => b.id));
+            for (const id of Object.keys(this.fragments)) {
+              if (!ids.has(id)) delete this.fragments[id];
+            }
+          } catch (e) {
+            this.log("patch apply error", { message: e.message, patch });
+          }
+        },
+
+        // applyRendered slots a server-rendered fragment for a brick. The
+        // payload shape is owned by E1-S5; we accept {brick_id, html} and store
+        // the HTML/SVG verbatim. (Slot wired here; renderers land in E1-S5.)
+        applyRendered(data) {
+          if (!data || !data.brick_id) return;
+          this.fragments[data.brick_id] = data.html != null ? data.html : "";
+        },
+
+        placeholder(brick) {
+          return `<div class="text-base-content/40 text-sm italic flex items-center justify-center h-full">`
+            + `awaiting rendered ${escapeHtml(brick.kind)} fragment…</div>`;
+        },
+
+        // --- intent emission (client→server over centrifuge RPC) -------------
+
+        async sendIntent(intent) {
+          if (!this.centrifuge) return;
+          try {
+            await this.centrifuge.rpc("intent", {
+              dashboard_id: this.dashboardId,
+              intent,
+            });
+            // The applied patch is broadcast on the `patches` topic, so the
+            // local view updates from the authoritative stream — not here.
+          } catch (e) {
+            this.log("intent error", { intent: intent.type, message: e.message });
+          }
+        },
+
+        addBrick() {
+          const id = "brick-" + Math.random().toString(36).slice(2, 10);
+          // New bricks land below the current bottom row (column-flow masonry).
+          const maxY = this.doc.bricks.reduce((m, b) => Math.max(m, (b.layout.pos.y || 0)), 0);
+          const brick = {
+            id,
+            kind: "markdown",
+            layout: { pos: { x: 0, y: maxY + 1 }, size: { width: 4, height: 4 } },
+            template: "",
+            agent_id: "",
+          };
+          this.sendIntent({ type: "add_brick", brick_id: id, brick });
+        },
+
+        deleteBrick(brick) {
+          this.sendIntent({ type: "delete_brick", brick_id: brick.id });
+        },
+
+        // moveBrick nudges a brick's grid position. v1 masonry uses pos.y for
+        // ordering; pos.x is advisory. dy/dx are grid-cell deltas.
+        moveBrick(brick, dx, dy) {
+          const pos = {
+            x: clampMin(brick.layout.pos.x + dx, 0),
+            y: clampMin(brick.layout.pos.y + dy, 0),
+          };
+          this.sendIntent({ type: "move_brick", brick_id: brick.id, pos });
+        },
+
+        resizeBrick(brick, dw, dh) {
+          const size = {
+            width: clamp(brick.layout.size.width + dw, 1, this.cols),
+            height: clampMin(brick.layout.size.height + dh, 1),
+          };
+          this.sendIntent({ type: "resize_brick", brick_id: brick.id, size });
+        },
+
+        // --- layout / rendering helpers --------------------------------------
+
+        // orderedBricks sorts by (pos.y, pos.x) so column-flow masonry order is
+        // stable and driven by the authoritative layout.
+        orderedBricks() {
+          return [...this.doc.bricks].sort((a, b) => {
+            const ay = a.layout.pos.y, by = b.layout.pos.y;
+            if (ay !== by) return ay - by;
+            return a.layout.pos.x - b.layout.pos.x;
+          });
+        },
+
+        brickStyle(brick) {
+          const w = clamp(brick.layout.size.width, 1, this.cols);
+          const h = clampMin(brick.layout.size.height, 1);
+          return `grid-column: span ${w}; grid-row: span ${h};`;
+        },
+      };
     }
 
-    // mintToken asks the server for a short-lived JWT scoped to this dashboard.
-    // It is re-invoked by centrifuge-js on reconnect, so tokens refresh
-    // transparently after an expiry or a dropped connection.
-    async function mintToken() {
-      const res = await fetch(`/dashboards/${dashboardId}/token`, { method: "POST" });
-      if (!res.ok) throw new Error("token mint failed: " + res.status);
-      const body = await res.json();
-      channelEl.textContent = body.channel;
-      return body;
+    // normalizeDoc coerces a raw doc into the shape the view expects, filling
+    // missing layout fields so the grid math never sees undefined.
+    function normalizeDoc(raw) {
+      const d = raw || {};
+      const bricks = Array.isArray(d.bricks) ? d.bricks : [];
+      return {
+        id: d.id || dashboardId,
+        name: d.name || "",
+        variables: Array.isArray(d.variables) ? d.variables : [],
+        bricks: bricks.map((b) => ({
+          id: b.id,
+          kind: b.kind || "markdown",
+          template: b.template || "",
+          agent_id: b.agent_id || "",
+          layout: {
+            pos: { x: (b.layout && b.layout.pos && b.layout.pos.x) || 0, y: (b.layout && b.layout.pos && b.layout.pos.y) || 0 },
+            size: {
+              width: (b.layout && b.layout.size && b.layout.size.width) || 4,
+              height: (b.layout && b.layout.size && b.layout.size.height) || 4,
+            },
+          },
+        })),
+      };
     }
 
-    (async () => {
-      const first = await mintToken();
-      const channel = first.channel;
+    function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+    function clampMin(n, lo) { return Math.max(lo, n); }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+      ));
+    }
 
-      const centrifuge = new Centrifuge("ws://" + location.host + "/connection/websocket");
-
-      centrifuge.on("connected", () => {
-        statusEl.textContent = "connected";
-        statusEl.className = "pill status connected";
-        log("connected", { channel });
-      });
-      centrifuge.on("connecting", (ctx) => {
-        statusEl.textContent = "connecting (" + ctx.code + ")";
-        statusEl.className = "pill status";
-      });
-      centrifuge.on("disconnected", (ctx) => {
-        statusEl.textContent = "disconnected (" + ctx.reason + ")";
-        statusEl.className = "pill status error";
-        log("disconnected", { reason: ctx.reason });
-      });
-      centrifuge.on("error", (ctx) => {
-        statusEl.textContent = "error";
-        statusEl.className = "pill status error";
-        log("error", { message: ctx.error && ctx.error.message });
-      });
-
-      const sub = centrifuge.newSubscription(channel, {
-        // getToken refreshes the per-subscription token on (re)subscribe so
-        // reconnect works after the short-lived token expires.
-        getToken: async () => (await mintToken()).token,
-        token: first.token,
-      });
-
-      sub.on("publication", (ctx) => {
-        const env = ctx.data || {};
-        log("publication[" + (env.topic || "?") + "]", env);
-        if (env.topic === "presence" && env.data && typeof env.data.viewers === "number") {
-          viewersEl.textContent = "viewers: " + env.data.viewers;
-        }
-      });
-      sub.on("subscribed", () => log("subscribed", { channel }));
-      sub.on("error", (ctx) => log("sub error", { message: ctx.error && ctx.error.message }));
-
-      sub.subscribe();
-      centrifuge.connect();
-    })().catch((e) => {
-      statusEl.textContent = "error: " + e.message;
-      statusEl.className = "pill status error";
+    document.addEventListener("alpine:init", () => {
+      Alpine.data("board", boardFactory);
     });
   </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </body>
 </html>

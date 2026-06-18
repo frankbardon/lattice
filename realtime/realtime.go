@@ -84,6 +84,13 @@ type IntentResult struct {
 // an error if the intent/patch was rejected.
 type IntentHandler func(ctx context.Context, dashboardID string, raw json.RawMessage) (IntentResult, error)
 
+// DocProvider returns the current authoritative dashboard document for id as
+// its JSON snapshot. It is the read seam the thin client uses to fetch the
+// starting board state before it begins replaying the live patch stream; it is
+// satisfied by the scene Manager (Doc(id).Snapshot()). Returning a store
+// NotFound surfaces as a 404.
+type DocProvider func(ctx context.Context, dashboardID string) (json.RawMessage, error)
+
 // Options configures a Hub.
 type Options struct {
 	// Logger receives hub events. Defaults to slog.Default().
@@ -91,6 +98,9 @@ type Options struct {
 	// IntentHandler, when set, receives client intents sent over the RPC
 	// channel (method "intent"). Leave nil to disable inbound intents.
 	IntentHandler IntentHandler
+	// DocProvider, when set, backs the GET /dashboards/{id}/doc read endpoint
+	// the thin client calls for its initial snapshot. Leave nil to disable it.
+	DocProvider DocProvider
 }
 
 // Hub is the realtime façade for lattice. It embeds a Parsec instance, tracks
@@ -101,6 +111,7 @@ type Hub struct {
 	verifier *auth.Verifier
 	logger   *slog.Logger
 	onIntent IntentHandler
+	docOf    DocProvider
 
 	mu      sync.Mutex
 	viewers map[string]int // channel name -> live subscriber count
@@ -135,6 +146,7 @@ func NewHub(secret []byte, opts Options) (*Hub, error) {
 		verifier: verifier,
 		logger:   logger,
 		onIntent: opts.IntentHandler,
+		docOf:    opts.DocProvider,
 		viewers:  make(map[string]int),
 	}
 
