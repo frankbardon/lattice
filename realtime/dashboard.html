@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>lattice dashboard {{DASHBOARD_ID}}</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.45;
+    }
+    h1 { margin: 0 0 .25rem; font-size: 1.1rem; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: .8rem; }
+    .status { background: #eee; color: #222; }
+    .status.connected { background: #2c8a3e; color: #fff; }
+    .status.error { background: #c33; color: #fff; }
+    .viewers { background: #2563eb; color: #fff; margin-left: .5rem; }
+    .channel { background: #f4f4f4; color: #222; margin-left: .5rem; }
+    #log { list-style: none; padding: 0; margin: 1rem 0 0; max-height: 60vh;
+      overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; }
+    #log li { padding: .5rem .75rem; border-bottom: 1px solid #eee; font-size: .85rem; }
+    #log li:last-child { border-bottom: none; }
+    .ts { color: #666; }
+    .body { display: block; margin-top: .25rem; word-break: break-all; }
+    @media (prefers-color-scheme: dark) {
+      .channel { background: #1a1a1a; color: #ddd; }
+      #log { border-color: #333; } #log li { border-bottom-color: #222; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>lattice dashboard
+      <span id="status" class="pill status">connecting…</span>
+      <span id="viewers" class="pill viewers">viewers: …</span>
+      <span id="channel" class="pill channel"></span>
+    </h1>
+    <p>v1 is anonymous — the link is the access grant. This thin client mints a
+       scoped subscribe token, connects via centrifuge-js, logs every envelope,
+       and shows the live viewer count. Open this URL in a second browser to see
+       the count rise.</p>
+  </header>
+
+  <ul id="log"></ul>
+
+  <script src="https://unpkg.com/centrifuge@5.4.0/dist/centrifuge.js"></script>
+  <script>
+    const dashboardId = "{{DASHBOARD_ID}}";
+    const statusEl = document.getElementById("status");
+    const viewersEl = document.getElementById("viewers");
+    const channelEl = document.getElementById("channel");
+    const logEl = document.getElementById("log");
+
+    function log(label, data) {
+      const li = document.createElement("li");
+      const ts = document.createElement("span");
+      ts.className = "ts";
+      ts.textContent = new Date().toISOString() + " — " + label;
+      const body = document.createElement("code");
+      body.className = "body";
+      body.textContent = JSON.stringify(data);
+      li.appendChild(ts);
+      li.appendChild(body);
+      logEl.insertBefore(li, logEl.firstChild);
+      while (logEl.children.length > 100) logEl.removeChild(logEl.lastChild);
+    }
+
+    // mintToken asks the server for a short-lived JWT scoped to this dashboard.
+    // It is re-invoked by centrifuge-js on reconnect, so tokens refresh
+    // transparently after an expiry or a dropped connection.
+    async function mintToken() {
+      const res = await fetch(`/dashboards/${dashboardId}/token`, { method: "POST" });
+      if (!res.ok) throw new Error("token mint failed: " + res.status);
+      const body = await res.json();
+      channelEl.textContent = body.channel;
+      return body;
+    }
+
+    (async () => {
+      const first = await mintToken();
+      const channel = first.channel;
+
+      const centrifuge = new Centrifuge("ws://" + location.host + "/connection/websocket");
+
+      centrifuge.on("connected", () => {
+        statusEl.textContent = "connected";
+        statusEl.className = "pill status connected";
+        log("connected", { channel });
+      });
+      centrifuge.on("connecting", (ctx) => {
+        statusEl.textContent = "connecting (" + ctx.code + ")";
+        statusEl.className = "pill status";
+      });
+      centrifuge.on("disconnected", (ctx) => {
+        statusEl.textContent = "disconnected (" + ctx.reason + ")";
+        statusEl.className = "pill status error";
+        log("disconnected", { reason: ctx.reason });
+      });
+      centrifuge.on("error", (ctx) => {
+        statusEl.textContent = "error";
+        statusEl.className = "pill status error";
+        log("error", { message: ctx.error && ctx.error.message });
+      });
+
+      const sub = centrifuge.newSubscription(channel, {
+        // getToken refreshes the per-subscription token on (re)subscribe so
+        // reconnect works after the short-lived token expires.
+        getToken: async () => (await mintToken()).token,
+        token: first.token,
+      });
+
+      sub.on("publication", (ctx) => {
+        const env = ctx.data || {};
+        log("publication[" + (env.topic || "?") + "]", env);
+        if (env.topic === "presence" && env.data && typeof env.data.viewers === "number") {
+          viewersEl.textContent = "viewers: " + env.data.viewers;
+        }
+      });
+      sub.on("subscribed", () => log("subscribed", { channel }));
+      sub.on("error", (ctx) => log("sub error", { message: ctx.error && ctx.error.message }));
+
+      sub.subscribe();
+      centrifuge.connect();
+    })().catch((e) => {
+      statusEl.textContent = "error: " + e.message;
+      statusEl.className = "pill status error";
+    });
+  </script>
+</body>
+</html>
