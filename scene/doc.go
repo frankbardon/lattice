@@ -52,14 +52,21 @@ type Broadcaster interface {
 	BroadcastPatch(ctx context.Context, dashboardID string, patch json.RawMessage) error
 }
 
-// RenderHook is invoked after a brick's template successfully changes (an
-// applied edit_template intent), so the server can render the brick's fragment
-// and broadcast it on the rendered topic. It is the decoupling seam: scene owns
-// patch application and knows *what* changed, but it does not know *how* to
-// render — the hook (wired in cmd/server) bridges to the render package and the
-// realtime hub, so render stays out of the core patch path and scene never
-// imports render. brick is the post-apply state of the changed brick.
-type RenderHook func(ctx context.Context, dashboardID string, brick dashboard.Brick)
+// RenderHook is invoked after an applied intent changes what a brick should
+// display, so the server can render the brick's fragment and broadcast it on the
+// rendered topic. It fires on two paths: an edit_template intent (the brick's
+// own template changed) and a variable change (define/set/remove_variable) for
+// EACH brick whose template references the affected variable. It is the
+// decoupling seam: scene owns patch application and knows *what* changed, but it
+// does not know *how* to render — the hook (wired in cmd/server) bridges to the
+// render package and the realtime hub, so render stays out of the core patch
+// path and scene never imports render.
+//
+// brick is the post-apply state of the brick to render; vars is the dashboard's
+// full set of current variable definitions, so the hook can resolve the brick's
+// ${var} placeholders before rendering (the server-side DataResolver step). No
+// agent is invoked on this path — it is pure resolve+render.
+type RenderHook func(ctx context.Context, dashboardID string, brick dashboard.Brick, vars []dashboard.Variable)
 
 // Options configures a Doc.
 type Options struct {
@@ -167,16 +174,42 @@ func (d *Doc) Apply(ctx context.Context, in Intent) (json.RawMessage, error) {
 		return raw, wrapError(Internal, "broadcast patch", err)
 	}
 
-	// Render-on-change: a template edit changes what a brick should display, so
-	// hand the renderer the new brick state to render and broadcast its fragment.
-	// This is decoupled from patch application via the hook — render never blocks
-	// or fails the (already persisted, already broadcast) convergence step.
-	if d.onRender != nil && in.Type == IntentEditTemplate {
-		if i := indexOfBrick(next, in.BrickID); i >= 0 {
-			d.onRender(ctx, next.ID, next.Bricks[i])
-		}
+	// Render-on-change: certain applied intents change what a brick should
+	// display, so hand the renderer the new brick state to render and broadcast
+	// its fragment. This is decoupled from patch application via the hook — render
+	// never blocks or fails the (already persisted, already broadcast)
+	// convergence step. Two cases:
+	//
+	//   - edit_template: the edited brick's own template changed; render it.
+	//   - define/set/remove_variable: a variable changed; render EXACTLY the
+	//     bricks whose templates reference that variable, leaving the rest
+	//     untouched. No agent is re-invoked — this is pure server-side resolution.
+	if d.onRender != nil {
+		d.fireRenderHooks(ctx, next, in)
 	}
 	return raw, nil
+}
+
+// fireRenderHooks invokes the render hook for every brick affected by an applied
+// intent. It runs after the patch is persisted and broadcast, so it never blocks
+// convergence. The dashboard's current variables are passed through so the hook
+// can resolve ${var} placeholders before rendering.
+func (d *Doc) fireRenderHooks(ctx context.Context, next *dashboard.Dashboard, in Intent) {
+	switch in.Type {
+	case IntentEditTemplate:
+		if i := indexOfBrick(next, in.BrickID); i >= 0 {
+			d.onRender(ctx, next.ID, next.Bricks[i], next.Variables)
+		}
+	case IntentDefineVariable, IntentSetVariable, IntentRemoveVariable:
+		// Re-render only the bricks that reference the changed variable. A removed
+		// variable still triggers a re-render of its referencing bricks so their
+		// ${var} placeholders fall back / surface as undefined consistently.
+		for i := range next.Bricks {
+			if brickReferences(next.Bricks[i].Template, in.Name) {
+				d.onRender(ctx, next.ID, next.Bricks[i], next.Variables)
+			}
+		}
+	}
 }
 
 // applyPatch applies an RFC6902 patch to a copy of doc, returning the new

@@ -7,6 +7,7 @@ import (
 	jsonpatch "github.com/evanphx/json-patch/v5"
 
 	"github.com/frankbardon/lattice/dashboard"
+	"github.com/frankbardon/lattice/resolve"
 )
 
 // IntentType discriminates the client→server intent. Intents are the only
@@ -250,6 +251,20 @@ func indexOfBrick(doc *dashboard.Dashboard, id string) int {
 		}
 	}
 	return -1
+}
+
+// brickReferences reports whether a brick template mentions the variable name
+// via a ${name} token. It is the brick→variable reference test that scopes
+// variable-change re-renders to exactly the bricks that use the variable. The
+// reference index is recomputed per change (a scan of the template) rather than
+// cached — cheap for v1 and always consistent with the current template.
+func brickReferences(template, name string) bool {
+	for _, ref := range resolve.References(template) {
+		if ref == name {
+			return true
+		}
+	}
+	return false
 }
 
 func indexOfVariable(doc *dashboard.Dashboard, name string) int {

@@ -21,6 +21,7 @@ import (
 	"github.com/frankbardon/lattice/pulsemcp"
 	"github.com/frankbardon/lattice/realtime"
 	"github.com/frankbardon/lattice/render"
+	"github.com/frankbardon/lattice/resolve"
 	"github.com/frankbardon/lattice/scene"
 	"github.com/frankbardon/lattice/store"
 )
@@ -136,9 +137,15 @@ func run(logger *slog.Logger) error {
 	} else {
 		logger.Info("PULSE_DATA_DIR unset; pulse_prism renderer disabled")
 	}
-	renderHook := func(ctx context.Context, dashboardID string, brick dashboard.Brick) {
-		// resolvedVars is empty until the DataResolver lands (E3); plumbed now.
-		html, err := registry.Render(brick.Kind, brick.Template, render.ResolvedVars{})
+	renderHook := func(ctx context.Context, dashboardID string, brick dashboard.Brick, vars []dashboard.Variable) {
+		// Server-side variable resolution (E3-S2): substitute the brick's ${var}
+		// placeholders with the dashboard's current variable values BEFORE the
+		// renderer parses the template — the seam E2-S2 documented. pulse_prism
+		// templates are JSON (substitution must stay JSON-safe); markdown is not.
+		// This is pure resolve+render; no agent is invoked on a variable change.
+		vals := resolve.FromVariables(vars)
+		resolved := resolve.Substitute(brick.Template, vals, brick.Kind == render.KindPulsePrism)
+		html, err := registry.Render(brick.Kind, resolved, render.ResolvedVars{})
 		if err != nil {
 			code := render.CodeOf(err)
 			logger.Warn("render brick failed", "dashboard", dashboardID, "brick", brick.ID, "kind", brick.Kind, "code", code, "error", err)

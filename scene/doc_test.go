@@ -435,7 +435,7 @@ func TestEditTemplateFiresRenderHook(t *testing.T) {
 		brick       dashboard.Brick
 	}
 	var calls []call
-	hook := func(_ context.Context, dashboardID string, b dashboard.Brick) {
+	hook := func(_ context.Context, dashboardID string, b dashboard.Brick, _ []dashboard.Variable) {
 		calls = append(calls, call{dashboardID, b})
 	}
 
@@ -464,6 +464,113 @@ func TestEditTemplateFiresRenderHook(t *testing.T) {
 	}
 	if calls[0].brick.ID != "b1" || calls[0].brick.Template != "# rendered me" {
 		t.Fatalf("hook brick = %+v, want b1 with edited template", calls[0].brick)
+	}
+}
+
+// TestSetVariableRerendersOnlyReferencingBricks proves the E3-S2 scoping rule: a
+// set_variable intent re-renders exactly the bricks whose templates reference
+// that variable, and leaves bricks that do not reference it untouched.
+func TestSetVariableRerendersOnlyReferencingBricks(t *testing.T) {
+	ctx := context.Background()
+	st := newMemStore()
+	bc := newRecBroadcaster()
+
+	// b1 references ${env}; b2 references ${region}; b3 references nothing.
+	d := &dashboard.Dashboard{
+		ID:        "d1",
+		Variables: []dashboard.Variable{{Name: "env", Type: dashboard.VarString, Value: "prod"}},
+		Bricks: []dashboard.Brick{
+			{ID: "b1", Kind: "markdown", Template: "env is ${env}"},
+			{ID: "b2", Kind: "markdown", Template: "region is ${region}"},
+			{ID: "b3", Kind: "markdown", Template: "no vars"},
+		},
+	}
+	if err := st.Save(ctx, d); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	var rendered []string
+	hook := func(_ context.Context, _ string, b dashboard.Brick, _ []dashboard.Variable) {
+		rendered = append(rendered, b.ID)
+	}
+	doc, err := Open(ctx, "d1", st, bc, Options{Logger: slog.New(slog.DiscardHandler), RenderHook: hook})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	if _, err := doc.Apply(ctx, Intent{Type: IntentSetVariable, Name: "env", Value: "staging"}); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	if len(rendered) != 1 || rendered[0] != "b1" {
+		t.Fatalf("env change re-rendered %v, want only [b1]", rendered)
+	}
+
+	// Setting an unreferenced variable re-renders nothing referencing-wise; only
+	// the brick(s) that mention it would. Add a brand-new variable no brick uses.
+	rendered = nil
+	if _, err := doc.Apply(ctx, Intent{Type: IntentSetVariable, Name: "unused", Value: "x"}); err != nil {
+		t.Fatalf("set unused: %v", err)
+	}
+	if len(rendered) != 0 {
+		t.Fatalf("unused variable re-rendered %v, want none", rendered)
+	}
+
+	// A define_variable that some brick references also re-renders exactly it.
+	rendered = nil
+	if _, err := doc.Apply(ctx, Intent{Type: IntentDefineVariable, Name: "region", VarType: dashboard.VarString, Default: "us"}); err != nil {
+		t.Fatalf("define region: %v", err)
+	}
+	if len(rendered) != 1 || rendered[0] != "b2" {
+		t.Fatalf("region define re-rendered %v, want only [b2]", rendered)
+	}
+}
+
+// TestVariableChangeInvokesNoAgent is the no-Nexus assertion: the render hook on
+// a variable change is the only outbound call, and the path passes through no
+// agent code. We assert structurally — the hook receives the brick and the
+// dashboard's variables and nothing else; scene has no agent dependency to call.
+// A spy hook records that resolution+render is the entire effect of the change.
+func TestVariableChangeInvokesNoAgent(t *testing.T) {
+	ctx := context.Background()
+	st := newMemStore()
+	bc := newRecBroadcaster()
+
+	d := &dashboard.Dashboard{
+		ID:        "d1",
+		Variables: []dashboard.Variable{{Name: "env", Type: dashboard.VarString, Value: "prod"}},
+		Bricks: []dashboard.Brick{
+			// A brick with an agent_id set: a variable change must NOT touch it.
+			{ID: "b1", Kind: "markdown", Template: "env ${env}", AgentID: "agent-xyz"},
+		},
+	}
+	if err := st.Save(ctx, d); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	var renderCalls int
+	hook := func(_ context.Context, _ string, b dashboard.Brick, vars []dashboard.Variable) {
+		renderCalls++
+		// The hook is handed the current variables (for resolution) — proving the
+		// re-render is fed from document state, not from re-invoking an agent.
+		if len(vars) != 1 || vars[0].Value != "staging" {
+			t.Fatalf("hook vars = %+v, want env=staging", vars)
+		}
+		// The brick still carries its agent_id untouched; nothing cleared or
+		// re-ran it.
+		if b.AgentID != "agent-xyz" {
+			t.Fatalf("brick agent_id = %q, want agent-xyz unchanged", b.AgentID)
+		}
+	}
+	doc, err := Open(ctx, "d1", st, bc, Options{Logger: slog.New(slog.DiscardHandler), RenderHook: hook})
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+
+	if _, err := doc.Apply(ctx, Intent{Type: IntentSetVariable, Name: "env", Value: "staging"}); err != nil {
+		t.Fatalf("set env: %v", err)
+	}
+	if renderCalls != 1 {
+		t.Fatalf("render hook called %d times, want 1 (resolve+render only)", renderCalls)
 	}
 }
 
