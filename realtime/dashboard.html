@@ -209,6 +209,7 @@
                 <span class="text-xs text-base-content/50 truncate" x-text="brick.id"></span>
               </div>
               <div class="flex items-center gap-1">
+                <button class="btn btn-xs btn-ghost" title="AI build (chat)" @click="openChat(brick)">✨</button>
                 <button class="btn btn-xs btn-ghost" title="Edit template" @click="openEditor(brick)">✎</button>
                 <button class="btn btn-xs btn-ghost" title="Move up" @click="moveBrick(brick, 0, -1)">↑</button>
                 <button class="btn btn-xs btn-ghost" title="Move down" @click="moveBrick(brick, 0, 1)">↓</button>
@@ -338,6 +339,100 @@
       <div class="modal-backdrop" @click="closeEditor()"></div>
     </div>
 
+    <!-- Per-brick "AI build" chat panel. A DaisyUI modal scoped to ONE brick's
+         builder agent (its agent_id). Each message routes to that brick's agent
+         via the brick_chat RPC (E4-S2): the server drives the agent, validates
+         the parameterized {pulse_request, prism_spec} template it emits, applies
+         it as edit_template, and replies with the applied patch + canonical
+         template. The chart updates for EVERY browser via the same `rendered`
+         topic a hand edit uses (see applyRendered) — the panel does not render
+         the chart itself; it only drives the conversation and reflects the
+         outcome. The server surfaces only a FINAL reply (no incremental token /
+         tool-call stream), so the panel shows a generic "working…" thinking
+         state, then the agent's confirmation (the template that was built) or a
+         typed error. Conversation history is kept PER brick_id in chats[]. -->
+    <div class="modal" :class="{ 'modal-open': chat.open }" role="dialog">
+      <div class="modal-box max-w-2xl flex flex-col" style="max-height: 85vh;">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-lg">
+            AI build
+            <span class="badge badge-outline ml-1" x-text="chatBrickKind()"></span>
+          </h3>
+          <span class="text-xs text-base-content/50 font-mono" x-text="chat.brickId"></span>
+        </div>
+
+        <p class="text-xs text-base-content/60 mb-2 leading-relaxed">
+          Describe the chart you want. The brick's agent inspects your data and
+          builds a parameterized template; the chart updates live for everyone.
+        </p>
+
+        <!-- Conversation transcript (DaisyUI chat bubbles). Empty until the
+             first message. user → chat-end; agent/system → chat-start. -->
+        <div class="flex-1 overflow-y-auto bg-base-200 rounded-box p-3 mb-2 min-h-32" x-ref="chatLog">
+          <template x-if="chatMessages().length === 0">
+            <p class="text-base-content/40 text-sm italic text-center py-6">
+              No messages yet. Ask the agent to build this brick.
+            </p>
+          </template>
+          <template x-for="(m, i) in chatMessages()" :key="i">
+            <div class="chat" :class="m.role === 'user' ? 'chat-end' : 'chat-start'">
+              <div
+                class="chat-bubble text-sm whitespace-pre-wrap break-words"
+                :class="m.role === 'user' ? 'chat-bubble-primary'
+                  : (m.role === 'error' ? 'chat-bubble-error' : 'chat-bubble-secondary')"
+                x-text="m.text"
+              ></div>
+              <template x-if="m.template">
+                <div class="chat-footer opacity-60 mt-1">
+                  <button class="link link-hover text-xs" @click="m.show = !m.show">
+                    <span x-text="m.show ? 'hide built template' : 'show built template'"></span>
+                  </button>
+                  <pre
+                    x-show="m.show"
+                    class="bg-base-300 rounded p-2 mt-1 text-xs overflow-x-auto max-w-md"
+                    x-text="m.template"
+                  ></pre>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- In-flight "thinking" indicator. The server exposes no incremental
+               agent io, so this is a single generic working state until the RPC
+               reply lands. -->
+          <template x-if="chatPending()">
+            <div class="chat chat-start">
+              <div class="chat-bubble chat-bubble-secondary text-sm flex items-center gap-2">
+                <span class="loading loading-dots loading-sm"></span>
+                <span>working…</span>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Composer -->
+        <form class="flex items-end gap-2" @submit.prevent="sendChat()">
+          <textarea
+            class="textarea textarea-bordered flex-1 text-sm h-16"
+            x-model="chat.draft"
+            placeholder="e.g. show total amount by region as a bar chart"
+            :disabled="chatPending() || status !== 'connected'"
+            @keydown.enter.prevent="sendChat()"
+          ></textarea>
+          <button
+            class="btn btn-primary"
+            type="submit"
+            :disabled="chatPending() || status !== 'connected' || !chat.draft.trim()"
+          >Send</button>
+        </form>
+
+        <div class="modal-action mt-2">
+          <button class="btn btn-ghost btn-sm" @click="closeChat()">Close</button>
+        </div>
+      </div>
+      <div class="modal-backdrop" @click="closeChat()"></div>
+    </div>
+
     <!-- Envelope log (debugging / proof of sync) -->
     <div class="mt-6" x-show="showLog">
       <h2 class="text-sm font-semibold mb-2">Envelope log</h2>
@@ -383,6 +478,12 @@
           errors: { pulse: "", prism: "" },
           serverError: null,
         },
+        // Per-brick AI build chat. `chats` keeps a DISTINCT conversation per
+        // brick_id ({ messages: [...], pending: bool }) so each brick's panel
+        // shows only its own history. `chat` is the open-panel UI state: which
+        // brick the modal targets and the current composer draft.
+        chats: {},
+        chat: { open: false, brickId: "", draft: "" },
         cols: 12,
         viewers: 0,
         status: "connecting",
@@ -572,7 +673,11 @@
             kind,
             layout: { pos: { x: 0, y: maxY + 1 }, size },
             template: exampleTemplate(kind),
-            agent_id: "",
+            // Seed an agent_id so the brick's AI build panel (brick_chat) has an
+            // engine to drive. agent_id is an opaque per-agent partition key
+            // server-side; the hub lazily boots one Nexus engine per id. v1
+            // gives each brick its own agent (id == brick id).
+            agent_id: id,
           };
           this.sendIntent({ type: "add_brick", brick_id: id, brick });
         },
@@ -742,6 +847,123 @@
           this.closeEditor();
         },
 
+        // --- AI build chat (per brick) ---------------------------------------
+
+        // chatFor returns the conversation record for a brick id, creating an
+        // empty one on first use so each brick keeps its own history.
+        chatFor(brickId) {
+          if (!this.chats[brickId]) {
+            this.chats[brickId] = { messages: [], pending: false };
+          }
+          return this.chats[brickId];
+        },
+
+        // openChat opens the AI build panel scoped to one brick. A brick with no
+        // agent_id cannot be driven (the server resolves the agent from the
+        // brick), so seed a system note explaining that rather than letting the
+        // first send fail opaquely.
+        openChat(brick) {
+          this.chat.brickId = brick.id;
+          this.chat.draft = "";
+          this.chat.open = true;
+          const c = this.chatFor(brick.id);
+          if (!brick.agent_id && c.messages.length === 0) {
+            c.messages.push({
+              role: "system",
+              text: "This brick has no agent yet, so AI build is unavailable. "
+                + "Re-create the brick (new bricks get an agent) or edit the template by hand.",
+            });
+          }
+          this.$nextTick(() => this.scrollChat());
+        },
+
+        closeChat() {
+          this.chat.open = false;
+        },
+
+        // chatBrickKind / chatMessages / chatPending read the open panel's brick
+        // and its conversation. They tolerate a brick that was deleted while the
+        // panel was open (returns empty) so the board never crashes.
+        chatBrickKind() {
+          const b = this.doc.bricks.find((x) => x.id === this.chat.brickId);
+          return b ? b.kind : "";
+        },
+        chatMessages() {
+          const c = this.chats[this.chat.brickId];
+          return c ? c.messages : [];
+        },
+        chatPending() {
+          const c = this.chats[this.chat.brickId];
+          return !!(c && c.pending);
+        },
+
+        scrollChat() {
+          const el = this.$refs.chatLog;
+          if (el) el.scrollTop = el.scrollHeight;
+        },
+
+        // sendChat routes the composer text to the brick's agent over the
+        // brick_chat RPC (E4-S2). The server drives the agent, applies the
+        // emitted template as edit_template, and replies with the applied patch +
+        // canonical template; the chart itself updates for every browser via the
+        // `rendered` topic (applyRendered), NOT here. The server surfaces only a
+        // final reply (no token/tool-call stream), so the UI shows one generic
+        // "working…" state, then the built-template confirmation or a typed
+        // error. The conversation is scoped to chat.brickId.
+        async sendChat() {
+          const brickId = this.chat.brickId;
+          const text = this.chat.draft.trim();
+          if (!text || !brickId) return;
+          const c = this.chatFor(brickId);
+          if (c.pending) return;
+
+          c.messages.push({ role: "user", text });
+          this.chat.draft = "";
+          c.pending = true;
+          this.$nextTick(() => this.scrollChat());
+
+          const res = await this.brickChat(brickId, text);
+          c.pending = false;
+
+          if (res.ok) {
+            c.messages.push({
+              role: "agent",
+              text: "Built this brick. The chart has been updated.",
+              template: res.template ? prettyTemplate(res.template) : "",
+              show: false,
+            });
+          } else {
+            c.messages.push({
+              role: "error",
+              text: (res.code ? res.code + ": " : "") + (res.message || "the agent failed"),
+            });
+          }
+          this.$nextTick(() => this.scrollChat());
+        },
+
+        // brickChat performs the brick_chat RPC and resolves to
+        // {ok, template?, code?, message?}. A rejection (unknown brick, no
+        // agent_id, agent failure, bad template) comes back as a centrifuge error
+        // reply; we capture its code + message so the panel can show it without
+        // crashing the board.
+        async brickChat(brickId, message) {
+          if (!this.centrifuge) return { ok: false, message: "not connected" };
+          try {
+            const reply = await this.centrifuge.rpc("brick_chat", {
+              dashboard_id: this.dashboardId,
+              brick_id: brickId,
+              message,
+            });
+            const data = (reply && reply.data) || {};
+            return { ok: true, template: data.template || "" };
+          } catch (e) {
+            const code = e && e.code != null ? String(e.code) : "";
+            const message = (e && e.message) || "brick_chat rejected";
+            this.log("brick_chat error", { brickId, code, message });
+            return { ok: false, code, message };
+          }
+        },
+
         // --- layout / rendering helpers --------------------------------------
 
         // orderedBricks sorts by (pos.y, pos.x) so column-flow masonry order is
@@ -816,6 +1038,13 @@
     // undefined (a missing template half) by showing an empty object.
     function prettyJSON(v) {
       try { return JSON.stringify(v === undefined ? {} : v, null, 2); } catch (e) { return ""; }
+    }
+
+    // prettyTemplate pretty-prints the canonical (compact) template string the
+    // brick_chat reply carries, for display in a chat bubble. Falls back to the
+    // raw string if it is not JSON.
+    function prettyTemplate(s) {
+      try { return JSON.stringify(JSON.parse(s), null, 2); } catch (e) { return s; }
     }
 
     // jsonError returns a human-readable parse error for s, or "" if it is valid
