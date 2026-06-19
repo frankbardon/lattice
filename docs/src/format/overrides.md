@@ -8,7 +8,10 @@ model is identical whether you re-resolve from the CLI or from the served page.
 
 Overrides are **ephemeral**: they apply only to that single resolution. The
 document on disk is never mutated, and an empty override set yields exactly the
-same resolved tree as a plain `resolve`.
+same resolved tree as a plain `resolve`. The **durable** counterpart — a
+recorded edit to the document itself — is a
+[JSON Patch changeset](changesets.md), gated by the same
+[configurable surface](configurable.md); its application is future work.
 
 ## Two override kinds, one addressable map
 

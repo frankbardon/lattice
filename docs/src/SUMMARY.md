@@ -20,6 +20,7 @@
 - [Theme & Semantic Tokens](format/theme.md)
 - [Runtime Overrides](format/overrides.md)
 - [Configurators](format/configurator.md)
+- [Changesets (JSON Patch)](format/changesets.md)
 - [Connections](format/connections.md)
 
 # Reference

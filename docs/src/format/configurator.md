@@ -158,6 +158,11 @@ configurator *renders the editor* for them, and a
 served page wires this loop end to end — see
 [Supplying overrides through `serve`](overrides.md#supplying-overrides-through-serve).
 
+The override above is **ephemeral** — it adjusts only one resolution. The
+**durable** counterpart of the same edit is a
+[JSON Patch changeset](changesets.md), gated by the same configurable surface;
+its application and persistence are future work.
+
 ## Worked example
 
 `examples/configurator-dashboard.json` places a `summary` table beside a

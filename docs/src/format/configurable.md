@@ -129,6 +129,8 @@ sorted field order, so downstream layers read it directly:
 - A **[configurator](configurator.md)** auto-generates an editor from the
   surface — one control per field, picked by the `rendering` hint.
 - The **override system** knows exactly which fields it may set at runtime.
+- A **[JSON Patch changeset](changesets.md)** uses the surface as its
+  **guardrail** — it enumerates the only paths a patch may legally touch.
 
 Because the surface is derived from the schema and validated on every resolve, a
 declared surface can never drift out of sync with the properties the item type
