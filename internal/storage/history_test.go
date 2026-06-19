@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"strconv"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -36,30 +37,80 @@ func TestGitHistoryAndLoadAt(t *testing.T) {
 	if len(revs) != 2 {
 		t.Fatalf("History: want 2 revisions, got %d (%v)", len(revs), revs)
 	}
-	// Newest-first: the second Save is revs[0], the first is revs[1].
-	if revs[0].Timestamp.Before(revs[1].Timestamp) {
-		t.Fatalf("History not newest-first: revs[0]=%v before revs[1]=%v", revs[0].Timestamp, revs[1].Timestamp)
-	}
 	if revs[0].Message == "" || revs[0].Hash == "" {
 		t.Fatalf("History revision missing metadata: %+v", revs[0])
 	}
 
-	// LoadAt the older revision returns the original bytes, byte-faithfully.
-	gotOld, err := s.LoadAt("alpha", revs[1].Hash)
-	if err != nil {
-		t.Fatalf("LoadAt(old): %v", err)
-	}
-	if !bytes.Equal(gotOld, v1) {
-		t.Fatalf("LoadAt(old) mismatch:\n got %q\nwant %q", gotOld, v1)
-	}
-
-	// LoadAt the newest revision returns the latest bytes.
+	// Newest-first, asserted by CONTENT, not timestamps: LoadAt(revs[0]) must
+	// return the second Save's bytes and LoadAt(revs[1]) the first Save's. Two
+	// Saves can land in the same wall-clock second, so a timestamp comparison
+	// would be flaky; ordering by which bytes each revision carries is exact.
 	gotNew, err := s.LoadAt("alpha", revs[0].Hash)
 	if err != nil {
-		t.Fatalf("LoadAt(new): %v", err)
+		t.Fatalf("LoadAt(newest): %v", err)
 	}
 	if !bytes.Equal(gotNew, v2) {
-		t.Fatalf("LoadAt(new) mismatch:\n got %q\nwant %q", gotNew, v2)
+		t.Fatalf("revs[0] is not newest: LoadAt(revs[0]) mismatch:\n got %q\nwant %q", gotNew, v2)
+	}
+
+	// LoadAt the older revision returns the original (distinct) bytes,
+	// byte-faithfully — proving LoadAt reads historical content, not current.
+	gotOld, err := s.LoadAt("alpha", revs[1].Hash)
+	if err != nil {
+		t.Fatalf("LoadAt(oldest): %v", err)
+	}
+	if !bytes.Equal(gotOld, v1) {
+		t.Fatalf("LoadAt(oldest) mismatch:\n got %q\nwant %q", gotOld, v1)
+	}
+	// Sanity: the two revisions are genuinely distinct content, so "historical"
+	// is a real claim, not an accident of identical bytes.
+	if bytes.Equal(v1, v2) {
+		t.Fatal("test fixture broken: v1 and v2 must differ for LoadAt-at-history to be meaningful")
+	}
+}
+
+// TestGitHistoryCountAfterNSaves proves History returns exactly N revisions
+// after N Saves of the same id, newest-first, and that each revision resolves
+// to a loadable commit. N>2 guards against off-by-one and confirms the path
+// filter counts only commits that touched this document.
+func TestGitHistoryCountAfterNSaves(t *testing.T) {
+	root := t.TempDir()
+	s, err := NewGit(afero.NewOsFs(), root)
+	if err != nil {
+		t.Fatalf("NewGit: %v", err)
+	}
+
+	// Each Save must carry DISTINCT bytes: a git commit needs a tree change, so
+	// re-saving byte-identical content is a no-op (ErrEmptyCommit). Vary the
+	// document body per iteration to record a genuine new revision each time.
+	const n = 4
+	for i := 0; i < n; i++ {
+		doc := []byte(`{"manifest":{"id":"alpha"},"root":{},"rev":` + strconv.Itoa(i) + `}`)
+		if err := s.Save(doc); err != nil {
+			t.Fatalf("Save %d: %v", i, err)
+		}
+	}
+	// An unrelated document's Saves must NOT inflate alpha's history (the log is
+	// path-filtered to alpha.json).
+	if err := s.Save(docFor("beta")); err != nil {
+		t.Fatalf("Save beta: %v", err)
+	}
+
+	revs, err := s.History("alpha")
+	if err != nil {
+		t.Fatalf("History: %v", err)
+	}
+	if len(revs) != n {
+		t.Fatalf("History after %d Saves: want %d revisions, got %d", n, n, len(revs))
+	}
+	for i, r := range revs {
+		if r.Hash == "" {
+			t.Fatalf("revision %d has empty hash: %+v", i, r)
+		}
+		// Every listed revision resolves to loadable historical content.
+		if _, err := s.LoadAt("alpha", r.Hash); err != nil {
+			t.Fatalf("LoadAt(revs[%d]=%s): %v", i, r.Hash, err)
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
@@ -11,11 +12,15 @@ import (
 	"github.com/frankbardon/lattice/errors"
 )
 
-// TestGitSaveCommitsAndRoundTrips is a smoke test for the git backend: a Save
-// initialises the repo (if needed), writes <id>.json to the working tree,
-// round-trips byte-faithfully through Load, and produces a commit. The
-// comprehensive git suite (history, author resolution, isolation) is E2-S3.
+// TestGitSaveCommitsAndRoundTrips covers the git backend's core Save behaviour:
+// pointing at a fresh (non-repo) directory initialises a repo, the first Save
+// writes <id>.json to the working tree, round-trips byte-faithfully through
+// Load, and produces exactly one commit; a second Save of the same id produces
+// a second commit (so the repo accrues a revision per Save). Counts and content
+// are asserted directly — never timestamps — so the test is deterministic.
 func TestGitSaveCommitsAndRoundTrips(t *testing.T) {
+	// t.TempDir() is an empty, non-repo directory: NewGit must git-init it
+	// (init-on-absent) and the first Save must commit successfully.
 	root := t.TempDir()
 	s, err := NewGit(afero.NewOsFs(), root)
 	if err != nil {
@@ -36,16 +41,59 @@ func TestGitSaveCommitsAndRoundTrips(t *testing.T) {
 		t.Fatalf("round-trip mismatch:\n got %q\nwant %q", got, doc)
 	}
 
-	// Save produced exactly one commit with the generated message.
+	// The first Save produced exactly one commit with the generated message.
 	commits := commitMessages(t, s.repo)
 	if want := []string{"Save dashboard example-minimal"}; !equalStrings(commits, want) {
-		t.Fatalf("commits after Save: want %v, got %v", want, commits)
+		t.Fatalf("commits after first Save: want %v, got %v", want, commits)
 	}
 
 	// The committed tree actually contains the document (the path was staged,
 	// not just an empty commit recorded).
 	if !committedFiles(t, s.repo)["example-minimal.json"] {
 		t.Fatalf("commit tree missing example-minimal.json; got %v", committedFiles(t, s.repo))
+	}
+
+	// A second Save of the SAME id records a second commit (it does not amend or
+	// replace the first). The new content is committed; the count is exactly two.
+	doc2 := docFor("example-minimal")
+	if err := s.Save(doc2); err != nil {
+		t.Fatalf("second Save: %v", err)
+	}
+	commits = commitMessages(t, s.repo)
+	want := []string{"Save dashboard example-minimal", "Save dashboard example-minimal"}
+	if !equalStrings(commits, want) {
+		t.Fatalf("commits after second Save: want %v, got %v", want, commits)
+	}
+	// HEAD's tree carries the second Save's bytes, round-tripped byte-faithfully.
+	got2, err := s.Load("example-minimal")
+	if err != nil {
+		t.Fatalf("Load after second Save: %v", err)
+	}
+	if !bytes.Equal(got2, doc2) {
+		t.Fatalf("second Save round-trip mismatch:\n got %q\nwant %q", got2, doc2)
+	}
+}
+
+// TestGitInitOnAbsent proves NewGit creates the root and initialises a git
+// repository when pointed at a directory that does not yet exist, and that the
+// first Save commits successfully into the freshly-initialised repo.
+func TestGitInitOnAbsent(t *testing.T) {
+	// A path NESTED under TempDir that does not exist yet: NewGit must MkdirAll
+	// it and git-init it.
+	root := filepath.Join(t.TempDir(), "nested", "store")
+	s, err := NewGit(afero.NewOsFs(), root)
+	if err != nil {
+		t.Fatalf("NewGit on absent dir: %v", err)
+	}
+
+	if err := s.Save(docFor("alpha")); err != nil {
+		t.Fatalf("first Save into init-on-absent repo: %v", err)
+	}
+	if commits := commitMessages(t, s.repo); !equalStrings(commits, []string{"Save dashboard alpha"}) {
+		t.Fatalf("commits after init-on-absent Save: want one Save commit, got %v", commits)
+	}
+	if !committedFiles(t, s.repo)["alpha.json"] {
+		t.Fatalf("init-on-absent commit tree missing alpha.json; got %v", committedFiles(t, s.repo))
 	}
 }
 
@@ -68,12 +116,21 @@ func TestGitDeleteCommits(t *testing.T) {
 	if _, err := s.Load("alpha"); !errors.HasCode(err, errors.STORAGE_NOT_FOUND) {
 		t.Fatalf("Load after Delete: want STORAGE_NOT_FOUND, got %v", err)
 	}
+	if ok, err := s.Exists("alpha"); err != nil || ok {
+		t.Fatalf("Exists after Delete: want false, got %v (err %v)", ok, err)
+	}
 	ids, err := s.List()
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if len(ids) != 0 {
 		t.Fatalf("List after Delete: want empty, got %v", ids)
+	}
+
+	// Delete recorded a commit that removed the file from the tree: HEAD's tree
+	// no longer contains alpha.json.
+	if committedFiles(t, s.repo)["alpha.json"] {
+		t.Fatalf("Delete commit tree still contains alpha.json; got %v", committedFiles(t, s.repo))
 	}
 
 	commits := commitMessages(t, s.repo)
@@ -151,9 +208,23 @@ func TestGitReopenExistingRepo(t *testing.T) {
 	}
 }
 
-// TestGitDefaultAuthorFallback proves a commit in a repo with no configured
+// TestGitDefaultAuthorFallback proves a commit in a repo with no configured git
 // user identity uses the fixed lattice fallback identity.
+//
+// signature() resolves the author from ConfigScoped(GlobalScope), which merges
+// the repo's local config under the user's global config. A freshly-initialised
+// repo has no local user, and pointing HOME / XDG_CONFIG_HOME at empty temp dirs
+// guarantees the global config carries none either — so the lattice fallback is
+// the only possible author, and the assertion is unconditional and
+// deterministic (it does not depend on the developer's machine git identity).
 func TestGitDefaultAuthorFallback(t *testing.T) {
+	// Isolate global git config: GlobalScope reads $XDG_CONFIG_HOME/git/config,
+	// $HOME/.gitconfig and $HOME/.config/git/config. Pointing both env vars at
+	// empty temp dirs means none of those files exist, so no global identity.
+	emptyHome := t.TempDir()
+	t.Setenv("HOME", emptyHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(emptyHome, "xdg"))
+
 	root := t.TempDir()
 	s, err := NewGit(afero.NewOsFs(), root)
 	if err != nil {
@@ -171,14 +242,9 @@ func TestGitDefaultAuthorFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CommitObject: %v", err)
 	}
-	// Only assert the fallback when the test environment has no global git
-	// identity; otherwise the real identity (correctly) wins.
-	if cfg, err := s.repo.ConfigScoped(2 /* SystemScope */); err == nil &&
-		cfg.User.Name == "" && cfg.User.Email == "" {
-		if commit.Author.Name != defaultAuthorName || commit.Author.Email != defaultAuthorEmail {
-			t.Fatalf("author fallback: want %s <%s>, got %s <%s>",
-				defaultAuthorName, defaultAuthorEmail, commit.Author.Name, commit.Author.Email)
-		}
+	if commit.Author.Name != defaultAuthorName || commit.Author.Email != defaultAuthorEmail {
+		t.Fatalf("author fallback: want %s <%s>, got %s <%s>",
+			defaultAuthorName, defaultAuthorEmail, commit.Author.Name, commit.Author.Email)
 	}
 }
 
