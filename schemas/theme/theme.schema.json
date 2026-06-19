@@ -4,7 +4,6 @@
   "title": "Theme",
   "description": "A renderer-agnostic theme: a set of presentation CHOICES expressed purely as SEMANTIC TOKENS. Every token is a closed, enum-constrained vocabulary of meaning (e.g. `emphasis: none|low|high`, `spacing: compact|cosy|roomy`) — never a medium-specific value. A theme carries NO pixels, hex colours, fonts, CSS, or any HTML/medium detail; a renderer is free to map each semantic choice onto whatever concrete styling its medium uses. This schema is the shared theme vocabulary referenced by the document default theme (E2-S2) and a block wrapper's per-block theme override (E2-S3). Tokens are ordinary scalar fields drawn from the variable type set (each an `enum` over a fixed value list), so a theme is fully describable through the existing configurable-surface mechanism with no special chrome subsystem. The set is intentionally small and structured as a `base` group of cross-cutting tokens (`$defs/baseTokens`) that any future per-type token group can extend, so the vocabulary can grow without breaking existing themes.",
   "type": "object",
-  "additionalProperties": false,
   "allOf": [
     {
       "$ref": "#/$defs/baseTokens"

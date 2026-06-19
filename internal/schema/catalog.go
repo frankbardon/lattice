@@ -108,6 +108,17 @@ func (c *Catalog) lookupID(id string) (*ResolvedType, bool) {
 	return rt, ok
 }
 
+// Lookup returns the catalogued schema for an exact canonical $id, or nil if no
+// entry is indexed under that id. It is the exported view of the by-$id index,
+// used by the resolver to serve non-item shared schemas (e.g. the theme
+// vocabulary) to the JSON-Schema compiler when a document/item schema $refs them.
+func (c *Catalog) Lookup(id string) *ResolvedType {
+	if rt, ok := c.byID[id]; ok {
+		return rt
+	}
+	return nil
+}
+
 // hasName reports whether any version of the named item type is catalogued.
 func (c *Catalog) hasName(name string) bool {
 	_, ok := c.byName[name]

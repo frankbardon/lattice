@@ -21,6 +21,10 @@
         "$ref": "#/$defs/varDeclaration"
       }
     },
+    "theme": {
+      "description": "Optional document-scope DEFAULT THEME (E2-S2): the document's base presentation choices, drawn from the shared theme vocabulary. Its value is constrained to the theme schema's semantic tokens, so an out-of-vocabulary token (or value) is rejected by structural validation. The resolver attaches it verbatim to the resolved document output as the default layer; per-block theme overrides (E2-S3) are emitted side-by-side and are NOT merged here.",
+      "$ref": "https://lattice.dev/schemas/theme/1.0.0"
+    },
     "connections": {
       "description": "Optional document-scoped data connection instances. Each references a connection-type schema in schemas/connections/ via $ref; the resolver validates each connection's config against that type (E4-S1). Connections are declared and validated only, never dialed.",
       "type": "array",

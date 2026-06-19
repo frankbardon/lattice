@@ -1,0 +1,36 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-default-theme",
+    "title": "Default Theme Example Dashboard",
+    "description": "A fixture exercising the document-scope default theme (E2-S2): a root container holding one table, with a document default theme drawn from the theme vocabulary. The resolver attaches the theme to the resolved document output as the default layer."
+  },
+  "theme": {
+    "emphasis": "high",
+    "spacing": "cosy",
+    "tone": "accent"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1],
+        "rows": [1],
+        "gap": 1
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "fruits",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Fruits",
+          "columns": [{ "header": "Name" }],
+          "rows": [["Apple"]]
+        }
+      }
+    ]
+  }
+}

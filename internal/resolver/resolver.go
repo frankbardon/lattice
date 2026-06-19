@@ -53,6 +53,7 @@ const formTypeName = "form"
 // adds the two validation passes plus tree assembly.
 type Resolver struct {
 	fs           afero.Fs
+	cat          *schema.Catalog
 	loader       *schema.Loader
 	dashSch      *jsonschema.Schema
 	dashResolved *jsonschema.Resolved // lazily compiled in Pass 1
@@ -73,6 +74,7 @@ func New(fs afero.Fs, dashboardSchema *jsonschema.Schema, catalogDirs []string, 
 	loader := schema.NewLoader(fs, cat, dashboardSchema, schema.WithRelativeRoots(relRoots...))
 	return &Resolver{
 		fs:      fs,
+		cat:     cat,
 		loader:  loader,
 		dashSch: dashboardSchema,
 	}, nil
@@ -218,10 +220,20 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// E2-S2: attach the document-scope default theme to the resolved output as the
+	// default layer. Its tokens were already constrained to the theme vocabulary by
+	// Pass 1 (the dashboard schema $refs the theme schema), so this only lifts the
+	// verbatim object onto the tree — no merge with per-block overrides happens here.
+	defaultTheme, err := documentDefaultTheme(data)
+	if err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
-		Manifest:    g.Document.Manifest,
-		Root:        root,
-		Connections: conns,
+		Manifest:     g.Document.Manifest,
+		Root:         root,
+		Connections:  conns,
+		DefaultTheme: defaultTheme,
 	}
 
 	return tree, nil
@@ -236,7 +248,7 @@ func (r *Resolver) validateDocument(data []byte, source string) error {
 			"no dashboard schema configured for structural validation")
 	}
 	if r.dashResolved == nil {
-		resolved, err := r.dashSch.Resolve(nil)
+		resolved, err := r.dashSch.Resolve(r.documentSchemaResolveOptions())
 		if err != nil {
 			return errors.WrapCodedError(err, errors.RESOLVE_INTERNAL,
 				"failed compiling dashboard schema for validation")
@@ -378,14 +390,23 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 // item-type schema for config validation. Some item types $ref into the dashboard
 // schema's shared $defs — notably the block wrapper, whose `content` references
 // the document's #/$defs/instance (E1-S1) — so the compiler needs a loader that
-// serves the dashboard schema by its $id. The loader returns the in-memory
-// dashboard schema for that one canonical URL and nothing else; any other remote
-// reference stays unresolved (a malformed schema, surfaced as RESOLVE_INTERNAL).
+// serves the dashboard schema by its $id. The dashboard schema itself now $refs
+// the shared theme vocabulary (its document default theme, E2-S2), so that
+// transitive reference must be served too. The loader returns the in-memory
+// dashboard schema and the catalogued theme schema for their canonical URLs and
+// nothing else; any other remote reference stays unresolved (a malformed schema,
+// surfaced as RESOLVE_INTERNAL).
 func (r *Resolver) itemSchemaResolveOptions() *jsonschema.ResolveOptions {
 	if r.dashSch == nil || r.dashSch.ID == "" {
 		return nil
 	}
 	dashID := r.dashSch.ID
+	var themeSch *jsonschema.Schema
+	if r.cat != nil {
+		if theme := r.cat.Lookup(themeSchemaID); theme != nil {
+			themeSch = theme.Schema
+		}
+	}
 	return &jsonschema.ResolveOptions{
 		Loader: func(uri *url.URL) (*jsonschema.Schema, error) {
 			// Compare on the schema identity (scheme://host/path), ignoring any
@@ -393,11 +414,52 @@ func (r *Resolver) itemSchemaResolveOptions() *jsonschema.ResolveOptions {
 			// the loader for the dashboard document, then resolves the fragment within.
 			base := *uri
 			base.Fragment = ""
-			if base.String() == dashID {
+			switch base.String() {
+			case dashID:
 				return r.dashSch, nil
+			case themeSchemaID:
+				if themeSch != nil {
+					return themeSch, nil
+				}
 			}
 			return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_INTERNAL,
 				"item-type schema references an unknown remote schema",
+				map[string]any{"ref": uri.String()})
+		},
+	}
+}
+
+// themeSchemaID is the canonical $id of the shared theme vocabulary (E2-S1). The
+// dashboard schema's document-scope default theme (E2-S2) $refs it, so the
+// structural pass must be able to serve this schema to the JSON-Schema compiler.
+const themeSchemaID = "https://lattice.dev/schemas/theme/1.0.0"
+
+// documentSchemaResolveOptions returns the ResolveOptions used when compiling the
+// dashboard schema for the structural (Pass 1) validation. The dashboard schema
+// $refs the shared theme vocabulary by its $id (the document default theme,
+// E2-S2), so the compiler needs a loader that serves that one schema from the
+// catalog. The loader returns the catalogued theme schema for its canonical URL
+// and nothing else; any other remote reference stays unresolved (surfaced as a
+// compile failure -> RESOLVE_INTERNAL). Returns nil when the theme schema is not
+// catalogued, so a catalog without it degrades to the previous nil-loader behavior
+// (and the missing-ref then surfaces as a normal compile error).
+func (r *Resolver) documentSchemaResolveOptions() *jsonschema.ResolveOptions {
+	if r.cat == nil {
+		return nil
+	}
+	theme := r.cat.Lookup(themeSchemaID)
+	if theme == nil {
+		return nil
+	}
+	return &jsonschema.ResolveOptions{
+		Loader: func(uri *url.URL) (*jsonschema.Schema, error) {
+			base := *uri
+			base.Fragment = ""
+			if base.String() == themeSchemaID {
+				return theme.Schema, nil
+			}
+			return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_INTERNAL,
+				"dashboard schema references an unknown remote schema",
 				map[string]any{"ref": uri.String()})
 		},
 	}
