@@ -28,13 +28,18 @@
 
       <!-- Recursive node renderer. A container draws its own grid and recurses
            into its children; a leaf draws a single labeled placeholder box. -->
+      <!-- A single delegated @change on the sketch root catches every dropdown
+           <select> rendered via x-html (change events bubble), so the runtime
+           inputs need no per-element Alpine wiring. -->
       <template x-if="!error && tree && tree.root">
-        <div class="sketch-root">
+        <div class="sketch-root" @change="onControlChange($event)">
           <template x-data x-for="(node, i) in [tree.root]" :key="i">
             <div class="node-slot" x-html="renderNode(node)"></div>
           </template>
         </div>
       </template>
+
+      <p class="hint reresolving" x-show="resolving" x-cloak>Re-resolving…</p>
     </section>
 
     <!-- Tree inspector: collapsible panel showing the full resolved-tree JSON. -->
@@ -56,21 +61,62 @@
         treeJSON: '',
         error: '',
         inspectorOpen: false,
+        // values holds the current runtime variable overrides (E3-S4): seeded
+        // from URL query params, then updated as dropdowns change. It is the
+        // body POSTed to /api/resolve on every re-resolve.
+        values: {},
+        resolving: false,
+
+        // initialValues reads URL query params (?region=eu) as the starting
+        // runtime overrides. Values are strings; the server coerces each to its
+        // variable's declared type.
+        initialValues() {
+          const out = {};
+          const params = new URLSearchParams(window.location.search);
+          for (const [k, v] of params.entries()) { out[k] = v; }
+          return out;
+        },
 
         async load() {
+          this.values = this.initialValues();
+          await this.resolve();
+        },
+
+        // resolve POSTs the current runtime values and replaces the tree with the
+        // freshly resolved one. It is the single re-resolve round-trip used for
+        // both the initial load (with URL-param values) and dropdown changes.
+        async resolve() {
+          this.resolving = true;
           try {
-            const res = await fetch('/api/tree');
+            const res = await fetch('/api/resolve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.values),
+            });
             if (!res.ok) {
               const body = await res.json().catch(() => ({}));
               this.error = body.message ? (body.code + ': ' + body.message) : ('HTTP ' + res.status);
               return;
             }
+            this.error = '';
             this.tree = await res.json();
             this.treeJSON = JSON.stringify(this.tree, null, 2);
             this.title = (this.tree.manifest && this.tree.manifest.title) || '';
           } catch (e) {
             this.error = String(e);
+          } finally {
+            this.resolving = false;
           }
+        },
+
+        // onControlChange handles a bubbled change from any rendered dropdown
+        // <select>: it records the chosen value against the bound variable and
+        // re-resolves the whole document (partials deferred per E3-S4).
+        onControlChange(ev) {
+          const el = ev.target;
+          if (!el || el.tagName !== 'SELECT' || !el.dataset || !el.dataset.var) { return; }
+          this.values = Object.assign({}, this.values, { [el.dataset.var]: el.value });
+          this.resolve();
         },
 
         // escapeHTML guards text injected via x-html (config values, types).
@@ -136,6 +182,34 @@
         // renderNode recursively renders a resolved instance. Containers draw a
         // grid and recurse into children (positioned by the parent's Layout
         // placements); leaves draw a single labeled box.
+        // dropdownHTML renders a runtime-input dropdown leaf (E3-S4) as a real
+        // <select> bound (via data-var, caught by the delegated @change) to its
+        // variable. The current selection is the variable's EFFECTIVE value as
+        // resolved (varEnv[name].default), so it reflects URL-param/override
+        // state after each re-resolve.
+        dropdownHTML(node) {
+          const cfg = node.config || {};
+          const varName = cfg.variable || '';
+          const options = Array.isArray(cfg.options) ? cfg.options : [];
+          let current = '';
+          if (node.varEnv && node.varEnv[varName] && node.varEnv[varName].default != null) {
+            current = String(node.varEnv[varName].default);
+          }
+          let opts = '';
+          for (const o of options) {
+            const val = (o && o.value != null) ? String(o.value) : '';
+            const olabel = (o && o.label != null) ? String(o.label) : val;
+            const sel = (val === current) ? ' selected' : '';
+            opts += '<option value="' + this.escapeHTML(val) + '"' + sel + '>'
+              + this.escapeHTML(olabel) + '</option>';
+          }
+          const labelText = cfg.label ? cfg.label : varName;
+          return '<label class="dropdown-control">'
+            + '<span class="dropdown-label">' + this.escapeHTML(labelText) + '</span>'
+            + '<select class="dropdown-select" data-var="' + this.escapeHTML(varName) + '">'
+            + opts + '</select></label>';
+        },
+
         renderNode(node, placementStyle) {
           const label = this.escapeHTML(this.typeLabel(node));
           const summary = this.configSummary(node);
@@ -165,9 +239,13 @@
               + '</div></div>';
           }
 
-          return '<div class="node node-leaf"' + slotStyle + '>'
+          const isDropdown = (node.type && node.type.name === 'dropdown');
+          const controlHTML = isDropdown ? this.dropdownHTML(node) : '';
+          const leafClass = isDropdown ? 'node node-leaf node-input' : 'node node-leaf';
+          return '<div class="' + leafClass + '"' + slotStyle + '>'
             + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML + '</div>'
             + summaryHTML
+            + controlHTML
             + '</div>';
         }
       };

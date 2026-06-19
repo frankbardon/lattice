@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 
@@ -18,10 +19,12 @@ var templateFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
-// ResolveFunc loads and resolves a dashboard document into a resolved tree. It
-// is injected by the caller (the CLI `serve` command) so the server package
-// does not own resolver wiring. On failure it returns a CodedError.
-type ResolveFunc func() (*resolver.ResolvedTree, error)
+// ResolveFunc loads and resolves a dashboard document into a resolved tree,
+// applying the given runtime variable overrides (E3-S4: values from a dropdown
+// change or URL query params; nil/empty means defaults only). It is injected by
+// the caller (the CLI `serve` command) so the server package does not own
+// resolver wiring. On failure it returns a CodedError.
+type ResolveFunc func(overrides map[string]any) (*resolver.ResolvedTree, error)
 
 // Server is the lattice reference-renderer web layer. It serves an HTML page
 // wired with AlpineJS plus a JSON endpoint exposing the resolved tree. The
@@ -57,6 +60,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handlePage)
 	mux.HandleFunc("/api/tree", s.handleTree)
+	mux.HandleFunc("/api/resolve", s.handleResolve)
 	mux.Handle("/static/", s.static)
 	return mux
 }
@@ -82,7 +86,7 @@ func (s *Server) handlePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tree, err := s.resolve()
+	tree, err := s.resolve(queryOverrides(r))
 	if err != nil {
 		s.renderError(w, err)
 		return
@@ -104,17 +108,75 @@ func (s *Server) handlePage(w http.ResponseWriter, r *http.Request) {
 // resolution failure it returns the CodedError envelope with a 422 status so the
 // client can surface it without the page crashing.
 func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
-	tree, err := s.resolve()
+	tree, err := s.resolve(queryOverrides(r))
 	if err != nil {
 		s.writeJSONError(w, err)
 		return
 	}
+	s.writeTree(w, tree)
+}
+
+// handleResolve is the E3-S4 live re-resolve endpoint. It accepts a JSON object
+// of runtime variable values ({"region":"eu", ...}) in the POST body, resolves
+// the document with those overrides applied (override > default; computed
+// variables stay computed), and returns the freshly resolved tree as JSON. A bad
+// runtime value (wrong type / out-of-enum) surfaces as the usual VAR_* error
+// envelope with a 422, so the client can show it without the page crashing.
+func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		s.writeJSONError(w, errors.NewCodedErrorWithDetails(errors.SERVE_INVALID,
+			"the re-resolve endpoint requires POST", map[string]any{"method": r.Method}))
+		return
+	}
+
+	overrides := map[string]any{}
+	// An empty body is allowed (re-resolve with defaults). Decode only when there
+	// is content so a missing body is not an error.
+	if r.Body != nil {
+		dec := json.NewDecoder(r.Body)
+		if err := dec.Decode(&overrides); err != nil && !stderrors.Is(err, io.EOF) {
+			s.writeJSONError(w, errors.WrapCodedError(err, errors.SERVE_INVALID,
+				"re-resolve request body is not a JSON object of variable values"))
+			return
+		}
+	}
+
+	tree, err := s.resolve(overrides)
+	if err != nil {
+		s.writeJSONError(w, err)
+		return
+	}
+	s.writeTree(w, tree)
+}
+
+// writeTree encodes the resolved tree as indented JSON.
+func (s *Server) writeTree(w http.ResponseWriter, tree *resolver.ResolvedTree) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	if encErr := enc.Encode(tree); encErr != nil {
 		s.writeJSONError(w, errors.WrapCodedError(encErr, errors.SERVE_INTERNAL, "failed encoding resolved tree"))
 	}
+}
+
+// queryOverrides extracts runtime variable overrides from the request's URL
+// query params (E3-S4: e.g. ?region=eu). Each single-valued param becomes a
+// string override; the resolver coerces it to the variable's declared type. A
+// repeated param keeps its first value. Reserved/empty handling stays minimal —
+// any name that is not a declared variable is simply ignored by resolution.
+func queryOverrides(r *http.Request) map[string]any {
+	q := r.URL.Query()
+	if len(q) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(q))
+	for name, vals := range q {
+		if len(vals) > 0 {
+			out[name] = vals[0]
+		}
+	}
+	return out
 }
 
 // renderError writes the HTML error page for err, coercing non-coded errors into

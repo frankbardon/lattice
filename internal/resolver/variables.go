@@ -18,7 +18,7 @@ import (
 // with the resolved tree during resolveInstance. Document-scope declarations are
 // validated here (fail-fast, the first invalid one surfaces as a VAR_* error);
 // per-instance declarations are validated as the walk extends each node's scope.
-func buildVariableModel(data []byte) (variables.Environment, *rawInstance, error) {
+func buildVariableModel(data []byte, overrides variables.Overrides) (variables.Environment, *rawInstance, error) {
 	var raw struct {
 		Variables []variables.Declaration `json:"variables"`
 		Root      *rawInstance            `json:"root"`
@@ -30,8 +30,10 @@ func buildVariableModel(data []byte) (variables.Environment, *rawInstance, error
 			"failed re-decoding document for variable resolution")
 	}
 
-	// Document-scope declarations form the outermost environment.
-	docEnv, err := variables.Environment(nil).Extend(raw.Variables, "doc")
+	// Document-scope declarations form the outermost environment. Runtime
+	// overrides (E3-S4) are applied here and at every nested scope so a settable
+	// variable takes its override value wherever it is declared.
+	docEnv, err := variables.Environment(nil).ExtendWithOverrides(raw.Variables, "doc", overrides)
 	if err != nil {
 		return nil, nil, err
 	}

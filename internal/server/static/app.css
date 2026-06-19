@@ -62,6 +62,31 @@ main { max-width: 1100px; margin: 0 auto; }
 
 .node-container { background: #161f33; }
 .node-leaf { background: #1b2436; }
+.node-input { border-color: var(--accent); }
+
+/* Runtime input controls (E3-S4): a dropdown leaf renders a real <select>. */
+.dropdown-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.dropdown-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.dropdown-select {
+  background: #0b0f18;
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.reresolving { margin: 0 1.5rem; font-style: italic; }
 
 .node-head {
   display: flex;

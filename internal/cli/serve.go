@@ -59,9 +59,11 @@ func ServeCommand() *cli.Command {
 
 			schemasDir := cmd.String("schemas")
 			// Re-resolve on every request so a document edit is reflected on
-			// reload and resolution errors render as the HTML error page.
-			resolve := func() (*resolver.ResolvedTree, error) {
-				return runResolve(schemasDir, docPath)
+			// reload and resolution errors render as the HTML error page. Runtime
+			// variable overrides (E3-S4: dropdown selections / URL query params)
+			// are threaded into resolution per request.
+			resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+				return runResolveWithValues(schemasDir, docPath, overrides)
 			}
 
 			srv, err := server.New(resolve)

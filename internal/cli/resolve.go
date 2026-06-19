@@ -12,6 +12,7 @@ import (
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
+	"github.com/frankbardon/lattice/internal/variables"
 )
 
 // defaultSchemasDir is the catalog directory scanned for the dashboard schema
@@ -68,6 +69,13 @@ func ResolveCommand() *cli.Command {
 // runResolve wires the resolver: it loads the dashboard schema from schemasDir,
 // builds a resolver over the on-disk catalog, and resolves the document.
 func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
+	return runResolveWithValues(schemasDir, docPath, nil)
+}
+
+// runResolveWithValues is runResolve with E3-S4 runtime variable overrides
+// applied (override > default for settable variables; computed vars stay
+// computed). A nil/empty overrides map is identical to runResolve.
+func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
 	fs := afero.NewOsFs()
 
 	dashSch, err := loadDashboardSchema(fs, schemasDir)
@@ -79,7 +87,7 @@ func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
 	if err != nil {
 		return nil, err
 	}
-	return res.Resolve(docPath)
+	return res.ResolveWithValues(docPath, variables.Overrides(overrides))
 }
 
 // loadDashboardSchema reads and parses the dashboard document schema from

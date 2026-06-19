@@ -37,9 +37,12 @@ var templatePattern = regexp.MustCompile(`\$\{([^}]*)\}`)
 // env is a fail-fast VAR_UNDEFINED CodedError; path identifies the owning
 // instance (e.g. "root.children[2]") so an author can locate the reference.
 //
-// The substituted value of a variable is its declared default. (Runtime value
-// overrides are a later concern; the default is the only value source the model
-// carries today, and ResolvedVar exposes it.)
+// The substituted value of a variable is its EFFECTIVE value: a runtime override
+// (E3-S4) when one was supplied for a settable variable, otherwise its declared
+// default (or, for a computed variable, its evaluated result). The selection
+// happens upstream when the environment is built (see Environment.Extend /
+// ExtendWithOverrides), so interpolation uniformly reads ResolvedVar.Default —
+// the single value slot every value source flows into.
 func Interpolate(value any, env Environment, path string) (any, error) {
 	switch v := value.(type) {
 	case map[string]any:

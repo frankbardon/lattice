@@ -71,16 +71,28 @@ func New(fs afero.Fs, dashboardSchema *jsonschema.Schema, catalogDirs []string, 
 // Resolve loads, validates (two passes), and assembles the resolved tree for the
 // dashboard document at docPath. It returns the first error as a CodedError.
 func (r *Resolver) Resolve(docPath string) (*ResolvedTree, error) {
+	return r.ResolveWithValues(docPath, nil)
+}
+
+// ResolveWithValues is Resolve with E3-S4 runtime overrides: a map of EXTERNAL
+// variable values (from a dropdown change or URL query params) applied as
+// override > default to settable variables of those names. Computed variables
+// remain computed. A nil/empty map is identical to Resolve, so the resolved-tree
+// contract is unchanged; the only difference is which value a settable variable
+// carries. Passing an override for an undeclared name is a no-op (no scope
+// declares it); a bad override value fails fast with the same VAR_* codes a bad
+// default would.
+func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrides) (*ResolvedTree, error) {
 	data, err := afero.ReadFile(r.fs, docPath)
 	if err != nil {
 		return nil, errors.WrapCodedError(err, errors.RESOLVE_IO, "failed reading dashboard document "+docPath)
 	}
-	return r.resolveBytes(data, docPath)
+	return r.resolveBytes(data, docPath, overrides)
 }
 
 // resolveBytes runs the full pipeline against raw document bytes. Split out so
 // tests can drive resolution without touching the filesystem for the document.
-func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, error) {
+func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.Overrides) (*ResolvedTree, error) {
 	// Pass 1: structural validation of the whole document against the dashboard
 	// schema. We validate the raw decoded JSON value (not the typed Document)
 	// so the schema sees the document exactly as authored.
@@ -100,7 +112,7 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 	// DURING Pass 2 because config interpolation ($var / ${...}) runs before that
 	// node's config is validated — an interpolated config carries concrete values
 	// that satisfy the item-type schema, whereas a raw {"$var":…} node would not.
-	docEnv, rawRoot, err := buildVariableModel(data)
+	docEnv, rawRoot, err := buildVariableModel(data, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +120,7 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 	// Pass 2 + assembly: per node, layer variables, interpolate config, validate
 	// the interpolated config, enforce the container-only-children rule, and build
 	// the resolved node, all in one walk.
-	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot)
+	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +183,7 @@ func (r *Resolver) validateDocument(data []byte, source string) error {
 // resolveInstance runs Pass 2 for a single node and recurses. path is the
 // human-readable JSON-ish path to this node (e.g. "root.children[2]"), reported
 // in errors so an author can locate the offending instance.
-func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string, parentEnv variables.Environment, raw *rawInstance) (*ResolvedInstance, error) {
+func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides) (*ResolvedInstance, error) {
 	typeID := g.Refs[inst]
 	rt := g.Types[typeID]
 	if rt == nil {
@@ -201,7 +213,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	if raw != nil {
 		decls = raw.Variables
 	}
-	env, err := parentEnv.Extend(decls, path)
+	env, err := parentEnv.ExtendWithOverrides(decls, path, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -245,7 +257,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		if raw != nil && i < len(raw.Children) {
 			rawChild = raw.Children[i]
 		}
-		resolvedChild, err := r.resolveInstance(g, child, childPath, env, rawChild)
+		resolvedChild, err := r.resolveInstance(g, child, childPath, env, rawChild, overrides)
 		if err != nil {
 			return nil, err
 		}

@@ -40,7 +40,7 @@ const docWithVars = `{
 // records var->node visibility via DeclaredAt.
 func TestVariableEnvironmentAttached(t *testing.T) {
 	res := newRepoResolver(t)
-	tree, err := res.resolveBytes([]byte(docWithVars), "inline")
+	tree, err := res.resolveBytes([]byte(docWithVars), "inline", nil)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -128,7 +128,7 @@ const docInterpolated = `{
 // doc-scope "us".
 func TestResolveInterpolatesConfig(t *testing.T) {
 	res := newRepoResolver(t)
-	tree, err := res.resolveBytes([]byte(docInterpolated), "inline")
+	tree, err := res.resolveBytes([]byte(docInterpolated), "inline", nil)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -161,7 +161,7 @@ func TestResolveTypedBindingPreservesType(t *testing.T) {
       }
     }`
 	res := newRepoResolver(t)
-	tree, err := res.resolveBytes([]byte(doc), "inline")
+	tree, err := res.resolveBytes([]byte(doc), "inline", nil)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
@@ -194,7 +194,7 @@ func TestResolveMissingVarFailsFast(t *testing.T) {
       }
     }`
 	res := newRepoResolver(t)
-	_, err := res.resolveBytes([]byte(doc), "inline")
+	_, err := res.resolveBytes([]byte(doc), "inline", nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -204,6 +204,123 @@ func TestResolveMissingVarFailsFast(t *testing.T) {
 	var ce *errors.CodedError
 	if stderrors.As(err, &ce) && ce.Details["path"] != "root.children[0]" {
 		t.Errorf("path = %v, want root.children[0]", ce.Details["path"])
+	}
+}
+
+// TestResolveExternalOverride confirms a runtime override (E3-S4) replaces a
+// settable variable's effective value (override > default) and flows through
+// interpolation: the leaf's ${region} template and {"$var":"region"} binding
+// pick up the override "apac" rather than the declared default "us".
+func TestResolveExternalOverride(t *testing.T) {
+	res := newRepoResolver(t)
+	tree, err := res.resolveBytes([]byte(docInterpolated), "inline",
+		map[string]any{"region": "apac"})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	// The override applies wherever the name is declared. docInterpolated shadows
+	// "region" at root with default "eu"; the override replaces that effective
+	// value too, so the leaf interpolates "apac".
+	leaf := tree.Root.Children[0]
+	if got := leaf.Config["title"]; got != "Report for apac" {
+		t.Errorf("title = %v, want %q", got, "Report for apac")
+	}
+	region, ok := tree.Root.VarEnv.Lookup("region")
+	if !ok {
+		t.Fatal("region not visible at root")
+	}
+	if region.Default != "apac" {
+		t.Errorf("root region effective value = %v, want apac", region.Default)
+	}
+}
+
+// TestResolveOverrideCoercesString confirms a string-encoded override (the form
+// URL query params deliver) is coerced to the variable's declared type before
+// it enters the environment.
+func TestResolveOverrideCoercesString(t *testing.T) {
+	const doc = `{
+      "manifest": {"formatVersion": "1.0.0", "id": "ov", "title": "Ov"},
+      "variables": [{"name": "gap", "type": "integer", "default": 1}],
+      "root": {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "root",
+        "config": {"grid": {"columns": [1], "gap": {"$var": "gap"}}}
+      }
+    }`
+	res := newRepoResolver(t)
+	tree, err := res.resolveBytes([]byte(doc), "inline", map[string]any{"gap": "4"})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	grid := tree.Root.Config["grid"].(map[string]any)
+	gap, ok := grid["gap"].(float64)
+	if !ok || gap != 4 {
+		t.Errorf("gap = %#v, want 4 (string override coerced to integer)", grid["gap"])
+	}
+}
+
+// TestResolveOverrideDoesNotApplyToComputed confirms a computed (expr) variable
+// is never overridable: an override for its name is ignored and it keeps its
+// evaluated value.
+func TestResolveOverrideDoesNotApplyToComputed(t *testing.T) {
+	const doc = `{
+      "manifest": {"formatVersion": "1.0.0", "id": "comp", "title": "Comp"},
+      "variables": [
+        {"name": "base", "type": "integer", "default": 2},
+        {"name": "doubled", "type": "integer", "expr": "base * 2"}
+      ],
+      "root": {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "root",
+        "config": {"grid": {"columns": [1], "gap": {"$var": "doubled"}}}
+      }
+    }`
+	res := newRepoResolver(t)
+	// Override base (settable) -> 5; doubled must recompute to 10 and ignore its
+	// own override attempt (99).
+	tree, err := res.resolveBytes([]byte(doc), "inline",
+		map[string]any{"base": "5", "doubled": "99"})
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	grid := tree.Root.Config["grid"].(map[string]any)
+	gap, _ := grid["gap"].(float64)
+	if gap != 10 {
+		t.Errorf("computed doubled = %v, want 10 (recomputed from overridden base, not overridden directly)", gap)
+	}
+}
+
+// TestResolveBadOverrideFailsFast confirms a runtime override that violates its
+// variable's declared type/enum surfaces as a fail-fast VAR_* CodedError.
+func TestResolveBadOverrideFailsFast(t *testing.T) {
+	tests := []struct {
+		name     string
+		override map[string]any
+		wantCode errors.Code
+	}{
+		{"out of enum", map[string]any{"region": "moon"}, errors.VAR_OPTIONS_INVALID},
+	}
+	const doc = `{
+      "manifest": {"formatVersion": "1.0.0", "id": "bad", "title": "Bad"},
+      "variables": [{"name": "region", "type": "enum", "default": "us", "options": ["us", "eu"]}],
+      "root": {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "root",
+        "config": {"grid": {"columns": [1]}}
+      }
+    }`
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			_, err := res.resolveBytes([]byte(doc), "inline", tt.override)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !errors.HasCode(err, tt.wantCode) {
+				t.Fatalf("expected %s, got %v", tt.wantCode, err)
+			}
+		})
 	}
 }
 
@@ -237,7 +354,7 @@ func TestResolveVariableErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			res := newRepoResolver(t)
-			_, err := res.resolveBytes([]byte(tt.doc), "inline")
+			_, err := res.resolveBytes([]byte(tt.doc), "inline", nil)
 			if err == nil {
 				t.Fatal("expected error, got nil")
 			}

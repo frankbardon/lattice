@@ -33,7 +33,7 @@ func newTestServer(t *testing.T, resolve ResolveFunc) http.Handler {
 }
 
 func TestPageServedOnSuccess(t *testing.T) {
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -54,7 +54,7 @@ func TestPageServedOnSuccess(t *testing.T) {
 }
 
 func TestPageRendersSketchAndInspector(t *testing.T) {
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -91,7 +91,7 @@ func TestPageRendersSketchAndInspector(t *testing.T) {
 }
 
 func TestTreeEndpointReturnsJSON(t *testing.T) {
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/tree", nil))
@@ -112,10 +112,94 @@ func TestTreeEndpointReturnsJSON(t *testing.T) {
 	}
 }
 
+func TestResolveEndpointAppliesOverrides(t *testing.T) {
+	// Capture the overrides the handler threads into resolution so we can assert
+	// the POSTed body reaches the resolver and the fresh tree is returned.
+	var got map[string]any
+	resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+		got = overrides
+		tree := okTree()
+		region, _ := overrides["region"].(string)
+		tree.Manifest = map[string]any{"title": "Region " + region}
+		return tree, nil
+	}
+	h := newTestServer(t, resolve)
+
+	body := strings.NewReader(`{"region":"eu"}`)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/resolve", body))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got["region"] != "eu" {
+		t.Errorf("overrides threaded = %+v, want region=eu", got)
+	}
+	if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+		t.Errorf("content-type = %q, want application/json", ct)
+	}
+	var tree resolver.ResolvedTree
+	if err := json.Unmarshal(rec.Body.Bytes(), &tree); err != nil {
+		t.Fatalf("response not JSON: %v", err)
+	}
+	if title, _ := tree.Manifest["title"].(string); title != "Region eu" {
+		t.Errorf("re-resolved title = %q, want %q", title, "Region eu")
+	}
+}
+
+func TestResolveEndpointEmptyBodyUsesDefaults(t *testing.T) {
+	var got map[string]any
+	resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+		got = overrides
+		return okTree(), nil
+	}
+	h := newTestServer(t, resolve)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/resolve", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if len(got) != 0 {
+		t.Errorf("overrides = %+v, want empty for empty body", got)
+	}
+}
+
+func TestResolveEndpointRejectsGet(t *testing.T) {
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/resolve", nil))
+
+	if rec.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d, want 422 for GET", rec.Code)
+	}
+}
+
+func TestTreeEndpointAppliesQueryOverrides(t *testing.T) {
+	var got map[string]any
+	resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+		got = overrides
+		return okTree(), nil
+	}
+	h := newTestServer(t, resolve)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/tree?region=eu", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got["region"] != "eu" {
+		t.Errorf("query overrides = %+v, want region=eu", got)
+	}
+}
+
 func TestErrorPageRendersCodedError(t *testing.T) {
 	ce := errors.NewCodedErrorWithDetails(errors.RESOLVE_CONFIG_INVALID,
 		"config failed validation", map[string]any{"path": "root.children[0]"})
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return nil, ce })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return nil, ce })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
@@ -137,7 +221,7 @@ func TestErrorPageRendersCodedError(t *testing.T) {
 
 func TestTreeEndpointReturnsErrorEnvelope(t *testing.T) {
 	ce := errors.NewCodedError(errors.SERVE_RESOLVE, "boom")
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return nil, ce })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return nil, ce })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/tree", nil))
@@ -158,7 +242,7 @@ func TestTreeEndpointReturnsErrorEnvelope(t *testing.T) {
 }
 
 func TestStaticAssetServed(t *testing.T) {
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/static/app.css", nil))
@@ -172,7 +256,7 @@ func TestStaticAssetServed(t *testing.T) {
 }
 
 func TestUnknownPathNotFound(t *testing.T) {
-	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/nope", nil))

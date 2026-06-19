@@ -32,6 +32,11 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
     formalizes relative-weight tracks + placement.
   - `table.schema.json` (`.../items/table/1.0.0`) — a static leaf type with
     opaque config; no data binding.
+  - `dropdown.schema.json` (`.../items/dropdown/1.0.0`) — a runtime-input leaf
+    type (E3-S4) binding a variable name to a fixed option set. The reference
+    renderer draws it as an Alpine `<select>` and re-resolves the document on
+    change; the chosen value becomes the variable's runtime override
+    (override > default), so dependent `${var}`/`$var` consumers update live.
 - `connections/` — connection (data source) type schemas, referenced by
   document-scoped connection instances (`{ id, $ref, config, secretRefs? }`).
   Loaded into the same catalog as item types and validated the same way by the
