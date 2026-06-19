@@ -24,6 +24,7 @@ package resolver
 
 import (
 	"encoding/json"
+	"net/url"
 	"strconv"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -271,10 +272,13 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 
 	isContainer := rt.Name == containerTypeName
 	isForm := rt.Name == formTypeName
+	isBlock := rt.Name == blockTypeName
 
 	// Children-allowed rule: children are permitted only on the structurally
 	// special types — the weighted-grid container and the flow-packing form. A
-	// child on any other type fails fast.
+	// child on any other type fails fast. A block wraps its single inner item via
+	// its `content` config field, not the `children` array, so authored children on
+	// a block are rejected here like any other leaf.
 	if len(inst.Children) > 0 && !isContainer && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
@@ -283,6 +287,15 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 				"type": rt.Name,
 				"ref":  inst.Ref,
 			})
+	}
+
+	// E1-S2: a block is a WRAPPER — it carries its own per-block concerns and wraps
+	// exactly one inner content item declared in its `content` config field. Resolve
+	// it on a dedicated path: validate the wrapper's own concerns, then resolve the
+	// inner content as a SEPARATE node (identically to how it would resolve
+	// unwrapped) emitted as the wrapper's single child. See block.go.
+	if isBlock {
+		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides)
 	}
 
 	// E3-S1: layer this node's own variable declarations onto the inherited
@@ -361,11 +374,40 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	return node, nil
 }
 
+// itemSchemaResolveOptions returns the ResolveOptions used when compiling an
+// item-type schema for config validation. Some item types $ref into the dashboard
+// schema's shared $defs — notably the block wrapper, whose `content` references
+// the document's #/$defs/instance (E1-S1) — so the compiler needs a loader that
+// serves the dashboard schema by its $id. The loader returns the in-memory
+// dashboard schema for that one canonical URL and nothing else; any other remote
+// reference stays unresolved (a malformed schema, surfaced as RESOLVE_INTERNAL).
+func (r *Resolver) itemSchemaResolveOptions() *jsonschema.ResolveOptions {
+	if r.dashSch == nil || r.dashSch.ID == "" {
+		return nil
+	}
+	dashID := r.dashSch.ID
+	return &jsonschema.ResolveOptions{
+		Loader: func(uri *url.URL) (*jsonschema.Schema, error) {
+			// Compare on the schema identity (scheme://host/path), ignoring any
+			// fragment, since a $ref like ".../dashboard/1.0.0#/$defs/instance" asks
+			// the loader for the dashboard document, then resolves the fragment within.
+			base := *uri
+			base.Fragment = ""
+			if base.String() == dashID {
+				return r.dashSch, nil
+			}
+			return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_INTERNAL,
+				"item-type schema references an unknown remote schema",
+				map[string]any{"ref": uri.String()})
+		},
+	}
+}
+
 // validateConfig validates one instance's config against its resolved item-type
 // schema. An absent config validates as an empty object so that required-field
 // constraints in the item-type schema still apply.
 func (r *Resolver) validateConfig(rt *schema.ResolvedType, config map[string]any, path string) error {
-	resolved, err := rt.Schema.Resolve(nil)
+	resolved, err := rt.Schema.Resolve(r.itemSchemaResolveOptions())
 	if err != nil {
 		return errors.WrapCodedErrorWithDetails(err, errors.RESOLVE_INTERNAL,
 			"failed compiling item-type schema for validation",

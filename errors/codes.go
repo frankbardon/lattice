@@ -234,6 +234,29 @@ const (
 	LAYOUT_FORM_CHILD_INVALID Code = "LAYOUT_FORM_CHILD_INVALID"
 )
 
+// WRAPPER domain - The block wrapper item type (E1): an item that wraps exactly
+// one inner content item and carries the cross-cutting per-block concerns
+// (stable id, theme override, title/label, visibility) applied to whatever it
+// wraps. The resolver emits the wrapper and its single inner content as separate
+// nodes; these codes guard the wrapper's own invariants fail-fast.
+const (
+	// WRAPPER_ID_MISSING indicates a block wrapper is missing its required stable
+	// `id` config field, or carries one that is empty/whitespace-only — so the
+	// block has no stable anchor for patches/configurators to address it by. The
+	// item-type schema requires `id` (minLength 1) at the structural pass; this is
+	// the defense-in-depth resolver guard (it also catches a whitespace-only id the
+	// schema's minLength accepts). The offending wrapper's instance path is reported
+	// in Details["path"].
+	WRAPPER_ID_MISSING Code = "WRAPPER_ID_MISSING"
+
+	// WRAPPER_CHILD_COUNT_INVALID indicates a block wrapper does not wrap EXACTLY
+	// ONE inner content item: its `content` is absent, null, or not a single
+	// instance object. A block holds exactly one content leaf and applies its
+	// per-block concerns to it. The offending wrapper's instance path and the
+	// observed content count are reported in Details["path"]/["count"].
+	WRAPPER_CHILD_COUNT_INVALID Code = "WRAPPER_CHILD_COUNT_INVALID"
+)
+
 // CONFIGURATOR domain - The configurator item type (E5): an item that renders an
 // editor for another item in the same document, referenced by its stable id.
 const (
