@@ -1,5 +1,6 @@
 name: Deploy Documentation
 
+# Deploys the mdBook spec to GitHub Pages on changes under docs/.
 on:
   push:
     branches: [main]
