@@ -322,4 +322,14 @@ const (
 	// target that carries no stable id at all.) The offending configurator's
 	// instance path is reported in Details["path"].
 	CONFIGURATOR_TARGET_MISSING_ID Code = "CONFIGURATOR_TARGET_MISSING_ID"
+
+	// CONFIGURATOR_TARGET_SCOPE_UNKNOWN indicates a configurator's `target` is a
+	// reserved, `$`-prefixed keyword that names no known document-level scope
+	// (E4-S1). A `$`-prefixed target is ALWAYS routed to a document scope, never an
+	// item id, so an unrecognized scope keyword fails fast rather than falling
+	// through to an item lookup. The recognized scopes are `$manifest`,
+	// `$variables`, `$connections`, `$theme`, and `$root`. The offending
+	// configurator's instance path and the unknown scope keyword are reported in
+	// Details["path"]/["target"].
+	CONFIGURATOR_TARGET_SCOPE_UNKNOWN Code = "CONFIGURATOR_TARGET_SCOPE_UNKNOWN"
 )

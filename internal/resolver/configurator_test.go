@@ -400,6 +400,119 @@ func TestConfiguratorTargetsSurfacelessItem(t *testing.T) {
 	}
 }
 
+// TestResolveConfiguratorReservedTargets asserts every RESERVED document-scope
+// keyword (E4-S1) routes to its scope: a `$`-prefixed target resolves cleanly
+// without any matching item id, and the configurator is marked resolved (carries a
+// present GeneratedForm keyed by the reserved keyword). The id index here holds
+// only ordinary items, so a clean resolve proves the reserved targets bypass the
+// item lookup entirely.
+func TestResolveConfiguratorReservedTargets(t *testing.T) {
+	for _, target := range []string{"$manifest", "$variables", "$connections", "$theme", "$root"} {
+		cfg := configuratorNode("cfg", target)
+		root := containerNode(
+			tableNode("revenue"),
+			cfg,
+		)
+		if err := resolveConfigurators(root); err != nil {
+			t.Fatalf("target %q: resolveConfigurators: %v", target, err)
+		}
+		if cfg.Generated == nil {
+			t.Fatalf("target %q: Generated is nil, want a present form routed to the scope", target)
+		}
+		if cfg.Generated.Target != target {
+			t.Errorf("target %q: Generated.Target = %q, want the reserved keyword", target, cfg.Generated.Target)
+		}
+		// E4-S1 routes only; the scope form is E4-S2, so the form is present but empty.
+		if len(cfg.Generated.Widgets) != 0 {
+			t.Errorf("target %q: Generated.Widgets = %d, want 0 (form generation is E4-S2)", target, len(cfg.Generated.Widgets))
+		}
+	}
+}
+
+// TestResolveConfiguratorReservedTargetUnknown asserts an unknown `$`-prefixed
+// target fails fast with CONFIGURATOR_TARGET_SCOPE_UNKNOWN, naming the offending
+// configurator path and the unknown scope keyword — it is NEVER reinterpreted as an
+// item id (so it does not fall through to NOT_FOUND).
+func TestResolveConfiguratorReservedTargetUnknown(t *testing.T) {
+	cfg := configuratorNode("cfg", "$bogus")
+	root := containerNode(
+		tableNode("revenue"),
+		cfg,
+	)
+	err := resolveConfigurators(root)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.HasCode(err, errors.CONFIGURATOR_TARGET_SCOPE_UNKNOWN) {
+		t.Fatalf("error = %v, want code %s", err, errors.CONFIGURATOR_TARGET_SCOPE_UNKNOWN)
+	}
+	var ce *errors.CodedError
+	if !asCoded(err, &ce) {
+		t.Fatalf("error is not a CodedError: %v", err)
+	}
+	if got, _ := ce.Details["path"].(string); got != "root.children[1]" {
+		t.Errorf("error path = %q, want %q", got, "root.children[1]")
+	}
+	if got, _ := ce.Details["target"].(string); got != "$bogus" {
+		t.Errorf("error target = %q, want %q", got, "$bogus")
+	}
+	if cfg.Generated != nil {
+		t.Errorf("Generated = %+v, want nil for an unknown reserved scope", cfg.Generated)
+	}
+}
+
+// TestResolveConfiguratorReservedDoesNotMatchItem asserts collision avoidance from
+// the SCOPE side: even when an item literally carries the id "$theme", a
+// configurator targeting "$theme" routes to the document THEME scope (an empty
+// scope form), not the item — the `$` sigil is decisive, so the id index is never
+// consulted for a reserved target.
+func TestResolveConfiguratorReservedDoesNotMatchItem(t *testing.T) {
+	collider := surfacedTableNode("$theme") // an item literally named like the keyword
+	cfg := configuratorNode("cfg", "$theme")
+	root := containerNode(
+		collider,
+		cfg,
+	)
+	if err := resolveConfigurators(root); err != nil {
+		t.Fatalf("resolveConfigurators: %v", err)
+	}
+	if cfg.Generated == nil {
+		t.Fatal("Generated is nil, want a present scope form")
+	}
+	// Routed to the scope, NOT the colliding item: the item has 3 surface fields, so
+	// an item-routed form would have 3 widgets. The scope form is empty (E4-S2).
+	if len(cfg.Generated.Widgets) != 0 {
+		t.Errorf("Generated.Widgets = %d, want 0 (routed to scope, not the colliding item)", len(cfg.Generated.Widgets))
+	}
+}
+
+// TestResolveConfiguratorItemNamedLikeKeywordNoSigil asserts collision avoidance
+// from the ITEM side: an item whose id is the bare word "theme" (no `$` sigil) is
+// targeted as an ordinary item id and resolves to that item — the reserved-scope
+// routing only ever triggers on the `$`-prefixed form, so ordinary item-id
+// targeting is completely unaffected.
+func TestResolveConfiguratorItemNamedLikeKeywordNoSigil(t *testing.T) {
+	item := surfacedTableNode("theme") // bare "theme", an ordinary id
+	cfg := configuratorNode("cfg", "theme")
+	root := containerNode(
+		item,
+		cfg,
+	)
+	if err := resolveConfigurators(root); err != nil {
+		t.Fatalf("resolveConfigurators: %v", err)
+	}
+	if cfg.Generated == nil {
+		t.Fatal("Generated is nil, want a form generated from the targeted item")
+	}
+	// Routed to the ITEM: the item-routed form mirrors the item's 3-field surface.
+	if len(cfg.Generated.Widgets) != 3 {
+		t.Errorf("Generated.Widgets = %d, want 3 (item-id targeting unaffected)", len(cfg.Generated.Widgets))
+	}
+	if cfg.Generated.Target != "theme" {
+		t.Errorf("Generated.Target = %q, want %q", cfg.Generated.Target, "theme")
+	}
+}
+
 // configuratorTableDoc is a dashboard whose container holds a connection-backed
 // table (with title/columns/query surface) and a configurator targeting it — the
 // end-to-end E5-S2 fixture: the configurator's generated form must mirror the

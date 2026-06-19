@@ -50,6 +50,35 @@ validates each configurator's `target` against it, fail-fast:
 
 Both errors name the offending configurator's `path` in their details.
 
+### Reserved document-scope targets
+
+A `target` may instead be a **reserved, `$`-prefixed keyword** that points the
+configurator at a **document-level scope** rather than an item:
+
+| Target         | Scope                          |
+| -------------- | ------------------------------ |
+| `$manifest`    | the document manifest          |
+| `$variables`   | the document variable set      |
+| `$connections` | the document connections       |
+| `$theme`       | the document default theme     |
+| `$root`        | the resolved root region       |
+
+A `$`-prefixed target is **always** routed to a document scope and is **never**
+looked up as an item id, so a reserved keyword can never collide with — nor be
+shadowed by — an item that happens to share the name. Conversely, an ordinary
+item id (one without the `$` sigil) is unaffected: an item literally named
+`theme` is still targeted as an item by `"target": "theme"`.
+
+- `CONFIGURATOR_TARGET_SCOPE_UNKNOWN` — the `target` is `$`-prefixed but names no
+  recognized scope; it fails fast (it is not reinterpreted as an item id). The
+  offending configurator's `path` and the unknown scope keyword are in the error
+  details.
+
+> The reserved-target *editor* — the surface each document scope exposes and the
+> form generated from it — is a follow-on story. Today a reserved target
+> **resolves and routes** to its scope (the configurator carries a present, empty
+> `generated` form keyed by the scope keyword); the per-scope controls land next.
+
 ## The auto-generated form
 
 When the target resolves, the configurator pass reads the target's validated
