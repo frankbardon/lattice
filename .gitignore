@@ -9,6 +9,9 @@
 *.test
 *.out
 
+# mdBook generated output
+/docs/book/
+
 # SQLite / local data
 *.db
 *.db-journal

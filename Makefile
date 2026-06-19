@@ -1,4 +1,4 @@
-.PHONY: build clean test cover fmt vet lint bench
+.PHONY: build clean test cover fmt vet lint bench docs docs-serve docs-clean
 
 BINARY_NAME=dashspec
 BUILD_DIR=bin
@@ -44,5 +44,16 @@ lint: vet
 # `make test`. New bench packages should be added here.
 bench:
 	$(GO) test -bench=. -benchmem -run='^$$' -count=1 ./...
+
+# docs builds the mdBook spec site into docs/book/ (gitignored). Requires the
+# `mdbook` binary; it is not needed for build/test.
+docs:
+	mdbook build docs
+
+docs-serve:
+	mdbook serve docs --open
+
+docs-clean:
+	rm -rf docs/book
 
 .DEFAULT_GOAL := build
