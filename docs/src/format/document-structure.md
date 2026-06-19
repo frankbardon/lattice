@@ -87,7 +87,7 @@ they are never dialed.
 
 ## The resolved tree
 
-`dashspec resolve` emits a **resolved tree** whose shape is a stable,
+`lattice resolve` emits a **resolved tree** whose shape is a stable,
 JSON-tagged contract (additive changes only). It has three top-level members:
 
 ```json

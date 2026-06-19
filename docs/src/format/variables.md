@@ -136,7 +136,7 @@ variable reads the same value slot an override writes, a computed chain that
 depends on an overridden literal **recomputes against the runtime value** — this
 is what lets a runtime input drive a `${var}` consumer through an `expr`.
 
-Overrides come from two sources, both wired by `dashspec serve`:
+Overrides come from two sources, both wired by `lattice serve`:
 
 - **Dropdown items.** A `dropdown` item binds a variable to a fixed option set.
   Changing the selection sets that variable's runtime override and re-resolves

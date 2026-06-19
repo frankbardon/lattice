@@ -20,7 +20,7 @@ feature of the spec. Paths below are relative to the repository root.
 Most examples resolve with no setup:
 
 ```sh
-dashspec resolve examples/minimal-dashboard.json
+lattice resolve examples/minimal-dashboard.json
 ```
 
 ## The kitchen-sink example needs a secret
@@ -35,7 +35,7 @@ Because it includes a `$secret`, it requires `METRICS_API_TOKEN` to be set in
 the environment to resolve by hand:
 
 ```sh
-METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json
+METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json
 ```
 
 The token value never appears in the output — see
@@ -47,6 +47,6 @@ The dropdown and kitchen-sink examples are most interesting under `serve`, where
 the runtime-input loop is live:
 
 ```sh
-dashspec serve examples/dropdown-dashboard.json
+lattice serve examples/dropdown-dashboard.json
 # then open http://localhost:8080/?region=eu to set the initial value
 ```

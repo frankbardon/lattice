@@ -11,7 +11,7 @@ explain the shape of the tooling.
 - **Go 1.26**, module path `github.com/frankbardon/lattice`.
 - **Pure Go.** `CGO_ENABLED=0` is exported globally by the Makefile, making the
   no-C-toolchain rule a build contract rather than a convention.
-- The binary is built to `bin/dashspec` via `make build` (`-trimpath`, stripped).
+- The binary is built to `bin/lattice` via `make build` (`-trimpath`, stripped).
 
 ## Tooling
 

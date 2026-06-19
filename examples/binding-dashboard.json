@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "binding-example",
     "title": "Direct Binding + Secret Refs Example",
-    "description": "An item bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz dashspec resolve examples/binding-dashboard.json — the resolved token value never appears in the output."
+    "description": "An item bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz lattice resolve examples/binding-dashboard.json — the resolved token value never appears in the output."
   },
   "variables": [
     { "name": "region", "type": "string", "default": "us-east" },

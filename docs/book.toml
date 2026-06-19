@@ -3,7 +3,7 @@ authors = ["Frank Bardon"]
 language = "en"
 src = "src"
 title = "Lattice Dashboard Spec"
-description = "The JSON dashboard document format and schema catalog resolved by the dashspec tool"
+description = "The JSON dashboard document format and schema catalog resolved by the lattice tool"
 
 [build]
 build-dir = "book"

@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "contract-example",
     "title": "Result-Shape Contract Example",
-    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: dashspec resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result)."
+    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result)."
   },
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",

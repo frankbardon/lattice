@@ -7,7 +7,7 @@ Lattice is a **specification**, not a running product. The deliverable is:
 1. A **JSON document format** for dashboards (`schemas/dashboard.schema.json`).
 2. A **catalog of typed schemas** for item types and connection types
    (`schemas/items/`, `schemas/connections/`).
-3. A resolver, shipped as the **`dashspec`** binary, that validates a document
+3. A resolver, shipped as the **`lattice`** binary, that validates a document
    against the catalog and emits a resolved tree.
 
 A dashboard is a tree of **items**. The only structurally special item is the
@@ -18,7 +18,7 @@ interpolate variable values into their configuration.
 
 ## The resolution pipeline
 
-`dashspec resolve` runs a **fail-fast, two-pass** pipeline. The first error
+`lattice resolve` runs a **fail-fast, two-pass** pipeline. The first error
 stops the run and is reported as a coded error (see [Error Codes](reference/error-codes.md));
 errors are never aggregated.
 
@@ -51,7 +51,7 @@ documented contract — see [Document Structure](format/document-structure.md#th
 
 | Command | Purpose |
 | --- | --- |
-| `dashspec resolve <document>` | Validate a document and print the resolved-tree JSON to stdout. |
-| `dashspec serve <document>` | Serve the document over HTTP: an HTML structural sketch plus a JSON resolved-tree endpoint, re-resolved per request with runtime inputs. |
+| `lattice resolve <document>` | Validate a document and print the resolved-tree JSON to stdout. |
+| `lattice serve <document>` | Serve the document over HTTP: an HTML structural sketch plus a JSON resolved-tree endpoint, re-resolved per request with runtime inputs. |
 
 Both are covered in [Building & Running](getting-started/building-and-running.md).

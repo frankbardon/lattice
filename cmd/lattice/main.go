@@ -1,4 +1,4 @@
-// Package main is the entry point for the dashspec CLI binary.
+// Package main is the entry point for the lattice CLI binary.
 package main
 
 import (
@@ -24,7 +24,7 @@ func main() {
 
 func buildApp() *cli.Command {
 	return &cli.Command{
-		Name:    "dashspec",
+		Name:    "lattice",
 		Usage:   "Resolve and serve declarative dashboard specifications",
 		Version: version,
 		Flags: []cli.Flag{

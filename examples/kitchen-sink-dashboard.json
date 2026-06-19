@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "kitchen-sink",
     "title": "Kitchen-Sink Dashboard",
-    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a dropdown runtime input bound to a variable (E3-S4); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a dropdown runtime input bound to a variable (E3-S4); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "variables": [

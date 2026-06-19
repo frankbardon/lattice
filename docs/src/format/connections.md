@@ -102,7 +102,7 @@ a reference whose `NAME` is absent from the environment fails fast with
 > `examples/kitchen-sink-dashboard.json` needs `METRICS_API_TOKEN`:
 >
 > ```sh
-> METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json
+> METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json
 > ```
 >
 > The token value never appears in the output.

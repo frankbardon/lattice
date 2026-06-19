@@ -1,7 +1,7 @@
 # Lattice Dashboard Spec
 
 Lattice is a **declarative JSON format for describing dashboards** and a
-companion tool, `dashspec`, that loads, validates, and **resolves** those
+companion tool, `lattice`, that loads, validates, and **resolves** those
 documents into a flat, renderer-agnostic tree.
 
 A dashboard document is a single JSON file: a `manifest`, a recursive `root`
@@ -10,7 +10,7 @@ item tree, optional document-scoped `variables`, and optional document-scoped
 versioned JSON Schemas in a local catalog; each node in the document is an
 **instance** of one of those types, referenced by `$ref`.
 
-`dashspec` does two things with such a document:
+`lattice` does two things with such a document:
 
 - **`resolve`** — runs a two-pass validation and prints the **resolved tree**:
   a fully validated, interpolated, secret-redacted JSON structure that a

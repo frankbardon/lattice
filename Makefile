@@ -1,6 +1,6 @@
 .PHONY: build clean test cover fmt vet lint bench docs docs-serve docs-clean
 
-BINARY_NAME=dashspec
+BINARY_NAME=lattice
 BUILD_DIR=bin
 GO=go
 LDFLAGS=-s -w
@@ -19,7 +19,7 @@ ifneq (,$(wildcard ./.env))
 endif
 
 build:
-	$(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/dashspec
+	$(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/lattice
 
 clean:
 	rm -rf $(BUILD_DIR) coverage.out

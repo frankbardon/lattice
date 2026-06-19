@@ -1,6 +1,6 @@
 # Lattice
 
-A declarative **JSON format for describing dashboards**, plus `dashspec` — a Go
+A declarative **JSON format for describing dashboards**, plus `lattice` — a Go
 tool that loads, validates, and **resolves** those documents into a flat,
 renderer-agnostic tree.
 
@@ -22,20 +22,20 @@ versioned JSON Schemas in a local catalog; each node in the document is an
 make build
 ```
 
-Produces the CLI at `bin/dashspec`. The build is **pure Go** — `CGO_ENABLED=0`
+Produces the CLI at `bin/lattice`. The build is **pure Go** — `CGO_ENABLED=0`
 is enforced globally so no C-toolchain dependency can enter the build graph.
 Requires Go 1.26+.
 
 ## Run
 
-`dashspec` has two subcommands.
+`lattice` has two subcommands.
 
 ### `resolve`
 
 Validate a document and print its resolved tree as JSON:
 
 ```sh
-dashspec resolve examples/minimal-dashboard.json
+lattice resolve examples/minimal-dashboard.json
 ```
 
 Flags: `--schemas <dir>` (catalog directory, default `schemas`) and the global
@@ -43,7 +43,7 @@ Flags: `--schemas <dir>` (catalog directory, default `schemas`) and the global
 that reference a secret need it set in the environment, e.g.:
 
 ```sh
-METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json
+METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json
 ```
 
 The secret value never appears in the output.
@@ -55,7 +55,7 @@ resolved-tree endpoint, re-resolved per request with AlpineJS-driven runtime
 inputs (dropdown selections and `?var=value` URL params):
 
 ```sh
-dashspec serve examples/dropdown-dashboard.json   # http://localhost:8080
+lattice serve examples/dropdown-dashboard.json   # http://localhost:8080
 ```
 
 Flags: `--schemas <dir>` and `--port <n>` (default 8080).

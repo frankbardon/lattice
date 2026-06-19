@@ -14,7 +14,7 @@
 make build
 ```
 
-This produces the CLI at `bin/dashspec` (built with `-trimpath` and stripped
+This produces the CLI at `bin/lattice` (built with `-trimpath` and stripped
 linker flags). `make` with no target also builds, since `build` is the default
 goal.
 
@@ -27,7 +27,7 @@ Other Makefile targets mirror the conventions described in
 Validate a dashboard document and print its resolved tree as JSON:
 
 ```sh
-dashspec resolve examples/minimal-dashboard.json
+lattice resolve examples/minimal-dashboard.json
 ```
 
 | Flag | Default | Meaning |
@@ -40,7 +40,7 @@ On the first validation failure, the error is printed and the process exits
 non-zero. The `--json` flag is global, so it goes before the subcommand:
 
 ```sh
-dashspec --json resolve examples/minimal-dashboard.json
+lattice --json resolve examples/minimal-dashboard.json
 ```
 
 ### Documents with secrets
@@ -51,7 +51,7 @@ resolved value is needed to validate the connection config. For example,
 `examples/kitchen-sink-dashboard.json` references `METRICS_API_TOKEN`:
 
 ```sh
-METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json
+METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json
 ```
 
 The token's **value never appears in the output** — only the `$secret`
@@ -63,7 +63,7 @@ reference object and a sorted list of consumed secret names are kept. See
 Serve a document over HTTP, re-resolving it on each request:
 
 ```sh
-dashspec serve examples/dropdown-dashboard.json
+lattice serve examples/dropdown-dashboard.json
 # lattice serving examples/dropdown-dashboard.json on http://localhost:8080
 ```
 

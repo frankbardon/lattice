@@ -13,7 +13,7 @@
 // Manual check:
 //
 //	make build
-//	./bin/dashspec serve examples/minimal-dashboard.json   # add --port to change the port (default 8080)
+//	./bin/lattice serve examples/minimal-dashboard.json   # add --port to change the port (default 8080)
 //	open http://localhost:8080/                             # base AlpineJS page
 //	curl http://localhost:8080/api/tree                     # resolved-tree JSON
 //

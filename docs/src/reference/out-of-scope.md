@@ -1,14 +1,14 @@
 # Out of Scope
 
 This effort delivers the **dashboard format, the schema catalog, and the
-`dashspec` resolver**. Several capabilities are deliberately **not** part of it.
+`lattice` resolver**. Several capabilities are deliberately **not** part of it.
 They are listed here so future contributors know the boundaries of what the
 shipped binary actually does — and do not assume a behavior the spec does not
 promise.
 
 ## Not implemented in this effort
 
-- **Live data fetch.** Connections are *declared and validated only*. `dashspec`
+- **Live data fetch.** Connections are *declared and validated only*. `lattice`
   never dials an `http` connection, opens a socket, or makes a network request.
   The only real data check is validating a `static` connection's inline rows
   against the result-shape contract.
