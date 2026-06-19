@@ -68,6 +68,24 @@ func TestMarshalJSONWithDetails(t *testing.T) {
 	}
 }
 
+func TestWrapCodedErrorWithDetails(t *testing.T) {
+	cause := stderrors.New("schema invalid")
+	src := map[string]any{"path": "root.children[0]"}
+	e := WrapCodedErrorWithDetails(cause, RESOLVE_CONFIG_INVALID, "config invalid", src)
+
+	if got := e.Unwrap(); got != cause {
+		t.Errorf("Unwrap() = %v, want %v", got, cause)
+	}
+	if !HasCode(e, RESOLVE_CONFIG_INVALID) {
+		t.Error("HasCode did not find RESOLVE_CONFIG_INVALID")
+	}
+	// Defensive copy: mutating the source must not affect the error.
+	src["path"] = "mutated"
+	if e.Details["path"] != "root.children[0]" {
+		t.Errorf("Details not defensively copied: got %v", e.Details["path"])
+	}
+}
+
 func TestNewCodedErrorWithDetailsCopiesMap(t *testing.T) {
 	src := map[string]any{"k": 1}
 	e := NewCodedErrorWithDetails(CONNECTION_INVALID, "bad", src)

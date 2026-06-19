@@ -1,0 +1,11 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "unknown-version",
+    "title": "Unknown Version"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/table/9.9.9",
+    "id": "root"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "A hand-written fixture: a root container holding two static tables. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-minimal",
+    "title": "Minimal Example Dashboard"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": 2,
+        "direction": "row"
+      }
+    },
+    "children": [
+      {
+        "id": "fruits",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Name"
+            },
+            {
+              "header": "Color"
+            }
+          ],
+          "rows": [
+            [
+              "Apple",
+              "Red"
+            ],
+            [
+              "Banana",
+              "Yellow"
+            ]
+          ],
+          "title": "Fruits"
+        }
+      },
+      {
+        "id": "metrics",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Metric"
+            },
+            {
+              "header": "Value"
+            }
+          ],
+          "rows": [
+            [
+              "Requests",
+              "1024"
+            ],
+            [
+              "Errors",
+              "3"
+            ]
+          ],
+          "title": "Metrics"
+        }
+      }
+    ]
+  }
+}

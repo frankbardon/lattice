@@ -14,6 +14,20 @@ const (
 
 	// RESOLVE_INTERNAL indicates an unexpected error in the resolver.
 	RESOLVE_INTERNAL Code = "RESOLVE_INTERNAL"
+
+	// RESOLVE_DOCUMENT_INVALID indicates the dashboard document failed the
+	// first-pass structural validation against the dashboard JSON Schema.
+	RESOLVE_DOCUMENT_INVALID Code = "RESOLVE_DOCUMENT_INVALID"
+
+	// RESOLVE_CONFIG_INVALID indicates an instance's config failed the
+	// second-pass validation against its resolved item-type schema. The
+	// offending instance path is reported in Details["path"].
+	RESOLVE_CONFIG_INVALID Code = "RESOLVE_CONFIG_INVALID"
+
+	// RESOLVE_CHILDREN_NOT_ALLOWED indicates an instance declared children on a
+	// non-container item type. The offending instance path is reported in
+	// Details["path"].
+	RESOLVE_CHILDREN_NOT_ALLOWED Code = "RESOLVE_CHILDREN_NOT_ALLOWED"
 )
 
 // SCHEMA domain - Type-schema catalog loading and JSON Schema validation.

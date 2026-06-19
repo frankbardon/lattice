@@ -71,6 +71,15 @@ func (l *Loader) Load(docPath string) (*ResolvedGraph, error) {
 	return l.parse(data, docPath)
 }
 
+// LoadBytes decodes a dashboard document from raw bytes (rather than reading it
+// from the filesystem) and resolves every $ref, returning the linked
+// ResolvedGraph. source is used only for diagnostics. This is the byte-oriented
+// entry point used by the resolver, which has already read the document for its
+// structural pass and wants to avoid a second read.
+func (l *Loader) LoadBytes(data []byte, source string) (*ResolvedGraph, error) {
+	return l.parse(data, source)
+}
+
 // parse decodes raw document bytes and resolves the tree. Split out for tests
 // that supply bytes directly.
 func (l *Loader) parse(data []byte, source string) (*ResolvedGraph, error) {

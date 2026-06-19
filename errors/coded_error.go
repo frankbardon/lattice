@@ -93,6 +93,19 @@ func WrapCodedError(err error, code Code, message string) *CodedError {
 	}
 }
 
+// WrapCodedErrorWithDetails wraps an existing error with a CodedError layer that
+// carries structured details. The details map is defensively copied.
+func WrapCodedErrorWithDetails(err error, code Code, message string, details map[string]any) *CodedError {
+	cp := make(map[string]any, len(details))
+	maps.Copy(cp, details)
+	return &CodedError{
+		Code:    code,
+		Message: message,
+		Details: cp,
+		Cause:   err,
+	}
+}
+
 // HasCode traverses the error chain to determine if any CodedError
 // in the chain carries the specified code.
 // Returns false if err is nil or no CodedError in the chain matches.
