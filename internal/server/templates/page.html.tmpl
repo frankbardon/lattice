@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} — lattice</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+</head>
+<body>
+  <main x-data="dashboard()" x-init="load()">
+    <header class="topbar">
+      <h1>lattice</h1>
+      <span class="subtitle" x-text="title || 'loading…'"></span>
+    </header>
+
+    <!-- E2-S2 delivers the plumbing only. The real structural sketch view
+         (walking the resolved tree) lands in E2-S3. This is a placeholder
+         that confirms the JSON endpoint is wired and Alpine is mounted. -->
+    <section class="sketch-placeholder">
+      <template x-if="error">
+        <p class="error" x-text="error"></p>
+      </template>
+      <template x-if="!error && tree">
+        <div>
+          <p>Resolved tree loaded. Root type:
+            <code x-text="tree.root && tree.root.type ? tree.root.type.name : '(none)'"></code>
+          </p>
+          <p class="hint">Structural sketch view arrives in E2-S3.</p>
+        </div>
+      </template>
+      <template x-if="!error && !tree">
+        <p class="hint">Loading resolved tree…</p>
+      </template>
+    </section>
+  </main>
+
+  <script>
+    function dashboard() {
+      return {
+        title: '',
+        tree: null,
+        error: '',
+        async load() {
+          try {
+            const res = await fetch('/api/tree');
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              this.error = body.message ? (body.code + ': ' + body.message) : ('HTTP ' + res.status);
+              return;
+            }
+            this.tree = await res.json();
+            this.title = (this.tree.manifest && this.tree.manifest.title) || '';
+          } catch (e) {
+            this.error = String(e);
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

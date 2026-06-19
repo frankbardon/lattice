@@ -78,3 +78,19 @@ const (
 	// CONNECTION_INVALID indicates a connection declaration is malformed.
 	CONNECTION_INVALID Code = "CONNECTION_INVALID"
 )
+
+// SERVE domain - The HTTP reference-renderer web layer (serve subcommand).
+const (
+	// SERVE_INVALID indicates invalid serve invocation or arguments (e.g. a
+	// missing document path or out-of-range port).
+	SERVE_INVALID Code = "SERVE_INVALID"
+
+	// SERVE_RESOLVE indicates the served document failed to resolve; the
+	// underlying resolver CodedError is wrapped as the cause and rendered on the
+	// HTML error page.
+	SERVE_RESOLVE Code = "SERVE_RESOLVE"
+
+	// SERVE_INTERNAL indicates an unexpected error in the web layer (template
+	// parsing, asset mounting, response encoding, or the listener).
+	SERVE_INTERNAL Code = "SERVE_INTERNAL"
+)

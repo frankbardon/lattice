@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resolution error — lattice</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <main class="error-page">
+    <header class="topbar">
+      <h1>lattice</h1>
+      <span class="subtitle">resolution error</span>
+    </header>
+    <section class="error-card">
+      <p class="error-code">{{.Code}}</p>
+      <p class="error-message">{{.Message}}</p>
+      {{if .Details}}
+      <h2>Details</h2>
+      <dl class="error-details">
+        {{range $k, $v := .Details}}
+        <dt>{{$k}}</dt>
+        <dd>{{$v}}</dd>
+        {{end}}
+      </dl>
+      {{end}}
+    </section>
+  </main>
+</body>
+</html>
