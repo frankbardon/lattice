@@ -65,6 +65,15 @@ connection via `connectionId` and carry a `query`. It declares the
 [result-shape contract](connections.md#result-shape-contract) describing the
 rows a bound connection is expected to return.
 
+### `configurator` (`.../items/configurator/1.0.0`)
+
+A leaf type that renders an editor for **another item in the same document** — its
+`target`, referenced by that item's stable instance `id`. The resolver validates
+the target reference and auto-generates an editor form from the target's
+[configurable surface](configurable.md); each control drives an ephemeral
+[config override](overrides.md#config-overrides). See
+[Configurators](configurator.md).
+
 ### Variable widgets
 
 Beyond `container` and `table`, the catalog ships **13 variable widgets** — leaf

@@ -15,6 +15,7 @@ feature of the spec. Paths below are relative to the repository root.
 | [`examples/form-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/form-dashboard.json) | The `form` container in both layout modes (`flow` and `grid`) plus a standalone widget placed directly in a container grid cell. |
 | [`examples/connections-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/connections-dashboard.json) | Both connection kinds declared at document scope — `static` (inline) and `http` (query) — with `secretRefs`. |
 | [`examples/contract-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/contract-dashboard.json) | A table bound to a `static` connection whose inline rows conform to the table's `expectedResult` contract. |
+| [`examples/configurator-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/configurator-dashboard.json) | A `configurator` targeting a `table` by id, auto-generating an editor from the table's configurable surface that drives ephemeral config overrides. |
 | [`examples/kitchen-sink-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/kitchen-sink-dashboard.json) | Every feature in one document (see below). |
 
 ## Resolving an example

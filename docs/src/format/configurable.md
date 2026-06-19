@@ -126,7 +126,7 @@ Every shipped item type that has runtime-tunable presentation declares one:
 The resolver attaches the validated surface to each resolved instance, in
 sorted field order, so downstream layers read it directly:
 
-- A **configurator** (a later item type) auto-generates an editor from the
+- A **[configurator](configurator.md)** auto-generates an editor from the
   surface — one control per field, picked by the `rendering` hint.
 - The **override system** knows exactly which fields it may set at runtime.
 
