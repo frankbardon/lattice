@@ -14,6 +14,7 @@
 - [Typed Schemas & Instances](format/typed-schemas.md)
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)
+- [Widgets](format/widgets.md)
 - [Connections](format/connections.md)
 
 # Reference
