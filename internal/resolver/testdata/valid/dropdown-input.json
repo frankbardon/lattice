@@ -15,31 +15,51 @@
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": { "grid": { "columns": [1], "rows": [1, 2], "gap": 1 } },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
-        "id": "region-picker",
-        "placement": { "colStart": 1, "rowStart": 1 },
-        "config": {
-          "label": "Region",
-          "variable": "region",
-          "options": [
-            { "value": "us", "label": "United States" },
-            { "value": "eu", "label": "Europe" },
-            { "value": "apac", "label": "Asia-Pacific" }
-          ]
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "region-metrics",
-        "placement": { "colStart": 1, "rowStart": 2 },
-        "config": {
-          "title": "Metrics for ${region}",
-          "columns": [{ "header": "Region" }, { "header": "Value" }],
-          "rows": [[{ "$var": "region" }, "live"]]
-        }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1], "rows": [1, 2], "gap": 1 } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+            "id": "controls",
+            "placement": { "colStart": 1, "rowStart": 1 },
+            "children": [
+              {
+                "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                "id": "region-picker",
+                "config": {
+                  "label": "Region",
+                  "variable": "region",
+                  "options": [
+                    { "value": "us", "label": "United States" },
+                    { "value": "eu", "label": "Europe" },
+                    { "value": "apac", "label": "Asia-Pacific" }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "region-metrics-block",
+            "placement": { "colStart": 1, "rowStart": 2 },
+            "config": {
+              "id": "region-metrics-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "region-metrics",
+                "config": {
+                  "title": "Metrics for ${region}",
+                  "columns": [{ "header": "Region" }, { "header": "Value" }],
+                  "rows": [[{ "$var": "region" }, "live"]]
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }

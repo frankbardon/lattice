@@ -11,21 +11,41 @@ import (
 // document-scope variable of varType, holding a single widget instance of
 // widgetType bound to that variable. It exercises the widget↔variable
 // type-compatibility contract end to end through the real resolver pipeline.
+// widgetDoc wraps the widget in a variable-box region (the E3-S2 grammar home for
+// a standalone widget): root container -> variable-box -> widget. The widget's
+// resolver path is therefore "root.children[0].children[0]".
 func widgetDoc(widgetType, varName, varType, boundVar string) string {
 	return fmt.Sprintf(`{
   "manifest": {"formatVersion": "1.0.0", "id": "wdoc", "title": "Widget Doc"},
   "variables": [{"name": %q, "type": %q, "default": %s}],
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {"grid": {"columns": [1]}},
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
-        "config": {"variable": %q}
+        "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+        "id": "controls",
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
+            "config": {"variable": %q}
+          }
+        ]
       }
     ]
   }
 }`, varName, varType, defaultFor(varType), widgetType, boundVar)
 }
+
+// widgetNode returns the widget node from a tree built by widgetDoc/enumDoc/
+// numberBooleanDoc: root container -> variable-box -> widget.
+func widgetNode(tree *ResolvedTree) *ResolvedInstance {
+	return tree.Root.Children[0].Children[0]
+}
+
+// widgetPath is the resolver path of the widget under the E3-S2 grammar wrapping.
+const widgetPath = "root.children[0].children[0]"
 
 // defaultFor returns a JSON literal default appropriate for varType, so the
 // variable declaration is well-formed regardless of which type a case declares.
@@ -112,7 +132,7 @@ func TestResolveWidgetBinding(t *testing.T) {
 				if err != nil {
 					t.Fatalf("resolveBytes: unexpected error: %v", err)
 				}
-				widget := tree.Root.Children[0]
+				widget := widgetNode(tree)
 				if got := widget.Config["variable"]; got != tc.boundVar {
 					t.Errorf("widget variable = %v, want %q", got, tc.boundVar)
 				}
@@ -129,8 +149,8 @@ func TestResolveWidgetBinding(t *testing.T) {
 			if !asCoded(err, &ce) {
 				t.Fatalf("error is not a CodedError: %v", err)
 			}
-			if got, _ := ce.Details["path"].(string); got != "root.children[0]" {
-				t.Errorf("error path = %q, want %q", got, "root.children[0]")
+			if got, _ := ce.Details["path"].(string); got != widgetPath {
+				t.Errorf("error path = %q, want %q", got, widgetPath)
 			}
 			if tc.wantKV[0] != "" {
 				if got, _ := ce.Details[tc.wantKV[0]].(string); got != tc.wantKV[1] {
@@ -158,10 +178,18 @@ func enumDoc(widgetType, varName, varType, config string) string {
   "variables": [%s],
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {"grid": {"columns": [1]}},
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
-        "config": %s
+        "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+        "id": "controls",
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
+            "config": %s
+          }
+        ]
       }
     ]
   }
@@ -248,7 +276,7 @@ func TestResolveEnumWidgets(t *testing.T) {
 				if err != nil {
 					t.Fatalf("resolveBytes: unexpected error: %v", err)
 				}
-				widget := tree.Root.Children[0]
+				widget := widgetNode(tree)
 				if got := widget.Config["variable"]; got != tc.varName {
 					t.Errorf("widget variable = %v, want %q", got, tc.varName)
 				}
@@ -370,7 +398,7 @@ func TestResolveArrayWidgets(t *testing.T) {
 				if err != nil {
 					t.Fatalf("resolveBytes: unexpected error: %v", err)
 				}
-				widget := tree.Root.Children[0]
+				widget := widgetNode(tree)
 				if got := widget.Config["variable"]; got != tc.varName {
 					t.Errorf("widget variable = %v, want %q", got, tc.varName)
 				}
@@ -406,10 +434,18 @@ func numberBooleanDoc(widgetType, varName, varType, config string) string {
   "variables": [{"name": %q, "type": %q, "default": %s}],
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {"grid": {"columns": [1]}},
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
-        "config": %s
+        "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+        "id": "controls",
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
+            "config": %s
+          }
+        ]
       }
     ]
   }
@@ -537,7 +573,7 @@ func TestResolveNumberBooleanWidgets(t *testing.T) {
 				if err != nil {
 					t.Fatalf("resolveBytes: unexpected error: %v", err)
 				}
-				widget := tree.Root.Children[0]
+				widget := widgetNode(tree)
 				if got := widget.Config["variable"]; got != tc.varName {
 					t.Errorf("widget variable = %v, want %q", got, tc.varName)
 				}

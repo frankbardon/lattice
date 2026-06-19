@@ -1,6 +1,6 @@
 {
   "manifest": {
-    "description": "An item bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz lattice resolve examples/binding-dashboard.json — the resolved token value never appears in the output.",
+    "description": "A block-wrapped table bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz lattice resolve examples/binding-dashboard.json — the resolved token value never appears in the output. Structured under the E3-S2 grammar (root -\u003e body region -\u003e block -\u003e table).",
     "formatVersion": "1.0.0",
     "id": "binding-example",
     "title": "Direct Binding + Secret Refs Example"
@@ -40,23 +40,188 @@
     },
     "children": [
       {
-        "id": "metrics-table",
+        "id": "body",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-          "id": "https://lattice.dev/schemas/items/table/1.0.0",
-          "name": "table",
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
           "version": "1.0.0"
         },
-        "container": false,
+        "container": true,
         "config": {
-          "connectionId": "metrics-api",
-          "query": {
-            "hours": 24,
-            "label": "last 24h",
-            "region": "us-east"
-          },
-          "title": "Metrics for us-east"
+          "grid": {
+            "columns": [
+              1
+            ]
+          }
         },
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 0,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "metrics-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "metrics-block"
+            },
+            "children": [
+              {
+                "id": "metrics-table",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "name": "table",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "connectionId": "metrics-api",
+                  "query": {
+                    "hours": 24,
+                    "label": "last 24h",
+                    "region": "us-east"
+                  },
+                  "title": "Metrics for us-east"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "string",
+                    "default": "us-east",
+                    "declaredAt": "doc"
+                  },
+                  "window": {
+                    "name": "window",
+                    "type": "integer",
+                    "default": 24,
+                    "declaredAt": "doc"
+                  }
+                },
+                "binding": {
+                  "connectionId": "metrics-api",
+                  "query": {
+                    "hours": 24,
+                    "label": "last 24h",
+                    "region": "us-east"
+                  },
+                  "contract": {
+                    "itemType": "table",
+                    "connectionId": "metrics-api",
+                    "expectedResult": {
+                      "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
+                      "items": {
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean"
+                          ]
+                        },
+                        "minProperties": 1,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "columns",
+                    "type": "array",
+                    "label": "Columns",
+                    "constraints": {
+                      "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                      "items": {
+                        "properties": {
+                          "header": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "header"
+                        ],
+                        "type": "object"
+                      }
+                    }
+                  },
+                  {
+                    "field": "query",
+                    "type": "array",
+                    "label": "Query parameters",
+                    "constraints": {
+                      "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                    }
+                  },
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the table — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "string",
+                "default": "us-east",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "integer",
+                "default": 24,
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
         "varEnv": {
           "region": {
             "name": "region",
@@ -71,70 +236,36 @@
             "declaredAt": "doc"
           }
         },
-        "binding": {
-          "connectionId": "metrics-api",
-          "query": {
-            "hours": 24,
-            "label": "last 24h",
-            "region": "us-east"
-          },
-          "contract": {
-            "itemType": "table",
-            "connectionId": "metrics-api",
-            "expectedResult": {
-              "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
-              "items": {
-                "additionalProperties": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
-                  ]
-                },
-                "minProperties": 1,
-                "type": "object"
-              },
-              "type": "array"
-            }
-          }
-        },
         "surface": [
           {
-            "field": "columns",
+            "field": "grid",
             "type": "array",
-            "label": "Columns",
+            "label": "Grid tracks",
             "constraints": {
-              "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-              "items": {
-                "properties": {
-                  "header": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
                 },
-                "required": [
-                  "header"
-                ],
-                "type": "object"
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
               }
             }
-          },
-          {
-            "field": "query",
-            "type": "array",
-            "label": "Query parameters",
-            "constraints": {
-              "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-            }
-          },
-          {
-            "field": "title",
-            "type": "string",
-            "label": "Title",
-            "constraints": {
-              "description": "The heading rendered above the table — editable at runtime."
-            },
-            "rendering": "text-input"
           }
         ]
       }

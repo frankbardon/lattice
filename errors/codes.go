@@ -257,6 +257,53 @@ const (
 	WRAPPER_CHILD_COUNT_INVALID Code = "WRAPPER_CHILD_COUNT_INVALID"
 )
 
+// GRAMMAR domain - The dashboard tree grammar (E3-S2): the structural shape the
+// resolved tree must obey beyond per-instance schema validation. The grammar pass
+// runs once over the assembled tree (index-once, fail-fast) and enforces where
+// each kind of node may appear: root holds only positional regions; a region
+// holds nested regions or block wrappers (never a bare content leaf); a
+// variable-box holds variable widgets directly; a wrapper holds exactly one
+// content leaf and is never re-wrapped; and a positional region carries no theme.
+const (
+	// GRAMMAR_ROOT_CHILD_INVALID indicates a node placed directly under `root` is
+	// not a positional region (the only legal root children are positional region
+	// types, marker-driven via the schema-level `positional` keyword — initially
+	// container and variable-box). A content leaf or a block wrapper placed at root
+	// fails. The offending child's instance path and resolved item-type name are
+	// reported in Details["path"]/["type"].
+	GRAMMAR_ROOT_CHILD_INVALID Code = "GRAMMAR_ROOT_CHILD_INVALID"
+
+	// GRAMMAR_REGION_CHILD_INVALID indicates a `container` region holds an illegal
+	// child: a container may nest other positional regions OR hold block wrappers,
+	// but a bare (unwrapped) content leaf under a container fails — content must be
+	// wrapped in a block. The offending child's instance path and resolved
+	// item-type name are reported in Details["path"]/["type"].
+	GRAMMAR_REGION_CHILD_INVALID Code = "GRAMMAR_REGION_CHILD_INVALID"
+
+	// GRAMMAR_VARIABLE_BOX_CHILD_INVALID indicates a `variable-box` region holds a
+	// child that is not a variable widget. A variable-box is the dedicated home for
+	// the variable-widget family and holds them DIRECTLY (not block-wrapped); any
+	// non-widget child — a nested region, a block wrapper, or a plain content leaf —
+	// fails. The offending child's instance path and resolved item-type name are
+	// reported in Details["path"]/["type"].
+	GRAMMAR_VARIABLE_BOX_CHILD_INVALID Code = "GRAMMAR_VARIABLE_BOX_CHILD_INVALID"
+
+	// GRAMMAR_WRAPPER_NESTED indicates a block wrapper's single inner content is
+	// itself a block wrapper — a wrapper inside a wrapper. Wrappers do not recurse:
+	// a block holds exactly one CONTENT leaf, never another wrapper. The offending
+	// inner wrapper's instance path is reported in Details["path"].
+	GRAMMAR_WRAPPER_NESTED Code = "GRAMMAR_WRAPPER_NESTED"
+
+	// GRAMMAR_REGION_THEME_FORBIDDEN indicates a positional region node (container,
+	// variable-box, …) carries a `theme` element. Positional regions are layout-only
+	// and carry no chrome/theme — only block wrappers carry theme. The positional
+	// schemas forbid theme structurally (additionalProperties:false), but the
+	// grammar pass also rejects a theme appearing on a region node so the violation
+	// surfaces with a clear, grammar-specific code. The offending region's instance
+	// path and resolved item-type name are reported in Details["path"]/["type"].
+	GRAMMAR_REGION_THEME_FORBIDDEN Code = "GRAMMAR_REGION_THEME_FORBIDDEN"
+)
+
 // CONFIGURATOR domain - The configurator item type (E5): an item that renders an
 // editor for another item in the same document, referenced by its stable id.
 const (

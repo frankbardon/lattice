@@ -264,7 +264,11 @@ func rawInstanceFromContent(content map[string]any, path string) (*rawInstance, 
 // it in the graph (Types + Refs) so the generic instance walk can look up the
 // inner item's resolved type. The loader's recursive walk skipped the content
 // (it lives in config, not children), so this is where the content's type joins
-// the graph.
+// the graph. The inner content may itself be a children-bearing region/form (e.g.
+// a block wrapping a form whose widget children live under it), so this recurses
+// into the inner instance's `children` exactly like the loader's walk does — every
+// descendant's type must be linked before the generic instance walk reaches it,
+// or that descendant resolves with no type (RESOLVE_INTERNAL).
 func (r *Resolver) linkInnerType(g *schema.ResolvedGraph, inner *schema.Instance) error {
 	rt, err := r.loader.ResolveRef(g, inner.Ref)
 	if err != nil {
@@ -272,6 +276,11 @@ func (r *Resolver) linkInnerType(g *schema.ResolvedGraph, inner *schema.Instance
 	}
 	g.Types[rt.ID] = rt
 	g.Refs[inner] = rt.ID
+	for _, child := range inner.Children {
+		if err := r.linkInnerType(g, child); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -34,32 +34,52 @@ const widgetSurfaceDoc = `{
     { "name": "live", "type": "boolean", "default": true }
   ],
   "root": {
-    "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
-    "id": "form",
-    "config": { "layout": { "mode": "flow", "columns": 1 } },
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
-        "id": "name-input",
-        "config": { "variable": "name", "label": "Name", "placeholder": "type a name" }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
-        "id": "count-field",
-        "config": { "variable": "count", "label": "Count", "min": 0, "max": 10, "step": 1 }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
-        "id": "region-select",
-        "config": {
-          "variable": "region", "label": "Region",
-          "options": [{ "value": "us", "label": "US" }, { "value": "eu", "label": "EU" }]
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
-        "id": "live-toggle",
-        "config": { "variable": "live", "label": "Live" }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "form-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                "id": "form",
+                "config": { "layout": { "mode": "flow", "columns": 1 } },
+                "children": [
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                    "id": "name-input",
+                    "config": { "variable": "name", "label": "Name", "placeholder": "type a name" }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
+                    "id": "count-field",
+                    "config": { "variable": "count", "label": "Count", "min": 0, "max": 10, "step": 1 }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                    "id": "region-select",
+                    "config": {
+                      "variable": "region", "label": "Region",
+                      "options": [{ "value": "us", "label": "US" }, { "value": "eu", "label": "EU" }]
+                    }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                    "id": "live-toggle",
+                    "config": { "variable": "live", "label": "Live" }
+                  }
+                ]
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -80,9 +100,11 @@ func resolveWidgetSurfaceDoc(t *testing.T) (form *ResolvedInstance, byType map[s
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
-	form = tree.Root
+	// Under the E3-S2 grammar the form is block-wrapped inside a body region:
+	// root -> body region -> block -> form.
+	form = tree.Root.Children[0].Children[0].Children[0]
 	if form.Type.Name != "form" {
-		t.Fatalf("root type = %q, want form", form.Type.Name)
+		t.Fatalf("inner content type = %q, want form", form.Type.Name)
 	}
 	byType = map[string]*ResolvedInstance{}
 	for _, child := range form.Children {

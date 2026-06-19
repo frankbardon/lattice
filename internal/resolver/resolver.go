@@ -154,6 +154,20 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// Grammar pass (E3-S2): enforce the dashboard tree shape over the assembled
+	// tree — root holds only positional regions; a container holds nested regions
+	// or block wrappers (never a bare leaf); a variable-box holds variable widgets
+	// directly; a wrapper holds exactly one content leaf and never re-wraps; a
+	// positional region carries no theme. Runs right after the instance walk (it
+	// needs the whole tree and each node's resolved type identity) and before the
+	// downstream binding/widget/surface/configurator passes, so a structural
+	// violation fails fast before any of that work. Node kinds are read from the
+	// schema-level `positional` marker via the graph's type table (no second walk to
+	// classify). Fail-fast, same machinery as the other passes. See grammar.go.
+	if err := resolveGrammar(g, root); err != nil {
+		return nil, err
+	}
+
 	// Connection pass (E4-S1): decode document-scoped connections, validate each
 	// against its connection-type schema, and reject duplicate ids. Fail-fast,
 	// same machinery as the item-type passes. See connections.go.
@@ -286,12 +300,21 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	isForm := rt.Name == formTypeName
 	isBlock := rt.Name == blockTypeName
 
+	// A positional REGION (E3-S1, marker-driven via the schema-level `positional`
+	// keyword — container, variable-box, and any future region type) positions its
+	// children, so it bears a `children` array. Reading the marker rather than a
+	// name list keeps the children-bearing region set extensible without editing
+	// here; the E3-S2 grammar pass then enforces WHICH children each region may
+	// hold. (container is itself positional, so isContainer is a subset of this.)
+	isRegion := rt.IsPositional()
+
 	// Children-allowed rule: children are permitted only on the structurally
-	// special types — the weighted-grid container and the flow-packing form. A
-	// child on any other type fails fast. A block wraps its single inner item via
-	// its `content` config field, not the `children` array, so authored children on
-	// a block are rejected here like any other leaf.
-	if len(inst.Children) > 0 && !isContainer && !isForm {
+	// special types — positional regions (the weighted-grid container, the
+	// variable-box, and any future region) and the flow-packing form. A child on
+	// any other type fails fast. A block wraps its single inner item via its
+	// `content` config field, not the `children` array, so authored children on a
+	// block are rejected here like any other leaf.
+	if len(inst.Children) > 0 && !isRegion && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{

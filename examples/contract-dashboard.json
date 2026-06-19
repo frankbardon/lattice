@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "contract-example",
     "title": "Result-Shape Contract Example",
-    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result)."
+    "description": "A block-wrapped table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result). Structured under the E3-S2 grammar (root -> body region -> block -> table)."
   },
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
@@ -11,12 +11,26 @@
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "fruit-table",
-        "config": {
-          "title": "Fruit Inventory",
-          "connectionId": "inline-fruits"
-        }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "fruit-block",
+            "config": {
+              "id": "fruit-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "fruit-table",
+                "config": {
+                  "title": "Fruit Inventory",
+                  "connectionId": "inline-fruits"
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   },

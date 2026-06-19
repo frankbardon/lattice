@@ -1,0 +1,95 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-themed",
+    "title": "Theme Layers + Variable Box Example",
+    "description": "Demonstrates the three theme/grammar constructs of this effort side by side (E2 + E3-S2): a document-scope DEFAULT theme, a per-WRAPPER theme override on one block (a partial subset that overrides only some tokens; the resolver attaches it verbatim alongside the default with NO cascade/merge), and a VARIABLE-BOX region holding a variable widget directly. The body region places a variable-box of controls above two block-wrapped tables — one inheriting the document default theme wholesale, one carrying its own override. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "theme": {
+    "emphasis": "low",
+    "spacing": "cosy",
+    "tone": "neutral"
+  },
+  "variables": [
+    { "name": "region", "type": "enum", "default": "us", "options": ["us", "eu", "apac"] }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": {
+          "grid": {
+            "columns": [1, 1],
+            "rows": [1, 2],
+            "gap": 1
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+            "id": "controls",
+            "placement": { "colStart": 1, "colSpan": 2, "rowStart": 1 },
+            "config": { "arrangement": "inline" },
+            "children": [
+              {
+                "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                "id": "region-picker",
+                "config": {
+                  "label": "Region",
+                  "variable": "region",
+                  "options": [
+                    { "value": "us", "label": "United States" },
+                    { "value": "eu", "label": "Europe" },
+                    { "value": "apac", "label": "Asia-Pacific" }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "default-themed-block",
+            "placement": { "colStart": 1, "rowStart": 2 },
+            "config": {
+              "id": "default-themed-block",
+              "title": "Inherits Document Theme",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "default-themed",
+                "config": {
+                  "title": "Default-themed for ${region}",
+                  "columns": [{ "header": "Metric" }, { "header": "Value" }],
+                  "rows": [["latency", "live"]]
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "overridden-block",
+            "placement": { "colStart": 2, "rowStart": 2 },
+            "config": {
+              "id": "overridden-block",
+              "title": "Per-Wrapper Theme Override",
+              "theme": { "emphasis": "high", "tone": "accent" },
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "overridden",
+                "config": {
+                  "title": "Overridden for ${region}",
+                  "columns": [{ "header": "Metric" }, { "header": "Value" }],
+                  "rows": [["errors", "live"]]
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

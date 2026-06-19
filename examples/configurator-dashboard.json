@@ -3,44 +3,65 @@
     "formatVersion": "1.0.0",
     "id": "example-configurator",
     "title": "Configurator Example",
-    "description": "Exercises the `configurator` item type (E5). A configurator targets the `summary` table by its stable instance id; the resolver validates the reference and auto-generates an editor form from the table's configurable surface — one control per surface field (`title`, `columns`, `query`), each picked by the field's preferred `rendering` or the canonical widget for its value type. The generated controls are attached to the resolved configurator node and bind the `summary.<field>` config-override address, so changing one posts an ephemeral config override that re-resolves the target. The author writes no per-field form: the editor is derived purely from what the table declares as runtime-configurable. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Exercises the `configurator` item type (E5) under the E3-S2 grammar. A configurator targets the `summary` table by its stable instance id; the resolver validates the reference and auto-generates an editor form from the table's configurable surface — one control per surface field (`title`, `columns`, `query`), each picked by the field's preferred `rendering` or the canonical widget for its value type. The target table and the configurator are each wrapped in a block inside a body region; the configurator still resolves its target by the inner table's stable instance id. The generated controls bind the `summary.<field>` config-override address. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1, 1],
-        "rows": [1],
-        "gap": 1
-      }
-    },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "summary",
-        "placement": { "colStart": 1, "rowStart": 1 },
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
         "config": {
-          "title": "Service Overview",
-          "columns": [
-            { "header": "Setting" },
-            { "header": "Value" }
-          ],
-          "rows": [
-            ["region", "us"],
-            ["live", "true"]
-          ]
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
-        "id": "summary-configurator",
-        "placement": { "colStart": 2, "rowStart": 1 },
-        "config": {
-          "target": "summary",
-          "title": "Configure the summary table"
-        }
+          "grid": {
+            "columns": [1, 1],
+            "rows": [1],
+            "gap": 1
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "summary-block",
+            "placement": { "colStart": 1, "rowStart": 1 },
+            "config": {
+              "id": "summary-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "summary",
+                "config": {
+                  "title": "Service Overview",
+                  "columns": [
+                    { "header": "Setting" },
+                    { "header": "Value" }
+                  ],
+                  "rows": [
+                    ["region", "us"],
+                    ["live", "true"]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "configurator-block",
+            "placement": { "colStart": 2, "rowStart": 1 },
+            "config": {
+              "id": "configurator-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "summary-configurator",
+                "config": {
+                  "target": "summary",
+                  "title": "Configure the summary table"
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }

@@ -29,13 +29,26 @@ const surfaceDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "tbl",
-        "config": {
-          "title": "Fruit",
-          "connectionId": "inline",
-          "columns": [{ "header": "Name" }]
-        }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "tbl-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "tbl",
+                "config": {
+                  "title": "Fruit",
+                  "connectionId": "inline",
+                  "columns": [{ "header": "Name" }]
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   },
@@ -62,6 +75,10 @@ func resolveSurfaceDoc(t *testing.T) (container, table *ResolvedInstance) {
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
+	// Under the E3-S2 grammar the table is block-wrapped inside a body region:
+	// root -> body region -> block -> table. Both the root and body containers
+	// declare the same grid surface, so either serves the container-surface check;
+	// the root is returned as the representative container.
 	container = tree.Root
 	if container.Type.Name != "container" {
 		t.Fatalf("root type = %q, want container", container.Type.Name)
@@ -69,9 +86,9 @@ func resolveSurfaceDoc(t *testing.T) (container, table *ResolvedInstance) {
 	if len(container.Children) != 1 {
 		t.Fatalf("root children = %d, want 1", len(container.Children))
 	}
-	table = container.Children[0]
+	table = container.Children[0].Children[0].Children[0]
 	if table.Type.Name != "table" {
-		t.Fatalf("child type = %q, want table", table.Type.Name)
+		t.Fatalf("inner content type = %q, want table", table.Type.Name)
 	}
 	return container, table
 }

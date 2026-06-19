@@ -3,61 +3,89 @@
     "formatVersion": "1.0.0",
     "id": "example-grids",
     "title": "Nested Grids & Subgrids Example",
-    "description": "Focused E2-S1 example: a root container whose grid holds a sidebar table and a child container; the child container declares its own subgrid and places its own children with explicit colStart/rowStart placement. Demonstrates arbitrary grid nesting and fractional track sizing. Resolution normalizes each container's tracks and child placements into a layout block. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Focused E2-S1 example under the E3-S2 grammar: root holds a body region whose grid places a block-wrapped sidebar table and a nested panel container; the panel container declares its own subgrid and places its own block-wrapped children with explicit colStart/rowStart placement. Demonstrates arbitrary grid nesting and fractional track sizing; each content leaf (a table) is wrapped in a block. Resolution normalizes each container's tracks and child placements into a layout block. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1, 2],
-        "rows": [1],
-        "gap": 1
-      }
-    },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "sidebar",
-        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
-        "config": {
-          "title": "Sidebar",
-          "columns": [{ "header": "Link" }],
-          "rows": [["Home"], ["About"]]
-        }
-      },
-      {
         "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
-        "id": "panel",
-        "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "id": "body",
         "config": {
           "grid": {
-            "columns": [1],
-            "rows": [3, 1],
+            "columns": [1, 2],
+            "rows": [1],
             "gap": 1
           }
         },
         "children": [
           {
-            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-            "id": "main",
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "sidebar-block",
             "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
             "config": {
-              "title": "Main",
-              "columns": [{ "header": "Item" }],
-              "rows": [["one"], ["two"]]
+              "id": "sidebar-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "sidebar",
+                "config": {
+                  "title": "Sidebar",
+                  "columns": [{ "header": "Link" }],
+                  "rows": [["Home"], ["About"]]
+                }
+              }
             }
           },
           {
-            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-            "id": "footer",
-            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 2, "rowSpan": 1 },
+            "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+            "id": "panel",
+            "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
             "config": {
-              "title": "Footer",
-              "columns": [{ "header": "Note" }],
-              "rows": [["foot"]]
-            }
+              "grid": {
+                "columns": [1],
+                "rows": [3, 1],
+                "gap": 1
+              }
+            },
+            "children": [
+              {
+                "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+                "id": "main-block",
+                "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+                "config": {
+                  "id": "main-block",
+                  "content": {
+                    "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                    "id": "main",
+                    "config": {
+                      "title": "Main",
+                      "columns": [{ "header": "Item" }],
+                      "rows": [["one"], ["two"]]
+                    }
+                  }
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+                "id": "footer-block",
+                "placement": { "colStart": 1, "colSpan": 1, "rowStart": 2, "rowSpan": 1 },
+                "config": {
+                  "id": "footer-block",
+                  "content": {
+                    "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                    "id": "footer",
+                    "config": {
+                      "title": "Footer",
+                      "columns": [{ "header": "Note" }],
+                      "rows": [["foot"]]
+                    }
+                  }
+                }
+              }
+            ]
           }
         ]
       }

@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "interpolated-vars",
     "title": "Interpolated Variables",
-    "description": "Exercises E3-S2 interpolation end to end: a ${} string template and a {\"$var\"} typed binding, resolved against the tree-scoped environment with per-node shadowing."
+    "description": "Exercises E3-S2 interpolation end to end: a ${} string template and a {\"$var\"} typed binding, resolved against the tree-scoped environment with per-node shadowing. Under the E3-S2 grammar the table is block-wrapped inside a body region that carries the shadowing declaration."
   },
   "variables": [
     { "name": "region", "type": "string", "default": "us" },
@@ -12,25 +12,39 @@
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1],
-        "rows": [1]
-      }
-    },
-    "variables": [
-      { "name": "region", "type": "string", "default": "eu" }
-    ],
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "report",
-        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
         "config": {
-          "title": "Report for ${region}",
-          "columns": [{ "header": "Region" }],
-          "rows": [["${region}"]]
-        }
+          "grid": {
+            "columns": [1],
+            "rows": [1]
+          }
+        },
+        "variables": [
+          { "name": "region", "type": "string", "default": "eu" }
+        ],
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "report-block",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "id": "report-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "report",
+                "config": {
+                  "title": "Report for ${region}",
+                  "columns": [{ "header": "Region" }],
+                  "rows": [["${region}"]]
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }

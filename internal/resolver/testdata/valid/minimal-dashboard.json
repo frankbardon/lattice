@@ -3,51 +3,72 @@
     "formatVersion": "1.0.0",
     "id": "example-minimal",
     "title": "Minimal Example Dashboard",
-    "description": "A hand-written fixture: a root container holding two static tables. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "A hand-written fixture: a root container holding a body region whose two-column grid places two block-wrapped static tables. Under the dashboard grammar (E3-S2) root holds only positional regions, a container holds block wrappers, and each content leaf (a table) is wrapped in a block carrying its stable id. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1, 1],
-        "rows": [1],
-        "gap": 1
-      }
-    },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "fruits",
-        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
         "config": {
-          "title": "Fruits",
-          "columns": [
-            { "header": "Name" },
-            { "header": "Color" }
-          ],
-          "rows": [
-            ["Apple", "Red"],
-            ["Banana", "Yellow"]
-          ]
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "metrics",
-        "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
-        "config": {
-          "title": "Metrics",
-          "columns": [
-            { "header": "Metric" },
-            { "header": "Value" }
-          ],
-          "rows": [
-            ["Requests", "1024"],
-            ["Errors", "3"]
-          ]
-        }
+          "grid": {
+            "columns": [1, 1],
+            "rows": [1],
+            "gap": 1
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "fruits-block",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "id": "fruits-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "fruits",
+                "config": {
+                  "title": "Fruits",
+                  "columns": [
+                    { "header": "Name" },
+                    { "header": "Color" }
+                  ],
+                  "rows": [
+                    ["Apple", "Red"],
+                    ["Banana", "Yellow"]
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "metrics-block",
+            "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "id": "metrics-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "metrics",
+                "config": {
+                  "title": "Metrics",
+                  "columns": [
+                    { "header": "Metric" },
+                    { "header": "Value" }
+                  ],
+                  "rows": [
+                    ["Requests", "1024"],
+                    ["Errors", "3"]
+                  ]
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }

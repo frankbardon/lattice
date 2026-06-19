@@ -137,14 +137,33 @@ const configuratorValidDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "fruit",
-        "config": { "title": "Fruit", "columns": [{ "header": "Name" }] }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
-        "id": "cfg",
-        "config": { "target": "fruit", "title": "Edit fruit" }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "fruit-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "fruit",
+                "config": { "title": "Fruit", "columns": [{ "header": "Name" }] }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "cfg-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "cfg",
+                "config": { "target": "fruit", "title": "Edit fruit" }
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -166,9 +185,11 @@ func TestConfiguratorResolvesThroughCatalog(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	cfg := tree.Root.Children[1]
+	// Under the E3-S2 grammar the configurator is block-wrapped inside a body
+	// region: root -> body region -> block[1] -> configurator.
+	cfg := tree.Root.Children[0].Children[1].Children[0]
 	if cfg.Type.Name != "configurator" {
-		t.Fatalf("child[1].Type.Name = %q, want configurator", cfg.Type.Name)
+		t.Fatalf("configurator type = %q, want configurator", cfg.Type.Name)
 	}
 	// The configurator declares its OWN configurable surface (the title field),
 	// completing the "every item-type fully specified" requirement.
@@ -189,9 +210,22 @@ func TestConfiguratorTargetNotFoundThroughCatalog(t *testing.T) {
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
-        "id": "cfg",
-        "config": { "target": "ghost" }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "cfg-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "cfg",
+                "config": { "target": "ghost" }
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -379,14 +413,33 @@ const configuratorTableDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "tbl",
-        "config": { "title": "Fruit", "columns": [{ "header": "Name" }] }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
-        "id": "cfg",
-        "config": { "target": "tbl", "title": "Edit table" }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "tbl-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "tbl",
+                "config": { "title": "Fruit", "columns": [{ "header": "Name" }] }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "cfg-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "cfg",
+                "config": { "target": "tbl", "title": "Edit table" }
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -410,9 +463,11 @@ func TestConfiguratorOverTableThroughCatalog(t *testing.T) {
 		t.Fatalf("Resolve: %v", err)
 	}
 
-	cfg := tree.Root.Children[1]
+	// Under the E3-S2 grammar the configurator is block-wrapped inside a body
+	// region: root -> body region -> block[1] -> configurator.
+	cfg := tree.Root.Children[0].Children[1].Children[0]
 	if cfg.Type.Name != "configurator" {
-		t.Fatalf("child[1] type = %q, want configurator", cfg.Type.Name)
+		t.Fatalf("configurator type = %q, want configurator", cfg.Type.Name)
 	}
 	gen := cfg.Generated
 	if gen == nil {
@@ -465,7 +520,8 @@ func TestConfiguratorGeneratedOverrideReResolves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve baseline: %v", err)
 	}
-	if got, _ := base.Root.Children[0].Config["title"].(string); got != "Fruit" {
+	// The table sits at: root -> body region -> block[0] -> table.
+	if got, _ := base.Root.Children[0].Children[0].Children[0].Config["title"].(string); got != "Fruit" {
 		t.Fatalf("baseline table title = %q, want Fruit", got)
 	}
 
@@ -477,7 +533,7 @@ func TestConfiguratorGeneratedOverrideReResolves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveWithValues: %v", err)
 	}
-	if title, _ := got.Root.Children[0].Config["title"].(string); title != "Citrus" {
+	if title, _ := got.Root.Children[0].Children[0].Children[0].Config["title"].(string); title != "Citrus" {
 		t.Fatalf("overridden table title = %q, want Citrus", title)
 	}
 
@@ -487,7 +543,7 @@ func TestConfiguratorGeneratedOverrideReResolves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Resolve after override: %v", err)
 	}
-	if title, _ := fresh.Root.Children[0].Config["title"].(string); title != "Fruit" {
+	if title, _ := fresh.Root.Children[0].Children[0].Children[0].Config["title"].(string); title != "Fruit" {
 		t.Errorf("table title after ephemeral override = %q, want Fruit (document untouched)", title)
 	}
 	on, err := os.ReadFile(path)

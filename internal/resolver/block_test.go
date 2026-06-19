@@ -36,25 +36,36 @@ const blockWrapDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
-        "config": {
-          "id": "revenue-block",
-          "title": "Revenue",
-          "visibility": true,
-          "theme": { "tone": "accent" },
-          "content": {
-            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-            "id": "revenue",
-            "config": { "title": "Revenue", "columns": [{ "header": "Name" }] }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "revenue-block",
+              "title": "Revenue",
+              "visibility": true,
+              "theme": { "tone": "accent" },
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "revenue",
+                "config": { "title": "Revenue", "columns": [{ "header": "Name" }] }
+              }
+            }
           }
-        }
+        ]
       }
     ]
   }
 }`
 
-// unwrappedDoc places the SAME table directly in the container, unwrapped, so a
-// test can assert the wrapped inner node resolves identically to the unwrapped one.
+// unwrappedDoc places the SAME table in the same position, but inside a MINIMAL
+// block (carrying only the required id, none of blockWrapDoc's title/visibility/
+// theme concerns), so a test can assert the wrapped inner node resolves
+// identically regardless of which per-block concerns the surrounding wrapper
+// carries. Under the E3-S2 grammar a content leaf cannot sit bare under a
+// container, so "unwrapped" here means "wrapped by a concern-free block".
 const unwrappedDoc = `{
   "manifest": { "formatVersion": "1.0.0", "id": "unwrapped", "title": "Unwrapped" },
   "root": {
@@ -63,9 +74,22 @@ const unwrappedDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "revenue",
-        "config": { "title": "Revenue", "columns": [{ "header": "Name" }] }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "revenue-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "revenue",
+                "config": { "title": "Revenue", "columns": [{ "header": "Name" }] }
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -106,7 +130,9 @@ func resolveDocErr(t *testing.T, doc string) error {
 func TestBlockEmitsWrapperAndInnerAsSeparateNodes(t *testing.T) {
 	tree := resolveDoc(t, blockWrapDoc)
 
-	wrapper := tree.Root.Children[0]
+	// Under the E3-S2 grammar the wrapper sits inside a body region:
+	// root -> body region -> block.
+	wrapper := tree.Root.Children[0].Children[0]
 	if wrapper.Type.Name != "block" {
 		t.Fatalf("wrapper type = %q, want block", wrapper.Type.Name)
 	}
@@ -157,8 +183,11 @@ func TestBlockInnerResolvesIdenticallyToUnwrapped(t *testing.T) {
 	wrapped := resolveDoc(t, blockWrapDoc)
 	unwrapped := resolveDoc(t, unwrappedDoc)
 
-	inner := wrapped.Root.Children[0].Children[0]
-	bare := unwrapped.Root.Children[0]
+	// Both inner tables sit at: root -> body region -> block -> table. The wrapper
+	// in blockWrapDoc carries title/visibility/theme; the one in unwrappedDoc is
+	// concern-free — the inner table node must be identical regardless.
+	inner := wrapped.Root.Children[0].Children[0].Children[0]
+	bare := unwrapped.Root.Children[0].Children[0].Children[0]
 
 	if !reflect.DeepEqual(inner, bare) {
 		t.Errorf("wrapped inner node differs from unwrapped node\n wrapped: %+v\n unwrapped: %+v", inner, bare)
@@ -255,16 +284,23 @@ const blockThemeOverrideDoc = `{
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
-        "config": {
-          "id": "themed-block",
-          "theme": { "emphasis": "high", "tone": "accent" },
-          "content": {
-            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-            "id": "t",
-            "config": { "columns": [{ "header": "Name" }] }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "themed-block",
+              "theme": { "emphasis": "high", "tone": "accent" },
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "t",
+                "config": { "columns": [{ "header": "Name" }] }
+              }
+            }
           }
-        }
+        ]
       }
     ]
   }
@@ -277,7 +313,7 @@ const blockThemeOverrideDoc = `{
 func TestBlockThemeOverrideAcceptedAndAttached(t *testing.T) {
 	tree := resolveDoc(t, blockThemeOverrideDoc)
 
-	wrapper := tree.Root.Children[0]
+	wrapper := tree.Root.Children[0].Children[0]
 	override, ok := wrapper.Config["theme"].(map[string]any)
 	if !ok {
 		t.Fatalf("wrapper theme override missing/!object: %v", wrapper.Config["theme"])
@@ -313,7 +349,7 @@ func TestBlockThemeOverrideSideBySideNoMerge(t *testing.T) {
 	}
 
 	// Layer 2: wrapper override, verbatim, untouched by the default.
-	wrapper := tree.Root.Children[0]
+	wrapper := tree.Root.Children[0].Children[0]
 	override, _ := wrapper.Config["theme"].(map[string]any)
 	wantOverride := map[string]any{"emphasis": "high", "tone": "accent"}
 	if !reflect.DeepEqual(override, wantOverride) {

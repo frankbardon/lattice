@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "example-widgets",
     "title": "Typed Variable Widgets Example",
-    "description": "Exercises the typed-widget catalog (E1): one widget per family binds a document-scoped variable whose declared type the widget permits, and a table consumes each variable via $var typed bindings and ${} string templates. A text-input drives a string, a slider a number, a toggle a boolean, a select an enum, and a multiselect plus a freeform tag-input each an array. Changing a control sets that variable's runtime override and re-resolves the document so the consumer updates live. The resolver enforces widget↔variable type compatibility (WIDGET_TYPE_MISMATCH on a mismatch). Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Exercises the typed-widget catalog (E1) under the E3-S2 grammar: one widget per family lives in a variable-box region and binds a document-scoped variable whose declared type the widget permits, and a block-wrapped table consumes each variable via $var typed bindings and ${} string templates. A text-input drives a string, a slider a number, a toggle a boolean, a select an enum, and a multiselect plus a freeform tag-input each an array. Changing a control sets that variable's runtime override and re-resolves the document so the consumer updates live. The resolver enforces widget↔variable type compatibility (WIDGET_TYPE_MISMATCH on a mismatch). Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "variables": [
@@ -17,109 +17,125 @@
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1, 1],
-        "rows": [1, 1, 1, 2],
-        "gap": 1
-      }
-    },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
-        "id": "label-input",
-        "placement": { "colStart": 1, "rowStart": 1 },
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
         "config": {
-          "label": "Panel label",
-          "description": "Free-text heading for the report panel.",
-          "variable": "label",
-          "placeholder": "Overview"
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/slider/1.0.0",
-        "id": "threshold-slider",
-        "placement": { "colStart": 2, "rowStart": 1 },
-        "config": {
-          "label": "Alert threshold",
-          "description": "Value above which a metric is flagged.",
-          "variable": "threshold",
-          "min": 0,
-          "max": 100,
-          "step": 5
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
-        "id": "live-toggle",
-        "placement": { "colStart": 1, "rowStart": 2 },
-        "config": {
-          "label": "Live updates",
-          "description": "Stream new readings as they arrive.",
-          "variable": "live"
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
-        "id": "region-select",
-        "placement": { "colStart": 2, "rowStart": 2 },
-        "config": {
-          "label": "Region",
-          "description": "Data region the report covers.",
-          "variable": "region",
-          "options": [
-            { "value": "us", "label": "United States" },
-            { "value": "eu", "label": "Europe" },
-            { "value": "apac", "label": "Asia-Pacific" }
-          ]
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/multiselect/1.0.0",
-        "id": "metrics-multiselect",
-        "placement": { "colStart": 1, "rowStart": 3 },
-        "config": {
-          "label": "Metrics",
-          "description": "Series to include in the report.",
-          "variable": "metrics",
-          "options": [
-            { "value": "latency", "label": "Latency" },
-            { "value": "errors", "label": "Error rate" },
-            { "value": "throughput", "label": "Throughput" }
-          ],
-          "sort": "label"
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
-        "id": "tags-input",
-        "placement": { "colStart": 2, "rowStart": 3 },
-        "config": {
-          "label": "Tags",
-          "description": "Freeform labels attached to this view.",
-          "variable": "tags",
-          "placeholder": "add a tag"
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "summary",
-        "placement": { "colStart": 1, "colSpan": 2, "rowStart": 4 },
-        "config": {
-          "title": "${label} — ${region}",
-          "columns": [
-            { "header": "Setting" },
-            { "header": "Value" }
-          ],
-          "rows": [
-            ["label", { "$var": "label" }],
-            ["threshold", "${threshold}"],
-            ["live", "${live}"],
-            ["region", { "$var": "region" }],
-            ["metrics", "${metrics}"],
-            ["tags", "${tags}"]
-          ]
-        }
+          "grid": {
+            "columns": [1],
+            "rows": [3, 2],
+            "gap": 1
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+            "id": "controls",
+            "placement": { "colStart": 1, "rowStart": 1 },
+            "config": { "arrangement": "inline" },
+            "children": [
+              {
+                "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                "id": "label-input",
+                "config": {
+                  "label": "Panel label",
+                  "description": "Free-text heading for the report panel.",
+                  "variable": "label",
+                  "placeholder": "Overview"
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/slider/1.0.0",
+                "id": "threshold-slider",
+                "config": {
+                  "label": "Alert threshold",
+                  "description": "Value above which a metric is flagged.",
+                  "variable": "threshold",
+                  "min": 0,
+                  "max": 100,
+                  "step": 5
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                "id": "live-toggle",
+                "config": {
+                  "label": "Live updates",
+                  "description": "Stream new readings as they arrive.",
+                  "variable": "live"
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                "id": "region-select",
+                "config": {
+                  "label": "Region",
+                  "description": "Data region the report covers.",
+                  "variable": "region",
+                  "options": [
+                    { "value": "us", "label": "United States" },
+                    { "value": "eu", "label": "Europe" },
+                    { "value": "apac", "label": "Asia-Pacific" }
+                  ]
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/multiselect/1.0.0",
+                "id": "metrics-multiselect",
+                "config": {
+                  "label": "Metrics",
+                  "description": "Series to include in the report.",
+                  "variable": "metrics",
+                  "options": [
+                    { "value": "latency", "label": "Latency" },
+                    { "value": "errors", "label": "Error rate" },
+                    { "value": "throughput", "label": "Throughput" }
+                  ],
+                  "sort": "label"
+                }
+              },
+              {
+                "$ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+                "id": "tags-input",
+                "config": {
+                  "label": "Tags",
+                  "description": "Freeform labels attached to this view.",
+                  "variable": "tags",
+                  "placeholder": "add a tag"
+                }
+              }
+            ]
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "summary-block",
+            "placement": { "colStart": 1, "rowStart": 2 },
+            "config": {
+              "id": "summary-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "summary",
+                "config": {
+                  "title": "${label} — ${region}",
+                  "columns": [
+                    { "header": "Setting" },
+                    { "header": "Value" }
+                  ],
+                  "rows": [
+                    ["label", { "$var": "label" }],
+                    ["threshold", "${threshold}"],
+                    ["live", "${live}"],
+                    ["region", { "$var": "region" }],
+                    ["metrics", "${metrics}"],
+                    ["tags", "${tags}"]
+                  ]
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }

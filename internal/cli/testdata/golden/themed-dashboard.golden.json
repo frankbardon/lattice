@@ -1,10 +1,10 @@
 {
   "manifest": {
     "author": "Lattice",
-    "description": "A hand-written fixture: a root container holding a body region whose two-column grid places two block-wrapped static tables. Under the dashboard grammar (E3-S2) root holds only positional regions, a container holds block wrappers, and each content leaf (a table) is wrapped in a block carrying its stable id. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Demonstrates the three theme/grammar constructs of this effort side by side (E2 + E3-S2): a document-scope DEFAULT theme, a per-WRAPPER theme override on one block (a partial subset that overrides only some tokens; the resolver attaches it verbatim alongside the default with NO cascade/merge), and a VARIABLE-BOX region holding a variable widget directly. The body region places a variable-box of controls above two block-wrapped tables — one inheriting the document default theme wholesale, one carrying its own override. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "formatVersion": "1.0.0",
-    "id": "example-minimal",
-    "title": "Minimal Example Dashboard"
+    "id": "example-themed",
+    "title": "Theme Layers + Variable Box Example"
   },
   "root": {
     "id": "root",
@@ -57,7 +57,8 @@
             ],
             "gap": 1,
             "rows": [
-              1
+              1,
+              2
             ]
           }
         },
@@ -67,27 +68,153 @@
             0.5
           ],
           "rows": [
-            1
+            0.3333333333333333,
+            0.6666666666666666
           ],
           "gap": 1,
           "placements": [
             {
               "colStart": 1,
-              "colSpan": 1,
+              "colSpan": 2,
               "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 2,
               "rowSpan": 1
             },
             {
               "colStart": 2,
               "colSpan": 1,
-              "rowStart": 1,
+              "rowStart": 2,
               "rowSpan": 1
             }
           ]
         },
         "children": [
           {
-            "id": "fruits-block",
+            "id": "controls",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+              "id": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+              "name": "variable-box",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "arrangement": "inline"
+            },
+            "placement": {
+              "colSpan": 2,
+              "colStart": 1,
+              "rowStart": 1
+            },
+            "children": [
+              {
+                "id": "region-picker",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/select/1.0.0",
+                  "name": "select",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "label": "Region",
+                  "options": [
+                    {
+                      "label": "United States",
+                      "value": "us"
+                    },
+                    {
+                      "label": "Europe",
+                      "value": "eu"
+                    },
+                    {
+                      "label": "Asia-Pacific",
+                      "value": "apac"
+                    }
+                  ],
+                  "variable": "region"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "enum",
+                    "default": "us",
+                    "options": [
+                      "us",
+                      "eu",
+                      "apac"
+                    ],
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "disabled",
+                    "type": "boolean",
+                    "label": "Disabled",
+                    "constraints": {
+                      "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                    },
+                    "rendering": "toggle"
+                  },
+                  {
+                    "field": "label",
+                    "type": "string",
+                    "label": "Label",
+                    "constraints": {
+                      "description": "The human label rendered beside the control — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "sort",
+                    "type": "enum",
+                    "label": "Option sort",
+                    "constraints": {
+                      "description": "How the option set is ordered for display — editable at runtime.",
+                      "enum": [
+                        "declared",
+                        "label",
+                        "value"
+                      ]
+                    },
+                    "rendering": "select"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "arrangement",
+                "type": "enum",
+                "label": "Arrangement",
+                "constraints": {
+                  "description": "How the box arranges its variable widgets — editable at runtime. `stacked` lays them out one per row; `inline` flows them along a single row. Semantic and renderer-agnostic: NO CSS units or keywords."
+                },
+                "rendering": "segmented"
+              }
+            ]
+          },
+          {
+            "id": "default-themed-block",
             "type": {
               "ref": "https://lattice.dev/schemas/items/block/1.0.0",
               "id": "https://lattice.dev/schemas/items/block/1.0.0",
@@ -96,17 +223,16 @@
             },
             "container": false,
             "config": {
-              "id": "fruits-block"
+              "id": "default-themed-block",
+              "title": "Inherits Document Theme"
             },
             "placement": {
-              "colSpan": 1,
               "colStart": 1,
-              "rowSpan": 1,
-              "rowStart": 1
+              "rowStart": 2
             },
             "children": [
               {
-                "id": "fruits",
+                "id": "default-themed",
                 "type": {
                   "ref": "https://lattice.dev/schemas/items/table/1.0.0",
                   "id": "https://lattice.dev/schemas/items/table/1.0.0",
@@ -117,23 +243,32 @@
                 "config": {
                   "columns": [
                     {
-                      "header": "Name"
+                      "header": "Metric"
                     },
                     {
-                      "header": "Color"
+                      "header": "Value"
                     }
                   ],
                   "rows": [
                     [
-                      "Apple",
-                      "Red"
-                    ],
-                    [
-                      "Banana",
-                      "Yellow"
+                      "latency",
+                      "live"
                     ]
                   ],
-                  "title": "Fruits"
+                  "title": "Default-themed for us"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "enum",
+                    "default": "us",
+                    "options": [
+                      "us",
+                      "eu",
+                      "apac"
+                    ],
+                    "declaredAt": "doc"
+                  }
                 },
                 "surface": [
                   {
@@ -176,6 +311,19 @@
                 ]
               }
             ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              }
+            },
             "surface": [
               {
                 "field": "title",
@@ -198,7 +346,7 @@
             ]
           },
           {
-            "id": "metrics-block",
+            "id": "overridden-block",
             "type": {
               "ref": "https://lattice.dev/schemas/items/block/1.0.0",
               "id": "https://lattice.dev/schemas/items/block/1.0.0",
@@ -207,17 +355,20 @@
             },
             "container": false,
             "config": {
-              "id": "metrics-block"
+              "id": "overridden-block",
+              "theme": {
+                "emphasis": "high",
+                "tone": "accent"
+              },
+              "title": "Per-Wrapper Theme Override"
             },
             "placement": {
-              "colSpan": 1,
               "colStart": 2,
-              "rowSpan": 1,
-              "rowStart": 1
+              "rowStart": 2
             },
             "children": [
               {
-                "id": "metrics",
+                "id": "overridden",
                 "type": {
                   "ref": "https://lattice.dev/schemas/items/table/1.0.0",
                   "id": "https://lattice.dev/schemas/items/table/1.0.0",
@@ -236,15 +387,24 @@
                   ],
                   "rows": [
                     [
-                      "Requests",
-                      "1024"
-                    ],
-                    [
-                      "Errors",
-                      "3"
+                      "errors",
+                      "live"
                     ]
                   ],
-                  "title": "Metrics"
+                  "title": "Overridden for us"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "enum",
+                    "default": "us",
+                    "options": [
+                      "us",
+                      "eu",
+                      "apac"
+                    ],
+                    "declaredAt": "doc"
+                  }
                 },
                 "surface": [
                   {
@@ -287,6 +447,19 @@
                 ]
               }
             ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              }
+            },
             "surface": [
               {
                 "field": "title",
@@ -309,6 +482,19 @@
             ]
           }
         ],
+        "varEnv": {
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          }
+        },
         "surface": [
           {
             "field": "grid",
@@ -343,6 +529,19 @@
         ]
       }
     ],
+    "varEnv": {
+      "region": {
+        "name": "region",
+        "type": "enum",
+        "default": "us",
+        "options": [
+          "us",
+          "eu",
+          "apac"
+        ],
+        "declaredAt": "doc"
+      }
+    },
     "surface": [
       {
         "field": "grid",
@@ -375,5 +574,10 @@
         }
       }
     ]
+  },
+  "defaultTheme": {
+    "emphasis": "low",
+    "spacing": "cosy",
+    "tone": "neutral"
   }
 }
