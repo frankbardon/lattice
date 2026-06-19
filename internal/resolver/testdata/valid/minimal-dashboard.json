@@ -11,14 +11,16 @@
     "id": "root",
     "config": {
       "grid": {
-        "direction": "row",
-        "columns": 2
+        "columns": [1, 1],
+        "rows": [1],
+        "gap": 1
       }
     },
     "children": [
       {
         "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
         "id": "fruits",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
         "config": {
           "title": "Fruits",
           "columns": [
@@ -34,6 +36,7 @@
       {
         "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
         "id": "metrics",
+        "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
         "config": {
           "title": "Metrics",
           "columns": [

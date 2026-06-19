@@ -1,5 +1,7 @@
 package resolver
 
+import "github.com/frankbardon/lattice/internal/layout"
+
 // This file defines the RESOLVED TREE: the durable, JSON-serializable contract
 // that E1-S4 emits and that three downstream epics consume unchanged —
 //   - E2 (visual sketch)  walks the tree to render structure,
@@ -57,6 +59,11 @@ type ResolvedInstance struct {
 	// unchanged. Opaque at this stage; E2-S1 formalizes track placement.
 	// Nil when the instance declared no placement.
 	Placement map[string]any `json:"placement,omitempty"`
+
+	// Layout is the normalized, renderer-agnostic grid layout for a container
+	// node (E2-S1): fractional track sizes plus each child's validated, 1-indexed
+	// placement. Non-nil only for container nodes; nil for leaf item types.
+	Layout *layout.Block `json:"layout,omitempty"`
 
 	// Children are the resolved child instances, in document order. Always empty
 	// (never nil-vs-non-nil significant) for non-container types, since the

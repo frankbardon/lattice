@@ -94,3 +94,16 @@ const (
 	// parsing, asset mounting, response encoding, or the listener).
 	SERVE_INTERNAL Code = "SERVE_INTERNAL"
 )
+
+// LAYOUT domain - Container grid interpretation and child placement (E2-S1).
+const (
+	// LAYOUT_PLACEMENT_INVALID indicates a child placement carried a
+	// non-positive span or start. The offending instance path is reported in
+	// Details["path"] (with "field" and "value").
+	LAYOUT_PLACEMENT_INVALID Code = "LAYOUT_PLACEMENT_INVALID"
+
+	// LAYOUT_PLACEMENT_OUT_OF_BOUNDS indicates a child placement extends beyond
+	// its parent container's grid bounds. The offending instance path is
+	// reported in Details["path"] (with "axis", "start", "span", "tracks").
+	LAYOUT_PLACEMENT_OUT_OF_BOUNDS Code = "LAYOUT_PLACEMENT_OUT_OF_BOUNDS"
+)

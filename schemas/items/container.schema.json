@@ -2,29 +2,70 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lattice.dev/schemas/items/container/1.0.0",
   "title": "Container Item",
-  "description": "The container item type. The only structurally-special type: it groups child instances and arranges them on a grid. Children are validated by the dashboard instance schema; the container-only-children rule is enforced by the resolver (E1-S4). Grid fields are intentionally minimal here and will be formalized (relative-weight tracks + placement) in E2-S1.",
+  "description": "The container item type. The only structurally-special type: it groups child instances and arranges them on a CSS-agnostic grid. Children are validated by the dashboard instance schema; the container-only-children rule is enforced by the resolver (E1-S4). The grid is defined by relative-weight track lists (unitless numbers) and a relative gap; child instances are placed with explicit 1-indexed coordinates via their `placement` (see $defs/placement). NO CSS keywords or absolute units appear anywhere. The resolver (E2-S1) normalizes the grid into fractional track sizes and validates placements against the grid bounds, emitting a renderer-agnostic layout block.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "grid": {
       "title": "Container Grid",
-      "description": "Minimal grid stub describing how children are laid out. E2-S1 formalizes relative-weight tracks and placement; treat these fields as provisional.",
+      "description": "The container's grid, defined entirely in relative, unitless terms so it is interpretable by a CSS or a native renderer. Track lists are relative weights; the resolver normalizes them to fractions summing to 1 per axis. An axis with no track list is a single implicit full-size track.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "direction": {
-          "description": "Primary flow direction of the grid.",
-          "type": "string",
-          "enum": ["row", "column"],
-          "default": "row"
-        },
         "columns": {
-          "description": "Provisional column count. Superseded by relative-weight tracks in E2-S1.",
+          "title": "Column Track Weights",
+          "description": "Relative, unitless weights for the column tracks, in left-to-right order. Each weight is a positive number; the resolver normalizes the list to fractions that sum to 1. Omit for a single full-width column. NO CSS units or keywords.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "rows": {
+          "title": "Row Track Weights",
+          "description": "Relative, unitless weights for the row tracks, in top-to-bottom order. Each weight is a positive number; the resolver normalizes the list to fractions that sum to 1. Omit for a single full-height row. NO CSS units or keywords.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "gap": {
+          "title": "Track Gap",
+          "description": "Relative, unitless gap between tracks, expressed in the same relative space as the track weights. Defaults to 0 (no gap). NO CSS units or keywords.",
+          "type": "number",
+          "minimum": 0,
+          "default": 0
+        }
+      }
+    }
+  },
+  "$defs": {
+    "placement": {
+      "title": "Grid Placement",
+      "description": "Explicit, 1-indexed placement of a child instance within its parent container's grid. Authored on a child instance's `placement` object and interpreted by the parent container (E2-S1). The resolver fails fast (LAYOUT_PLACEMENT_INVALID / LAYOUT_PLACEMENT_OUT_OF_BOUNDS) when spans are non-positive or the placed range exceeds the grid bounds. Missing colStart/rowStart default to 1; missing colSpan/rowSpan default to 1.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "colStart": {
+          "description": "1-indexed starting column track. Defaults to 1.",
           "type": "integer",
           "minimum": 1
         },
-        "rows": {
-          "description": "Provisional row count. Superseded by relative-weight tracks in E2-S1.",
+        "colSpan": {
+          "description": "Number of column tracks to span. Positive; defaults to 1.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "rowStart": {
+          "description": "1-indexed starting row track. Defaults to 1.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "rowSpan": {
+          "description": "Number of row tracks to span. Positive; defaults to 1.",
           "type": "integer",
           "minimum": 1
         }

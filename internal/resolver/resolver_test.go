@@ -137,6 +137,12 @@ func TestResolveErrors(t *testing.T) {
 			doc:      "testdata/invalid/unknown-version.json",
 			wantCode: errors.SCHEMA_VERSION_MISMATCH,
 		},
+		{
+			name:     "child placement exceeds container grid bounds",
+			doc:      "testdata/invalid/placement-out-of-bounds.json",
+			wantCode: errors.LAYOUT_PLACEMENT_OUT_OF_BOUNDS,
+			wantPath: "root.children[0]",
+		},
 	}
 
 	for _, tc := range tests {

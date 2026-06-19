@@ -17,9 +17,39 @@
     "container": true,
     "config": {
       "grid": {
-        "columns": 2,
-        "direction": "row"
+        "columns": [
+          1,
+          1
+        ],
+        "gap": 1,
+        "rows": [
+          1
+        ]
       }
+    },
+    "layout": {
+      "columns": [
+        0.5,
+        0.5
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 1,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 2,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
     },
     "children": [
       {
@@ -51,6 +81,12 @@
             ]
           ],
           "title": "Fruits"
+        },
+        "placement": {
+          "colSpan": 1,
+          "colStart": 1,
+          "rowSpan": 1,
+          "rowStart": 1
         }
       },
       {
@@ -82,6 +118,12 @@
             ]
           ],
           "title": "Metrics"
+        },
+        "placement": {
+          "colSpan": 1,
+          "colStart": 2,
+          "rowSpan": 1,
+          "rowStart": 1
         }
       }
     ]

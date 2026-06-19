@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "placement-out-of-bounds",
+    "title": "Placement Out Of Bounds"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1, 1],
+        "rows": [1]
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "overflow",
+        "placement": { "colStart": 2, "colSpan": 2, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Overflow",
+          "columns": [{ "header": "A" }],
+          "rows": [["x"]]
+        }
+      }
+    ]
+  }
+}

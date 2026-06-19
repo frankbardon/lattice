@@ -182,6 +182,12 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		node.Children = append(node.Children, resolvedChild)
 	}
 
+	// E2-S1: normalize this container's grid + child placements into a layout
+	// block (no-op for non-containers). See layout.go.
+	if err := r.resolveLayout(node, path); err != nil {
+		return nil, err
+	}
+
 	return node, nil
 }
 
