@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/configurator/1.0.0",
+  "title": "Configurator Item",
+  "description": "A leaf item type that renders an editor for another item in the SAME document — its `target`. The configurator references the target by its stable instance `id`; the resolver (E5-S1) builds a tree-wide id index once and validates that the target id resolves to a real, id-carrying item (CONFIGURATOR_TARGET_NOT_FOUND when no item declares the id; CONFIGURATOR_TARGET_MISSING_ID when the target reference itself is empty/non-stable). Auto-generating the form from the target's configurable surface is E5-S2; this type carries the target reference + title only. A configurator never has children.",
+  "type": "object",
+  "additionalProperties": false,
+  "configurable": {
+    "title": {
+      "type": "string",
+      "label": "Title",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The heading rendered above the configurator's generated editor — editable at runtime."
+      }
+    }
+  },
+  "properties": {
+    "target": {
+      "description": "The stable instance `id` of the item this configurator generates an editor for. Must reference an item declared in the same document that carries an `id`; validated by the resolver (E5-S1).",
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "description": "Optional heading rendered above the configurator's generated editor.",
+      "type": "string"
+    }
+  },
+  "required": ["target"]
+}

@@ -72,9 +72,11 @@ func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
 	return runResolveWithValues(schemasDir, docPath, nil)
 }
 
-// runResolveWithValues is runResolve with E3-S4 runtime variable overrides
-// applied (override > default for settable variables; computed vars stay
-// computed). A nil/empty overrides map is identical to runResolve.
+// runResolveWithValues is runResolve with E4-S1 runtime overrides applied: an
+// addressable override set keyed by address (a bare name targets a settable
+// variable as in E3-S4; a "<node-id>.<field>" address targets a node config
+// field, carried for E4-S2). A nil/empty overrides map is identical to
+// runResolve.
 func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
 	fs := afero.NewOsFs()
 
@@ -87,7 +89,7 @@ func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) 
 	if err != nil {
 		return nil, err
 	}
-	return res.ResolveWithValues(docPath, variables.Overrides(overrides))
+	return res.ResolveWithValues(docPath, variables.OverrideSet(overrides))
 }
 
 // loadDashboardSchema reads and parses the dashboard document schema from

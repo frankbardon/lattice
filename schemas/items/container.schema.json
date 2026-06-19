@@ -5,6 +5,20 @@
   "description": "The container item type. The only structurally-special type: it groups child instances and arranges them on a CSS-agnostic grid. Children are validated by the dashboard instance schema; the container-only-children rule is enforced by the resolver (E1-S4). The grid is defined by relative-weight track lists (unitless numbers) and a relative gap; child instances are placed with explicit 1-indexed coordinates via their `placement` (see $defs/placement). NO CSS keywords or absolute units appear anywhere. The resolver (E2-S1) normalizes the grid into fractional track sizes and validates placements against the grid bounds, emitting a renderer-agnostic layout block.",
   "type": "object",
   "additionalProperties": false,
+  "configurable": {
+    "grid": {
+      "type": "array",
+      "label": "Grid tracks",
+      "constraints": {
+        "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+        "fields": {
+          "columns": { "type": "array", "items": { "type": "number", "exclusiveMinimum": 0 }, "minItems": 1 },
+          "rows": { "type": "array", "items": { "type": "number", "exclusiveMinimum": 0 }, "minItems": 1 },
+          "gap": { "type": "number", "minimum": 0 }
+        }
+      }
+    }
+  },
   "properties": {
     "grid": {
       "title": "Container Grid",

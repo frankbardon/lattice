@@ -90,6 +90,72 @@ func TestPageRendersSketchAndInspector(t *testing.T) {
 	}
 }
 
+// TestPageRendersWidgetControls asserts the serve UI carries the per-widget
+// control renderers (E4-S3 carried fix): the retired dropdown-only renderer is
+// gone and the unified controlHTML dispatcher plus the select/text/number/
+// boolean families are present so widget leaves render interactive controls.
+func TestPageRendersWidgetControls(t *testing.T) {
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+
+	for _, want := range []string{
+		"controlHTML(",
+		"widgetFamily(",
+		"selectHTML(",
+		"textHTML(",
+		"numberHTML(",
+		"booleanHTML(",
+		`data-var="`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing widget-control markup %q", want)
+		}
+	}
+	// The retired dropdown-only renderer and type check must be gone.
+	for _, gone := range []string{"dropdownHTML(", "name === 'dropdown'"} {
+		if strings.Contains(body, gone) {
+			t.Errorf("page still carries retired dropdown markup %q", gone)
+		}
+	}
+}
+
+// TestPageRendersConfiguratorControls asserts the served page carries the
+// renderer for a configurator's auto-generated editor form (E5-S2): the
+// generatedHTML/generatedControlHTML functions that walk node.generated.widgets
+// and emit one data-var="<target-id>.<field>" control per widget. Those controls
+// reuse the same delegated @change path authored widgets use, so a change posts a
+// config override that re-resolves the target.
+func TestPageRendersConfiguratorControls(t *testing.T) {
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+
+	for _, want := range []string{
+		"generatedHTML(",
+		"generatedControlHTML(",
+		"node.generated",
+		"w.target",
+		"w.field",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing configurator-control markup %q", want)
+		}
+	}
+}
+
 func TestTreeEndpointReturnsJSON(t *testing.T) {
 	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
@@ -144,6 +210,55 @@ func TestResolveEndpointAppliesOverrides(t *testing.T) {
 	}
 	if title, _ := tree.Manifest["title"].(string); title != "Region eu" {
 		t.Errorf("re-resolved title = %q, want %q", title, "Region eu")
+	}
+}
+
+// TestResolveEndpointRoutesConfigOverride asserts a "<node-id>.<field>" config
+// override posted to /api/resolve reaches the resolver verbatim alongside a bare
+// variable override — proving serve routes BOTH override kinds through the
+// unified map without distinguishing them (E4-S3).
+func TestResolveEndpointRoutesConfigOverride(t *testing.T) {
+	var got map[string]any
+	resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+		got = overrides
+		return okTree(), nil
+	}
+	h := newTestServer(t, resolve)
+
+	body := strings.NewReader(`{"region":"eu","summary.title":"Pinned"}`)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/resolve", body))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got["region"] != "eu" {
+		t.Errorf("variable override = %+v, want region=eu", got)
+	}
+	if got["summary.title"] != "Pinned" {
+		t.Errorf("config override = %+v, want summary.title=Pinned", got)
+	}
+}
+
+// TestTreeEndpointRoutesConfigOverrideQuery asserts a "<node-id>.<field>" config
+// override supplied as a URL query param is lifted into the unified override map
+// and threaded into resolution, matching the bare-variable query path.
+func TestTreeEndpointRoutesConfigOverrideQuery(t *testing.T) {
+	var got map[string]any
+	resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+		got = overrides
+		return okTree(), nil
+	}
+	h := newTestServer(t, resolve)
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/tree?summary.title=Pinned", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	if got["summary.title"] != "Pinned" {
+		t.Errorf("config-override query = %+v, want summary.title=Pinned", got)
 	}
 }
 

@@ -64,26 +64,47 @@ main { max-width: 1100px; margin: 0 auto; }
 .node-leaf { background: #1b2436; }
 .node-input { border-color: var(--accent); }
 
-/* Runtime input controls (E3-S4): a dropdown leaf renders a real <select>. */
-.dropdown-control {
+/* Runtime input controls (E4-S3): a variable-widget leaf renders a real bound
+   control (select / text / number / range / checkbox) per its widget family. */
+.widget-control {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   margin-top: 0.5rem;
 }
 
-.dropdown-label {
+/* A boolean (toggle/checkbox) lays its box beside the label inline. */
+.widget-boolean {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.widget-label {
   color: var(--muted);
   font-size: 0.8rem;
 }
 
-.dropdown-select {
+.widget-select,
+.widget-input,
+.widget-range {
   background: #0b0f18;
   color: var(--fg);
   border: 1px solid var(--accent);
   border-radius: 4px;
   padding: 0.3rem 0.5rem;
   font-size: 0.9rem;
+}
+
+.widget-range {
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.widget-checkbox {
+  accent-color: var(--accent);
+  width: 1rem;
+  height: 1rem;
 }
 
 .reresolving { margin: 0 1.5rem; font-style: italic; }

@@ -138,12 +138,19 @@ is what lets a runtime input drive a `${var}` consumer through an `expr`.
 
 Overrides come from two sources, both wired by `lattice serve`:
 
-- **Dropdown items.** A `dropdown` item binds a variable to a fixed option set.
-  Changing the selection sets that variable's runtime override and re-resolves
-  the document, so dependent `${var}` / `$var` consumers update live. The
-  dropdown only declares the binding and its options; the variable itself is
-  declared in the document/container `variables` and supplies the effective
-  default (override > default).
+- **Widgets.** A [widget](widgets.md) is a leaf item that **sets a single
+  variable** named by its `variable` config key. There are 13 widgets across
+  five families — string (`text-input`, `textarea`), number (`number-field`,
+  `slider`, `stepper`), boolean (`toggle`, `checkbox`), enum (`select`,
+  `radio-group`, `segmented`), and array (`multiselect`, `checkbox-group`,
+  `tag-input`). A widget may only bind a variable whose declared type its family
+  permits, otherwise the resolver reports `WIDGET_TYPE_MISMATCH`. Changing the
+  control sets that variable's runtime override and re-resolves the document, so
+  dependent `${var}` / `$var` consumers update live. The widget only declares the
+  binding and its presentation; the variable itself is declared in the
+  document/container `variables` and supplies the effective default (override >
+  default). `select` is the canonical single-choice control, replacing the
+  retired `dropdown` item.
 - **URL query parameters.** `serve` reads `?name=value` parameters as overrides
   for the initial render. Because query params arrive as text, a value targeting
   a non-string variable is parsed to the declared type before validation; a
@@ -153,3 +160,7 @@ Overrides come from two sources, both wired by `lattice serve`:
 An override for an undeclared name is a no-op. A `nil`/empty override set leaves
 every variable at its declared default, so the resolved-tree contract is
 identical to a plain `resolve`.
+
+Variable overrides are one half of the unified override set; the other half,
+config overrides addressed by `<node-id>.<field>`, plus the precedence between
+them, is covered in [Runtime Overrides](overrides.md).

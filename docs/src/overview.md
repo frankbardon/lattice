@@ -12,7 +12,8 @@ Lattice is a **specification**, not a running product. The deliverable is:
 
 A dashboard is a tree of **items**. The only structurally special item is the
 **container**, which arranges its children on a relative-weight grid. Every
-other item type (today: `table` and `dropdown`) is a leaf. Items can declare
+other item type (today: `table` and the variable widgets such as `select`) is a
+leaf. Items can declare
 **variables**, reference document-scoped **connections** for their data, and
 interpolate variable values into their configuration.
 

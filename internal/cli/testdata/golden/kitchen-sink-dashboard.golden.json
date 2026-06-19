@@ -1,7 +1,7 @@
 {
   "manifest": {
     "author": "Lattice",
-    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a dropdown runtime input bound to a variable (E3-S4); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a select runtime input bound to an enum variable (E1-S3); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "formatVersion": "1.0.0",
     "id": "kitchen-sink",
     "title": "Kitchen-Sink Dashboard"
@@ -55,9 +55,9 @@
       {
         "id": "region-picker",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "id": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "name": "dropdown",
+          "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+          "id": "https://lattice.dev/schemas/items/select/1.0.0",
+          "name": "select",
           "version": "1.0.0"
         },
         "container": false,
@@ -115,7 +115,41 @@
             "expr": "window / 24",
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "sort",
+            "type": "enum",
+            "label": "Option sort",
+            "constraints": {
+              "description": "How the option set is ordered for display — editable at runtime.",
+              "enum": [
+                "declared",
+                "label",
+                "value"
+              ]
+            },
+            "rendering": "select"
+          }
+        ]
       },
       {
         "id": "body",
@@ -239,7 +273,46 @@
                 "expr": "window / 24",
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "columns",
+                "type": "array",
+                "label": "Columns",
+                "constraints": {
+                  "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                  "items": {
+                    "properties": {
+                      "header": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "header"
+                    ],
+                    "type": "object"
+                  }
+                }
+              },
+              {
+                "field": "query",
+                "type": "array",
+                "label": "Query parameters",
+                "constraints": {
+                  "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                }
+              },
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The heading rendered above the table — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
           },
           {
             "id": "live-metrics",
@@ -324,7 +397,46 @@
                   "type": "array"
                 }
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "columns",
+                "type": "array",
+                "label": "Columns",
+                "constraints": {
+                  "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                  "items": {
+                    "properties": {
+                      "header": {
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "header"
+                    ],
+                    "type": "object"
+                  }
+                }
+              },
+              {
+                "field": "query",
+                "type": "array",
+                "label": "Query parameters",
+                "constraints": {
+                  "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                }
+              },
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The heading rendered above the table — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
           }
         ],
         "varEnv": {
@@ -359,7 +471,39 @@
             "expr": "window / 24",
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              }
+            }
+          }
+        ]
       }
     ],
     "varEnv": {
@@ -394,7 +538,39 @@
         "expr": "window / 24",
         "declaredAt": "doc"
       }
-    }
+    },
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      }
+    ]
   },
   "connections": [
     {

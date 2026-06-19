@@ -1,0 +1,257 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Exercises the `configurator` item type (E5). A configurator targets the `summary` table by its stable instance id; the resolver validates the reference and auto-generates an editor form from the table's configurable surface — one control per surface field (`title`, `columns`, `query`), each picked by the field's preferred `rendering` or the canonical widget for its value type. The generated controls are attached to the resolved configurator node and bind the `summary.\u003cfield\u003e` config-override address, so changing one posts an ephemeral config override that re-resolves the target. The author writes no per-field form: the editor is derived purely from what the table declares as runtime-configurable. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-configurator",
+    "title": "Configurator Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1,
+          1
+        ],
+        "gap": 1,
+        "rows": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        0.5,
+        0.5
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 1,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 2,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "summary",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Setting"
+            },
+            {
+              "header": "Value"
+            }
+          ],
+          "rows": [
+            [
+              "region",
+              "us"
+            ],
+            [
+              "live",
+              "true"
+            ]
+          ],
+          "title": "Service Overview"
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 1
+        },
+        "surface": [
+          {
+            "field": "columns",
+            "type": "array",
+            "label": "Columns",
+            "constraints": {
+              "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+              "items": {
+                "properties": {
+                  "header": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "header"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          {
+            "field": "query",
+            "type": "array",
+            "label": "Query parameters",
+            "constraints": {
+              "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+            }
+          },
+          {
+            "field": "title",
+            "type": "string",
+            "label": "Title",
+            "constraints": {
+              "description": "The heading rendered above the table — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
+      },
+      {
+        "id": "summary-configurator",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+          "id": "https://lattice.dev/schemas/items/configurator/1.0.0",
+          "name": "configurator",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "target": "summary",
+          "title": "Configure the summary table"
+        },
+        "placement": {
+          "colStart": 2,
+          "rowStart": 1
+        },
+        "generated": {
+          "target": "summary",
+          "widgets": [
+            {
+              "widget": "multiselect",
+              "target": "summary",
+              "field": "columns",
+              "type": "array",
+              "label": "Columns",
+              "constraints": {
+                "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                "items": {
+                  "properties": {
+                    "header": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "header"
+                  ],
+                  "type": "object"
+                }
+              }
+            },
+            {
+              "widget": "multiselect",
+              "target": "summary",
+              "field": "query",
+              "type": "array",
+              "label": "Query parameters",
+              "constraints": {
+                "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+              }
+            },
+            {
+              "widget": "text-input",
+              "target": "summary",
+              "field": "title",
+              "type": "string",
+              "label": "Title",
+              "constraints": {
+                "description": "The heading rendered above the table — editable at runtime."
+              }
+            }
+          ],
+          "flow": {
+            "mode": "flow",
+            "columns": 1,
+            "cells": [
+              {
+                "column": 1,
+                "row": 1
+              },
+              {
+                "column": 1,
+                "row": 2
+              },
+              {
+                "column": 1,
+                "row": 3
+              }
+            ]
+          }
+        },
+        "surface": [
+          {
+            "field": "title",
+            "type": "string",
+            "label": "Title",
+            "constraints": {
+              "description": "The heading rendered above the configurator's generated editor — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
+      }
+    ],
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      }
+    ]
+  }
+}

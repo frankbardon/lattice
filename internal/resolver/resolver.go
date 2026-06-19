@@ -34,9 +34,18 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// containerTypeName is the item-type name whose instances may carry children.
-// It is the only structurally-special item type (see schemas/items/container).
+// containerTypeName is the weighted-grid container item-type name. It and the
+// form item-type are the structurally-special types permitted to carry children
+// (see schemas/items/container and schemas/items/form).
 const containerTypeName = "container"
+
+// formTypeName is the form item-type name (E2-S1): a container-like type that
+// packs variable-widget children into a compact flow layout (label+control rows,
+// optionally split into N columns) rather than the weighted-grid Block. A form
+// may carry children but is NOT a grid container — its children resolve into a
+// parallel layout.Flow attached to the node, and they do not consume main-grid
+// placements.
+const formTypeName = "form"
 
 // Resolver validates dashboard documents and emits resolved trees. It wraps the
 // schema loader (which links every instance $ref to its item-type schema) and
@@ -74,15 +83,18 @@ func (r *Resolver) Resolve(docPath string) (*ResolvedTree, error) {
 	return r.ResolveWithValues(docPath, nil)
 }
 
-// ResolveWithValues is Resolve with E3-S4 runtime overrides: a map of EXTERNAL
-// variable values (from a dropdown change or URL query params) applied as
-// override > default to settable variables of those names. Computed variables
-// remain computed. A nil/empty map is identical to Resolve, so the resolved-tree
-// contract is unchanged; the only difference is which value a settable variable
-// carries. Passing an override for an undeclared name is a no-op (no scope
-// declares it); a bad override value fails fast with the same VAR_* codes a bad
-// default would.
-func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrides) (*ResolvedTree, error) {
+// ResolveWithValues is Resolve with E4-S1 runtime overrides: a UNIFIED,
+// addressable override set whose entries are keyed by ADDRESS. A bare name
+// ("region") addresses a settable variable (the E3-S4 path); a "<node-id>.<field>"
+// address targets a node config field (carried for E4-S2). Variable-addressed
+// values are applied as override > default to settable variables of those names;
+// computed variables remain computed. A nil/empty set is identical to Resolve, so
+// the resolved-tree contract is unchanged; the only difference is which value a
+// settable variable carries. A variable override for an undeclared name is a
+// no-op (no scope declares it); a bad override value fails fast with the same
+// VAR_* codes a bad default would; a malformed address fails fast with
+// VAR_OVERRIDE_INVALID.
+func (r *Resolver) ResolveWithValues(docPath string, overrides variables.OverrideSet) (*ResolvedTree, error) {
 	data, err := afero.ReadFile(r.fs, docPath)
 	if err != nil {
 		return nil, errors.WrapCodedError(err, errors.RESOLVE_IO, "failed reading dashboard document "+docPath)
@@ -92,7 +104,21 @@ func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrid
 
 // resolveBytes runs the full pipeline against raw document bytes. Split out so
 // tests can drive resolution without touching the filesystem for the document.
-func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.Overrides) (*ResolvedTree, error) {
+func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.OverrideSet) (*ResolvedTree, error) {
+	// E4-S1/S2: classify the unified override set by address. The variable subset
+	// (bare names) feeds the scope walk exactly as the E3-S4 Overrides map did; the
+	// node+field subset ("<node-id>.<field>") is applied post-resolution by the
+	// config-override pass (E4-S2) once each node carries its interpolated config
+	// and validated surface. A malformed address fails fast.
+	varOverrides, err := overrides.VariableOverrides()
+	if err != nil {
+		return nil, err
+	}
+	nodeFieldOverrides, err := overrides.NodeFieldOverrides()
+	if err != nil {
+		return nil, err
+	}
+
 	// Pass 1: structural validation of the whole document against the dashboard
 	// schema. We validate the raw decoded JSON value (not the typed Document)
 	// so the schema sees the document exactly as authored.
@@ -112,7 +138,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// DURING Pass 2 because config interpolation ($var / ${...}) runs before that
 	// node's config is validated — an interpolated config carries concrete values
 	// that satisfy the item-type schema, whereas a raw {"$var":…} node would not.
-	docEnv, rawRoot, err := buildVariableModel(data, overrides)
+	docEnv, rawRoot, err := buildVariableModel(data, varOverrides)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +146,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// Pass 2 + assembly: per node, layer variables, interpolate config, validate
 	// the interpolated config, enforce the container-only-children rule, and build
 	// the resolved node, all in one walk.
-	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, overrides)
+	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, varOverrides)
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +168,52 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// supplies the item-type schemas carrying each expectedResult. See binding.go
 	// and contract.go.
 	if err := resolveBindings(g, root, conns); err != nil {
+		return nil, err
+	}
+
+	// Widget pass (E1-S1): enforce the widget↔variable type-compatibility contract
+	// for every variable widget (text-input/textarea/…). Runs after the instance
+	// walk because it reads each node's scoped variable environment to resolve the
+	// bound variable and check its declared type. Fail-fast, same machinery as the
+	// other passes. See widget.go.
+	if err := resolveWidgets(root); err != nil {
+		return nil, err
+	}
+
+	// Configurable-surface pass (E3-S1): for every node whose item type declares a
+	// `configurable` surface, validate the declaration (real config field, known
+	// value type, rendering hint naming a catalogued widget) and attach the
+	// validated surface to the node so E4 (config overrides) and E5 (configurator
+	// auto-gen) can read it. Runs after the instance walk because it reads each
+	// node's resolved type identity. Fail-fast, same machinery as the other
+	// passes. See surface.go.
+	if err := resolveSurfaces(g, root); err != nil {
+		return nil, err
+	}
+
+	// Configurator target-resolution pass (E5-S1): for every `configurator` node,
+	// validate that its `target` references a real, id-carrying item in the same
+	// document. Builds a tree-wide id index once, then resolves each target against
+	// it (empty target -> CONFIGURATOR_TARGET_MISSING_ID; dangling target ->
+	// CONFIGURATOR_TARGET_NOT_FOUND). Runs after the instance walk because it needs
+	// the whole assembled tree to build the index and read each configurator's
+	// resolved type + interpolated config. Auto-generating the editor form from the
+	// target's configurable surface is E5-S2. Fail-fast, same machinery as the
+	// other passes. See configurator.go.
+	if err := resolveConfigurators(root); err != nil {
+		return nil, err
+	}
+
+	// Config-override pass (E4-S2): apply each node+field override
+	// ("<node-id>.<field>") to the resolved tree. Runs LAST — after the instance
+	// walk (config is interpolated and schema-validated) and the surface pass (each
+	// node carries its validated configurable surface) — so an override targets a
+	// real surface field, is validated against that field's declared type and the
+	// item type's config constraints, and OVERWRITES the interpolated value
+	// (precedence). The mutation is ephemeral: only this in-memory tree changes, the
+	// document on disk is never written. Fail-fast, same machinery as the other
+	// passes. See config_override.go.
+	if err := applyConfigOverrides(g, root, nodeFieldOverrides); err != nil {
 		return nil, err
 	}
 
@@ -198,9 +270,12 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	}
 
 	isContainer := rt.Name == containerTypeName
+	isForm := rt.Name == formTypeName
 
-	// Container-only-children rule: children on a non-container type fail fast.
-	if len(inst.Children) > 0 && !isContainer {
+	// Children-allowed rule: children are permitted only on the structurally
+	// special types — the weighted-grid container and the flow-packing form. A
+	// child on any other type fails fast.
+	if len(inst.Children) > 0 && !isContainer && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{
@@ -272,6 +347,15 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	// block (no-op for non-containers). See layout.go.
 	if err := r.resolveLayout(node, path); err != nil {
 		return nil, err
+	}
+
+	// E2-S1: a form packs its widget children into a parallel flow layout
+	// (label+control rows, optionally split into N columns) instead of the
+	// weighted grid. No-op for non-forms. See form.go.
+	if isForm {
+		if err := r.resolveForm(node, path); err != nil {
+			return nil, err
+		}
 	}
 
 	return node, nil

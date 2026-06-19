@@ -39,11 +39,17 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
     is ignored by config validation and read by the resolver, which requires a
     well-formed contract on any bound item and validates inline `static`
     connection data against it.
-  - `dropdown.schema.json` (`.../items/dropdown/1.0.0`) — a runtime-input leaf
-    type (E3-S4) binding a variable name to a fixed option set. The reference
-    renderer draws it as an Alpine `<select>` and re-resolves the document on
-    change; the chosen value becomes the variable's runtime override
-    (override > default), so dependent `${var}`/`$var` consumers update live.
+  - `select.schema.json` / `radio-group.schema.json` / `segmented.schema.json`
+    (`.../items/{select,radio-group,segmented}/1.0.0`) — the enum widget family
+    (E1-S3). Each is a runtime-input leaf binding an `enum` variable to a fixed
+    `{value,label?}` option set with optional `sort` ordering. `select` renders
+    as a single-choice `<select>` menu (the canonical single-choice runtime
+    control), `radio-group` as a radio column, `segmented` as a button
+    row. Changing the selection re-resolves the document; the chosen value
+    becomes the variable's runtime override (override > default), so dependent
+    `${var}`/`$var` consumers update live. The resolver enforces widget↔variable
+    type compatibility (enum widget bound to a non-enum variable →
+    `WIDGET_TYPE_MISMATCH`).
 - `connections/` — connection (data source) type schemas, referenced by
   document-scoped connection instances (`{ id, $ref, config, secretRefs? }`).
   Loaded into the same catalog as item types and validated the same way by the

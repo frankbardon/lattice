@@ -31,7 +31,39 @@
       ],
       "gap": 0,
       "placements": []
-    }
+    },
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      }
+    ]
   },
   "connections": [
     {

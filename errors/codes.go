@@ -85,6 +85,13 @@ const (
 	// its own value), so no evaluation order exists. The offending path and the
 	// participating names are reported in Details.
 	VAR_CYCLE Code = "VAR_CYCLE"
+
+	// VAR_OVERRIDE_INVALID indicates a runtime override ADDRESS is malformed: an
+	// empty address, or a node+field address ("<node-id>.<field>") missing its
+	// node id or field path. The offending address is reported in
+	// Details["address"]. (Whether the addressed variable/node exists is decided
+	// later by application, not by address parsing.)
+	VAR_OVERRIDE_INVALID Code = "VAR_OVERRIDE_INVALID"
 )
 
 // CONNECTION domain - Connection (data source) declaration and binding.
@@ -166,6 +173,42 @@ const (
 	SERVE_INTERNAL Code = "SERVE_INTERNAL"
 )
 
+// WIDGET domain - Variable widget binding (E1) — the controls that set a
+// document/container variable's runtime value.
+const (
+	// WIDGET_TYPE_MISMATCH indicates a variable widget bound a variable whose
+	// declared type is not permitted by the widget's family (e.g. a string-family
+	// text-input bound to a number variable). The offending instance path, the
+	// bound variable name, the widget type, and the variable's declared type are
+	// reported in Details["path"]/["variable"]/["widget"]/["varType"].
+	WIDGET_TYPE_MISMATCH Code = "WIDGET_TYPE_MISMATCH"
+
+	// CONFIGURABLE_SURFACE_INVALID indicates an item type's configurable-surface
+	// declaration (E3-S1) is malformed: it names a config field the item type does
+	// not declare, gives a field an unknown value type, or sets a rendering hint
+	// naming a widget item-type the catalog does not know. The offending instance
+	// path, the item type, and the offending surface field are reported in
+	// Details["path"]/["type"]/["field"] (rendering violations also report
+	// Details["rendering"]).
+	CONFIGURABLE_SURFACE_INVALID Code = "CONFIGURABLE_SURFACE_INVALID"
+
+	// CONFIG_OVERRIDE_FIELD_UNKNOWN indicates a node+field config override
+	// ("<node-id>.<field>", E4-S2) addressed a field that is NOT exposed by the
+	// target item type's configurable surface (E3) — either the field is not a
+	// declared surface field, or the address is a dotted sub-path into a nested
+	// object (surfaces cover top-level config fields only). The offending instance
+	// path, the item type, the target node id, and the offending field are reported
+	// in Details["path"]/["type"]/["node"]/["field"].
+	CONFIG_OVERRIDE_FIELD_UNKNOWN Code = "CONFIG_OVERRIDE_FIELD_UNKNOWN"
+
+	// CONFIG_OVERRIDE_VALUE_INVALID indicates a node+field config override value
+	// (E4-S2) violates the target surface field's declared type or the item type's
+	// config-schema constraints for that field. The offending instance path, the
+	// item type, the target node id, and the offending field are reported in
+	// Details["path"]/["type"]/["node"]/["field"].
+	CONFIG_OVERRIDE_VALUE_INVALID Code = "CONFIG_OVERRIDE_VALUE_INVALID"
+)
+
 // LAYOUT domain - Container grid interpretation and child placement (E2-S1).
 const (
 	// LAYOUT_PLACEMENT_INVALID indicates a child placement carried a
@@ -177,4 +220,36 @@ const (
 	// its parent container's grid bounds. The offending instance path is
 	// reported in Details["path"] (with "axis", "start", "span", "tracks").
 	LAYOUT_PLACEMENT_OUT_OF_BOUNDS Code = "LAYOUT_PLACEMENT_OUT_OF_BOUNDS"
+
+	// LAYOUT_FORM_COLUMNS_INVALID indicates a `form` container's flow-layout
+	// column count is out of range (non-positive or above the maximum). The
+	// offending form path is reported in Details["path"] (with "field" and
+	// "value").
+	LAYOUT_FORM_COLUMNS_INVALID Code = "LAYOUT_FORM_COLUMNS_INVALID"
+
+	// LAYOUT_FORM_CHILD_INVALID indicates a `form` container holds a child that
+	// is not a variable widget. A form arranges widget controls in flow mode and
+	// rejects non-widget children fail-fast. The offending child's instance path
+	// and resolved item-type name are reported in Details["path"]/["type"].
+	LAYOUT_FORM_CHILD_INVALID Code = "LAYOUT_FORM_CHILD_INVALID"
+)
+
+// CONFIGURATOR domain - The configurator item type (E5): an item that renders an
+// editor for another item in the same document, referenced by its stable id.
+const (
+	// CONFIGURATOR_TARGET_NOT_FOUND indicates a configurator's `target` named an
+	// instance id that NO item in the resolved tree declares — the tree-wide id
+	// index has no entry for it, so there is nothing to configure. The offending
+	// configurator's instance path and the unresolved target id are reported in
+	// Details["path"]/["target"].
+	CONFIGURATOR_TARGET_NOT_FOUND Code = "CONFIGURATOR_TARGET_NOT_FOUND"
+
+	// CONFIGURATOR_TARGET_MISSING_ID indicates a configurator's `target` reference
+	// is itself non-stable: present but empty/whitespace-only, so it names no
+	// resolvable id. Targeting requires a stable, declared id; an empty target has
+	// no id to look up. (A normal NOT_FOUND covers the case where the id is
+	// well-formed but unmatched; MISSING_ID is the defense-in-depth guard for a
+	// target that carries no stable id at all.) The offending configurator's
+	// instance path is reported in Details["path"].
+	CONFIGURATOR_TARGET_MISSING_ID Code = "CONFIGURATOR_TARGET_MISSING_ID"
 )

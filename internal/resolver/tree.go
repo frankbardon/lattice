@@ -74,6 +74,14 @@ type ResolvedInstance struct {
 	// placement. Non-nil only for container nodes; nil for leaf item types.
 	Layout *layout.Block `json:"layout,omitempty"`
 
+	// Flow is the normalized, renderer-agnostic FLOW layout for a `form` node
+	// (E2-S1): the column count the form flows its widget children into plus each
+	// child's computed (column, row) cell. It is a representation parallel to
+	// Layout/Block, not a grid — form widgets are packed into compact label+control
+	// cells and do not consume a main-grid placement. Non-nil only for form nodes;
+	// nil for plain containers and leaf item types.
+	Flow *layout.Flow `json:"flow,omitempty"`
+
 	// Children are the resolved child instances, in document order. Always empty
 	// (never nil-vs-non-nil significant) for non-container types, since the
 	// container-only-children rule is enforced before the tree is assembled.
@@ -93,6 +101,126 @@ type ResolvedInstance struct {
 	// dedicated pass after the tree is assembled and connections are resolved (see
 	// binding.go).
 	Binding *ResolvedBinding `json:"binding,omitempty"`
+
+	// Generated is the auto-generated editor form a `configurator` produces from
+	// its target's configurable surface (E5-S2): one widget per surface field, laid
+	// out via the form flow layout, each widget bound to a `<target-id>.<field>`
+	// config override so viewer interaction mutates the target ephemerally. Non-nil
+	// only for configurator nodes whose target declares a configurable surface; nil
+	// for every other item type (and for a configurator targeting a surface-less
+	// item). See configurator.go.
+	Generated *GeneratedForm `json:"generated,omitempty"`
+
+	// Surface is this item's CONFIGURABLE SURFACE (E3-S1): the validated set of
+	// config fields the item type declares as runtime-configurable, each with its
+	// value type, label, optional constraints, and optional preferred widget
+	// rendering. It is derived from the item type's schema-level `configurable`
+	// keyword (not per-instance config) and validated by a dedicated pass after
+	// the tree is assembled (see surface.go). Surfacing it on the resolved
+	// instance lets E4 (config overrides) and E5 (configurator auto-generation)
+	// read the surface without re-parsing the item-type schema. The slice is in
+	// declared field order; omitted when the item type declares no surface.
+	Surface []ConfigurableField `json:"surface,omitempty"`
+}
+
+// ConfigurableField is one entry of an item type's configurable surface (E3-S1):
+// it maps a single config field of the item type to the metadata a configurator
+// needs to render an editor for it. The field name is validated against the item
+// type's own config schema, the type against the variable type set, and the
+// optional rendering hint against the widget catalog, so every ConfigurableField
+// on a ResolvedInstance is known-valid.
+type ConfigurableField struct {
+	// Field is the name of the item type's config property this entry exposes.
+	// Guaranteed to be a real config property of the item type (validated against
+	// the item-type schema's properties).
+	Field string `json:"field"`
+
+	// Type is the field's value type, one of the variable type set (string,
+	// number, integer, boolean, enum, array). It tells a configurator which editor
+	// primitive the field needs.
+	Type variables.VarType `json:"type"`
+
+	// Label is the human-readable label a configurator renders for the field.
+	Label string `json:"label"`
+
+	// Constraints is the optional, opaque constraint object declared for the field
+	// (e.g. min/max/options). It is passed through verbatim; its interpretation is
+	// left to the configurator. Nil when the field declared no constraints.
+	Constraints map[string]any `json:"constraints,omitempty"`
+
+	// Rendering is the optional preferred widget item-type name a configurator
+	// should use to render the field's editor (e.g. "slider" for a number field).
+	// When present it is guaranteed to name a registered widget family. Empty when
+	// the field declared no rendering preference.
+	Rendering string `json:"rendering,omitempty"`
+}
+
+// GeneratedForm is the editor a `configurator` auto-generates from its target's
+// configurable surface (E5-S2). It carries the resolved target's id, one
+// GeneratedWidget per surface field (in surface order), and the form flow layout
+// the widgets are arranged into (reusing E2-S1's flow representation). The whole
+// form is derived purely from the target's surface — there is no per-field
+// authoring on the configurator — so a configurator's editor always faithfully
+// mirrors what its target declares as runtime-configurable.
+type GeneratedForm struct {
+	// Target is the stable instance id of the item this form edits. It is the
+	// node-id half of every generated widget's `<target-id>.<field>` config-override
+	// address; surfacing it once keeps the form self-describing.
+	Target string `json:"target"`
+
+	// Widgets are the generated controls, one per configurable surface field of the
+	// target, in surface (sorted field) order. Empty when the target declares no
+	// configurable surface — a configurator may target a surface-less item, which
+	// yields an empty (but present) form.
+	Widgets []GeneratedWidget `json:"widgets"`
+
+	// Flow is the normalized flow layout the widgets are arranged into (E2-S1),
+	// computed via the same layout.NormalizeFlow path a `form` node uses, so a
+	// renderer lays the generated controls out exactly like an authored form. The
+	// cell count equals len(Widgets).
+	Flow *layout.Flow `json:"flow,omitempty"`
+}
+
+// GeneratedWidget is one control of a configurator's generated form (E5-S2): the
+// editor for a single configurable field of the target. It records which widget
+// item-type renders it (the surface field's preferred rendering, else the
+// canonical widget for the field's value type), the field's value type and label,
+// the field's opaque constraints (passed through verbatim so the renderer can
+// honor option sets, min/max, etc.), and — crucially — the override binding the
+// renderer posts when the viewer interacts: target id + field. A change to this
+// widget produces a `<Target>.<Field>` config override (E4-S2) that re-resolves
+// the target ephemerally.
+type GeneratedWidget struct {
+	// Widget is the widget item-type name that renders this control (e.g.
+	// "text-input", "select"). It is the surface field's preferred `rendering` when
+	// present, else the canonical widget for the field's value type. Guaranteed to
+	// name a registered widget family.
+	Widget string `json:"widget"`
+
+	// Target is the id of the item this widget configures — the node-id half of the
+	// config-override address. Mirrors the enclosing form's Target on every widget so
+	// each control is independently self-describing for the renderer.
+	Target string `json:"target"`
+
+	// Field is the target's config field this widget edits — the field half of the
+	// `<target-id>.<field>` config-override address. It is a real top-level config
+	// property of the target item type (it came from the target's validated surface).
+	Field string `json:"field"`
+
+	// Type is the field's value type (one of the variable type set). It tells a
+	// renderer which input primitive the widget needs and how to coerce the posted
+	// value.
+	Type variables.VarType `json:"type"`
+
+	// Label is the human-readable label rendered for the control, taken from the
+	// surface field's label (falling back to the field name when the surface
+	// declared none).
+	Label string `json:"label"`
+
+	// Constraints is the surface field's opaque constraint object (enum options,
+	// min/max, item shape, …), passed through verbatim so the renderer can present
+	// the control faithfully. Nil when the field declared no constraints.
+	Constraints map[string]any `json:"constraints,omitempty"`
 }
 
 // ResolvedBinding is an item's direct data-flow binding (E4-S2): a reference to a

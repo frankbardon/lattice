@@ -14,6 +14,11 @@
 - [Typed Schemas & Instances](format/typed-schemas.md)
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)
+- [Widgets](format/widgets.md)
+- [Forms & Widget Placement](format/forms.md)
+- [Configurable Surfaces](format/configurable.md)
+- [Runtime Overrides](format/overrides.md)
+- [Configurators](format/configurator.md)
 - [Connections](format/connections.md)
 
 # Reference

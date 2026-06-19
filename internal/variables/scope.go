@@ -132,6 +132,23 @@ func (e Environment) ExtendWithOverrides(decls []Declaration, path string, overr
 	return next, nil
 }
 
+// CoerceValue coerces v to the variable type t (with enum options, if any) and
+// validates it, returning the canonical decoded-JSON value or a CodedError. It is
+// the exported gate over the same coerce+validate logic the runtime variable
+// override path uses (coerceOverride): a string from an untyped transport (a URL
+// param) is parsed to t, then the value is type/enum checked, failing fast with
+// the same VAR_TYPE / VAR_OPTIONS_INVALID codes a bad default would.
+//
+// It lets consumers outside this package (the resolver's E4-S2 config-override
+// pass) type-check a supplied value against a declared type/option set without
+// duplicating the coercion rules. loc is the node path the value belongs to and
+// name labels it, both surfaced in any error's details; callers that need a
+// different error CODE (e.g. CONFIG_OVERRIDE_VALUE_INVALID) wrap the returned
+// CodedError.
+func CoerceValue(v any, t VarType, options []any, loc, name string) (any, error) {
+	return coerceOverride(v, Declaration{Name: name, Type: t, Options: options}, loc)
+}
+
 // coerceOverride normalizes a runtime override value to declaration d's declared
 // type and validates it. Override values arrive either as already-typed decoded
 // JSON (from the re-resolve endpoint) or as raw strings (from URL query params),

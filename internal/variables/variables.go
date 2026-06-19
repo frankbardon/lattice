@@ -61,6 +61,12 @@ var validTypes = map[VarType]bool{
 	VarTypeArray:   true,
 }
 
+// IsValidType reports whether t is one of the accepted variable types. It is the
+// exported gate over the same set declaration validation uses, so consumers
+// outside this package (e.g. the resolver's configurable-surface pass) can
+// type-check a declared value type without duplicating the set.
+func IsValidType(t VarType) bool { return validTypes[t] }
+
 // Declaration is a single variable declaration as authored on the document or a
 // container instance. It mirrors the JSON shape
 // { name, type, default?|expr?, options? }.

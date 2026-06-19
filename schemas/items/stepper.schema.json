@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/stepper/1.0.0",
+  "title": "Stepper Item",
+  "description": "A numeric-family variable widget rendering increment/decrement buttons around a numeric value. It binds one document/container variable (the `variable` it sets) and lets a viewer nudge a numeric value up or down; on change the value flows through the resolver's override path and re-resolves the document so dependent `${var}`/`$var` consumers update live. A stepper may only bind a variable whose declared type is `number` or `integer` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. Optional `min`/`max` bound the value and `step` sets the per-click increment; the resolver rejects an inverted range (min > max) or a non-positive step. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config only declares the binding plus its presentation. A stepper never has children.",
+  "type": "object",
+  "required": [
+    "variable"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "min": {
+      "type": "number",
+      "label": "Minimum",
+      "rendering": "number-field",
+      "constraints": {
+        "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+      }
+    },
+    "max": {
+      "type": "number",
+      "label": "Maximum",
+      "rendering": "number-field",
+      "constraints": {
+        "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+      }
+    },
+    "step": {
+      "type": "number",
+      "label": "Step",
+      "rendering": "number-field",
+      "constraints": {
+        "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+      }
+    }
+  },
+  "properties": {
+    "variable": {
+      "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (number family → number or integer). The value chosen here becomes that variable's runtime override on re-resolve.",
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "description": "Optional label rendered next to the control.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional help text describing what the input controls, rendered beneath or beside the control.",
+      "type": "string"
+    },
+    "default": {
+      "description": "Optional widget-local default shown before the viewer steps the value. The variable's declared default remains the authoritative resolution-time value; this is presentation only.",
+      "type": "number"
+    },
+    "disabled": {
+      "description": "When true the control is rendered read-only and cannot be stepped.",
+      "type": "boolean"
+    },
+    "min": {
+      "description": "Optional inclusive lower bound for the value. Must not exceed max.",
+      "type": "number"
+    },
+    "max": {
+      "description": "Optional inclusive upper bound for the value. Must not be less than min.",
+      "type": "number"
+    },
+    "step": {
+      "description": "Optional increment applied per step. Must be a positive number.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
+  }
+}

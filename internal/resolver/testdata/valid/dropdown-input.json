@@ -18,7 +18,7 @@
     "config": { "grid": { "columns": [1], "rows": [1, 2], "gap": 1 } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+        "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
         "id": "region-picker",
         "placement": { "colStart": 1, "rowStart": 1 },
         "config": {

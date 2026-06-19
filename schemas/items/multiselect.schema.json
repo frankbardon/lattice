@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/multiselect/1.0.0",
+  "title": "Multiselect Item",
+  "description": "An array-family variable widget rendering a multi-choice menu from which a viewer selects zero or more values from a fixed option set. It binds one document/container variable (the `variable` it sets) whose declared type is `array`; on change the selected values flow through the resolver's override path as an array and re-resolve the document so dependent `${var}`/`$var` consumers update live. A multiselect may only bind a variable whose declared type is `array` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. It is an option-constrained array widget: it requires a bounded `{value,label}` option set (the resolver reports RESOLVE_CONFIG_INVALID when the option set is absent), in contrast to the freeform `tag-input`. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config declares the binding, its presentation, the selectable option set, and how the displayed options are ordered. A multiselect never has children.",
+  "type": "object",
+  "required": [
+    "variable"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "sort": {
+      "type": "enum",
+      "label": "Option sort",
+      "rendering": "select",
+      "constraints": {
+        "description": "How the option set is ordered for display — editable at runtime.",
+        "enum": [
+          "declared",
+          "label",
+          "value"
+        ]
+      }
+    }
+  },
+  "properties": {
+    "variable": {
+      "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (array family → array). The values chosen here become that variable's runtime override on re-resolve.",
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "description": "Optional label rendered above or beside the control.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional help text describing what the input controls, rendered beneath or beside the control.",
+      "type": "string"
+    },
+    "disabled": {
+      "description": "When true the control is rendered read-only and cannot be changed.",
+      "type": "boolean"
+    },
+    "options": {
+      "description": "Selectable options, in declared display order. Each option is a value the bound array may contain when chosen, plus an optional human label. Option-constrained array widgets require a bounded option set; an absent set is reported by the resolver as RESOLVE_CONFIG_INVALID. Shares the enum family's `{value,label}` shape.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "description": "A value the bound array may contain when this option is selected.",
+            "type": "string"
+          },
+          "label": {
+            "description": "Optional display label for this option; defaults to the value when omitted.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "sort": {
+      "description": "Optional ordering applied to the displayed options. `declared` (the default) keeps the options in the order they are listed; `label` sorts ascending by display label (falling back to value); `value` sorts ascending by value.",
+      "type": "string",
+      "enum": [
+        "declared",
+        "label",
+        "value"
+      ],
+      "default": "declared"
+    }
+  }
+}

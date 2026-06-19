@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/toggle/1.0.0",
+  "title": "Toggle Item",
+  "description": "A boolean-family variable widget rendering an on/off switch. It binds one document/container variable (the `variable` it sets) and lets a viewer flip a true/false value; on change the value flows through the resolver's override path and re-resolves the document so dependent `${var}`/`$var` consumers update live. A toggle may only bind a variable whose declared type is `boolean` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config only declares the binding plus its presentation. A toggle never has children.",
+  "type": "object",
+  "required": [
+    "variable"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    }
+  },
+  "properties": {
+    "variable": {
+      "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (boolean family → boolean). The value chosen here becomes that variable's runtime override on re-resolve.",
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "description": "Optional label rendered next to the control.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional help text describing what the input controls, rendered beneath or beside the control.",
+      "type": "string"
+    },
+    "default": {
+      "description": "Optional widget-local default shown before the viewer flips the switch. The variable's declared default remains the authoritative resolution-time value; this is presentation only.",
+      "type": "boolean"
+    },
+    "disabled": {
+      "description": "When true the control is rendered read-only and cannot be flipped.",
+      "type": "boolean"
+    }
+  }
+}
