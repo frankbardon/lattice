@@ -105,16 +105,17 @@ func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrid
 // resolveBytes runs the full pipeline against raw document bytes. Split out so
 // tests can drive resolution without touching the filesystem for the document.
 func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.OverrideSet) (*ResolvedTree, error) {
-	// E4-S1: classify the unified override set by address. The variable subset
-	// (bare names) feeds the scope walk exactly as the E3-S4 Overrides map did;
-	// the node+field subset ("<node-id>.<field>") is parsed and carried for E4-S2
-	// (config-override application is the next story — here it is a no-op beyond
-	// validating the address round-trips). A malformed address fails fast.
+	// E4-S1/S2: classify the unified override set by address. The variable subset
+	// (bare names) feeds the scope walk exactly as the E3-S4 Overrides map did; the
+	// node+field subset ("<node-id>.<field>") is applied post-resolution by the
+	// config-override pass (E4-S2) once each node carries its interpolated config
+	// and validated surface. A malformed address fails fast.
 	varOverrides, err := overrides.VariableOverrides()
 	if err != nil {
 		return nil, err
 	}
-	if _, err := overrides.NodeFieldOverrides(); err != nil {
+	nodeFieldOverrides, err := overrides.NodeFieldOverrides()
+	if err != nil {
 		return nil, err
 	}
 
@@ -187,6 +188,19 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// node's resolved type identity. Fail-fast, same machinery as the other
 	// passes. See surface.go.
 	if err := resolveSurfaces(g, root); err != nil {
+		return nil, err
+	}
+
+	// Config-override pass (E4-S2): apply each node+field override
+	// ("<node-id>.<field>") to the resolved tree. Runs LAST — after the instance
+	// walk (config is interpolated and schema-validated) and the surface pass (each
+	// node carries its validated configurable surface) — so an override targets a
+	// real surface field, is validated against that field's declared type and the
+	// item type's config constraints, and OVERWRITES the interpolated value
+	// (precedence). The mutation is ephemeral: only this in-memory tree changes, the
+	// document on disk is never written. Fail-fast, same machinery as the other
+	// passes. See config_override.go.
+	if err := applyConfigOverrides(g, root, nodeFieldOverrides); err != nil {
 		return nil, err
 	}
 

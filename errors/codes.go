@@ -191,6 +191,22 @@ const (
 	// Details["path"]/["type"]/["field"] (rendering violations also report
 	// Details["rendering"]).
 	CONFIGURABLE_SURFACE_INVALID Code = "CONFIGURABLE_SURFACE_INVALID"
+
+	// CONFIG_OVERRIDE_FIELD_UNKNOWN indicates a node+field config override
+	// ("<node-id>.<field>", E4-S2) addressed a field that is NOT exposed by the
+	// target item type's configurable surface (E3) — either the field is not a
+	// declared surface field, or the address is a dotted sub-path into a nested
+	// object (surfaces cover top-level config fields only). The offending instance
+	// path, the item type, the target node id, and the offending field are reported
+	// in Details["path"]/["type"]/["node"]/["field"].
+	CONFIG_OVERRIDE_FIELD_UNKNOWN Code = "CONFIG_OVERRIDE_FIELD_UNKNOWN"
+
+	// CONFIG_OVERRIDE_VALUE_INVALID indicates a node+field config override value
+	// (E4-S2) violates the target surface field's declared type or the item type's
+	// config-schema constraints for that field. The offending instance path, the
+	// item type, the target node id, and the offending field are reported in
+	// Details["path"]/["type"]/["node"]/["field"].
+	CONFIG_OVERRIDE_VALUE_INVALID Code = "CONFIG_OVERRIDE_VALUE_INVALID"
 )
 
 // LAYOUT domain - Container grid interpretation and child placement (E2-S1).
