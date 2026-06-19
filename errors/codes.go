@@ -166,6 +166,17 @@ const (
 	SERVE_INTERNAL Code = "SERVE_INTERNAL"
 )
 
+// WIDGET domain - Variable widget binding (E1) — the controls that set a
+// document/container variable's runtime value.
+const (
+	// WIDGET_TYPE_MISMATCH indicates a variable widget bound a variable whose
+	// declared type is not permitted by the widget's family (e.g. a string-family
+	// text-input bound to a number variable). The offending instance path, the
+	// bound variable name, the widget type, and the variable's declared type are
+	// reported in Details["path"]/["variable"]/["widget"]/["varType"].
+	WIDGET_TYPE_MISMATCH Code = "WIDGET_TYPE_MISMATCH"
+)
+
 // LAYOUT domain - Container grid interpretation and child placement (E2-S1).
 const (
 	// LAYOUT_PLACEMENT_INVALID indicates a child placement carried a

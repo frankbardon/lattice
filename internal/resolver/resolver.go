@@ -145,6 +145,15 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// Widget pass (E1-S1): enforce the widget↔variable type-compatibility contract
+	// for every variable widget (text-input/textarea/…). Runs after the instance
+	// walk because it reads each node's scoped variable environment to resolve the
+	// bound variable and check its declared type. Fail-fast, same machinery as the
+	// other passes. See widget.go.
+	if err := resolveWidgets(root); err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
 		Manifest:    g.Document.Manifest,
 		Root:        root,
