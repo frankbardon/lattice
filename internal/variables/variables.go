@@ -12,8 +12,11 @@
 // so consumers and a future dependency tracker can see var->node visibility and
 // perform partial re-resolution (deferred; this story only exposes the mapping).
 //
-// This package owns only the model + scoping. Interpolation ($var / ${...}) is
-// E3-S2 and computed `expr` values are E3-S3; neither is implemented here.
+// This package owns the model, scoping, and interpolation. Interpolation
+// ($var typed bindings / ${...} string templates) is E3-S2, exposed as the
+// reusable Interpolate function (see interpolate.go) which the resolver applies
+// to instance configs and E4-S2 reuses for query params. Computed `expr` values
+// are E3-S3 and not implemented here.
 package variables
 
 import (

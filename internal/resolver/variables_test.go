@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	stderrors "errors"
 	"testing"
 
 	"github.com/frankbardon/lattice/errors"
@@ -92,6 +93,117 @@ func TestVariableEnvironmentEmptyOmitted(t *testing.T) {
 	}
 	if len(tree.Root.VarEnv) != 0 {
 		t.Errorf("expected empty VarEnv, got %v", tree.Root.VarEnv)
+	}
+}
+
+// docInterpolated drives the E3-S2 interpolation pass through resolveBytes: a
+// ${} template and a {"$var"} typed binding in instance config, resolved against
+// the per-node environment. The root container shadows the doc-scope "region",
+// so the leaf interpolates "eu" (the nearest declaration), proving interpolation
+// runs against the correctly-scoped environment.
+const docInterpolated = `{
+  "manifest": {"formatVersion": "1.0.0", "id": "interp", "title": "Interp"},
+  "variables": [
+    {"name": "region", "type": "string", "default": "us"},
+    {"name": "rowCount", "type": "integer", "default": 2}
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {"grid": {"columns": [1]}},
+    "variables": [{"name": "region", "type": "string", "default": "eu"}],
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "leaf",
+        "config": {"title": "Report for ${region}", "columns": [{"header": "H"}], "rows": [["${region}"]]}
+      }
+    ]
+  }
+}`
+
+// TestResolveInterpolatesConfig confirms that interpolation runs during the
+// instance walk (before config validation) and substitutes scoped values: the
+// leaf's ${region} template resolves to the shadowing winner "eu", not the
+// doc-scope "us".
+func TestResolveInterpolatesConfig(t *testing.T) {
+	res := newRepoResolver(t)
+	tree, err := res.resolveBytes([]byte(docInterpolated), "inline")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+
+	leaf := tree.Root.Children[0]
+	if got := leaf.Config["title"]; got != "Report for eu" {
+		t.Errorf("title = %v, want %q", got, "Report for eu")
+	}
+	rows, ok := leaf.Config["rows"].([]any)
+	if !ok || len(rows) != 1 {
+		t.Fatalf("rows = %#v", leaf.Config["rows"])
+	}
+	row0 := rows[0].([]any)
+	if row0[0] != "eu" {
+		t.Errorf("rows[0][0] = %v, want eu", row0[0])
+	}
+}
+
+// TestResolveTypedBindingPreservesType confirms a {"$var"} typed binding keeps
+// the variable's JSON type and that a config requiring a concrete typed value
+// still passes Pass 2 validation because interpolation runs first.
+func TestResolveTypedBindingPreservesType(t *testing.T) {
+	const doc = `{
+      "manifest": {"formatVersion": "1.0.0", "id": "bind", "title": "Bind"},
+      "variables": [{"name": "gap", "type": "integer", "default": 3}],
+      "root": {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "root",
+        "config": {"grid": {"columns": [1], "gap": {"$var": "gap"}}}
+      }
+    }`
+	res := newRepoResolver(t)
+	tree, err := res.resolveBytes([]byte(doc), "inline")
+	if err != nil {
+		t.Fatalf("resolve: %v", err)
+	}
+	grid := tree.Root.Config["grid"].(map[string]any)
+	gap, ok := grid["gap"].(float64)
+	if !ok {
+		t.Fatalf("gap is %T, want float64 (type preserved)", grid["gap"])
+	}
+	if gap != 3 {
+		t.Errorf("gap = %v, want 3", gap)
+	}
+}
+
+// TestResolveMissingVarFailsFast confirms an undeclared reference in instance
+// config surfaces as a fail-fast VAR_UNDEFINED CodedError naming the path.
+func TestResolveMissingVarFailsFast(t *testing.T) {
+	const doc = `{
+      "manifest": {"formatVersion": "1.0.0", "id": "miss", "title": "Miss"},
+      "root": {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "root",
+        "config": {"grid": {"columns": [1]}},
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "leaf",
+            "config": {"title": "${ghost}", "columns": [{"header": "H"}], "rows": [["x"]]}
+          }
+        ]
+      }
+    }`
+	res := newRepoResolver(t)
+	_, err := res.resolveBytes([]byte(doc), "inline")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.HasCode(err, errors.VAR_UNDEFINED) {
+		t.Fatalf("expected VAR_UNDEFINED, got %v", err)
+	}
+	var ce *errors.CodedError
+	if stderrors.As(err, &ce) && ce.Details["path"] != "root.children[0]" {
+		t.Errorf("path = %v, want root.children[0]", ce.Details["path"])
 	}
 }
 

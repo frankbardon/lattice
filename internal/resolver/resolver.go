@@ -5,10 +5,18 @@
 //
 //	Pass 1 (structural): the whole document validates against the dashboard
 //	  JSON Schema. Failure -> RESOLVE_DOCUMENT_INVALID.
-//	Pass 2 (per-instance): each instance's config validates against its resolved
-//	  item-type schema, and the container-only-children rule is enforced. Failure
-//	  -> RESOLVE_CONFIG_INVALID / RESOLVE_CHILDREN_NOT_ALLOWED, naming the
-//	  offending instance path (e.g. "root.children[2]").
+//	Pass 2 (per-instance): for each instance, the resolver layers its scoped
+//	  variable environment (E3-S1), interpolates variable references in its config
+//	  (E3-S2: $var typed bindings + ${} string templates), then validates the
+//	  INTERPOLATED config against its resolved item-type schema and enforces the
+//	  container-only-children rule. Failure -> VAR_UNDEFINED (missing reference) /
+//	  RESOLVE_CONFIG_INVALID / RESOLVE_CHILDREN_NOT_ALLOWED, naming the offending
+//	  instance path (e.g. "root.children[2]").
+//
+// Interpolation runs BEFORE config validation on purpose: a raw {"$var":…} node
+// would not satisfy an item-type schema expecting the concrete value, so the
+// scoped environment must be available during the instance walk (it is computed
+// per node there and attached as VarEnv), not after tree assembly.
 //
 // Resolution is FAIL-FAST: the first error stops the walk and is returned as a
 // CodedError; errors are never aggregated.
@@ -23,6 +31,7 @@ import (
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/schema"
+	"github.com/frankbardon/lattice/internal/variables"
 )
 
 // containerTypeName is the item-type name whose instances may carry children.
@@ -86,9 +95,20 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 		return nil, err
 	}
 
-	// Pass 2 + assembly: validate each instance's config, enforce the
-	// container-only-children rule, and build the resolved node, all in one walk.
-	root, err := r.resolveInstance(g, g.Document.Root, "root")
+	// E3-S1/S2: build the tree-scoped variable model from the raw document, then
+	// thread it through the instance walk. The per-node environment must exist
+	// DURING Pass 2 because config interpolation ($var / ${...}) runs before that
+	// node's config is validated — an interpolated config carries concrete values
+	// that satisfy the item-type schema, whereas a raw {"$var":…} node would not.
+	docEnv, rawRoot, err := buildVariableModel(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pass 2 + assembly: per node, layer variables, interpolate config, validate
+	// the interpolated config, enforce the container-only-children rule, and build
+	// the resolved node, all in one walk.
+	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot)
 	if err != nil {
 		return nil, err
 	}
@@ -105,11 +125,6 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 		Manifest:    g.Document.Manifest,
 		Root:        root,
 		Connections: conns,
-	}
-
-	// E3-S1: compute and attach the tree-scoped variable environment per node.
-	if err := attachVariableEnvironments(data, tree); err != nil {
-		return nil, err
 	}
 
 	return tree, nil
@@ -148,7 +163,7 @@ func (r *Resolver) validateDocument(data []byte, source string) error {
 // resolveInstance runs Pass 2 for a single node and recurses. path is the
 // human-readable JSON-ish path to this node (e.g. "root.children[2]"), reported
 // in errors so an author can locate the offending instance.
-func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string) (*ResolvedInstance, error) {
+func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string, parentEnv variables.Environment, raw *rawInstance) (*ResolvedInstance, error) {
 	typeID := g.Refs[inst]
 	rt := g.Types[typeID]
 	if rt == nil {
@@ -171,8 +186,34 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			})
 	}
 
-	// Pass 2: validate this instance's config against its item-type schema.
-	if err := r.validateConfig(rt, inst, path); err != nil {
+	// E3-S1: layer this node's own variable declarations onto the inherited
+	// environment (inner shadows outer), recording provenance for var->node
+	// visibility. Fail-fast on the first invalid declaration.
+	var decls []variables.Declaration
+	if raw != nil {
+		decls = raw.Variables
+	}
+	env, err := parentEnv.Extend(decls, path)
+	if err != nil {
+		return nil, err
+	}
+
+	// E3-S2: interpolate variable references in this instance's config BEFORE it
+	// is validated, so Pass 2 sees concrete, typed values rather than raw
+	// {"$var":…} / ${…} references. A missing reference fails fast (VAR_UNDEFINED).
+	cfg := inst.Config
+	if cfg != nil {
+		interpolated, err := variables.Interpolate(cfg, env, path)
+		if err != nil {
+			return nil, err
+		}
+		// Interpolate preserves the top-level object shape of a config.
+		cfg, _ = interpolated.(map[string]any)
+	}
+
+	// Pass 2: validate this instance's interpolated config against its item-type
+	// schema.
+	if err := r.validateConfig(rt, cfg, path); err != nil {
 		return nil, err
 	}
 
@@ -185,13 +226,18 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			Version: rt.Version,
 		},
 		Container: isContainer,
-		Config:    inst.Config,
+		Config:    cfg,
 		Placement: inst.Placement,
+		VarEnv:    env,
 	}
 
 	for i, child := range inst.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		resolvedChild, err := r.resolveInstance(g, child, childPath)
+		var rawChild *rawInstance
+		if raw != nil && i < len(raw.Children) {
+			rawChild = raw.Children[i]
+		}
+		resolvedChild, err := r.resolveInstance(g, child, childPath, env, rawChild)
 		if err != nil {
 			return nil, err
 		}
@@ -210,7 +256,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 // validateConfig validates one instance's config against its resolved item-type
 // schema. An absent config validates as an empty object so that required-field
 // constraints in the item-type schema still apply.
-func (r *Resolver) validateConfig(rt *schema.ResolvedType, inst *schema.Instance, path string) error {
+func (r *Resolver) validateConfig(rt *schema.ResolvedType, config map[string]any, path string) error {
 	resolved, err := rt.Schema.Resolve(nil)
 	if err != nil {
 		return errors.WrapCodedErrorWithDetails(err, errors.RESOLVE_INTERNAL,
@@ -218,8 +264,8 @@ func (r *Resolver) validateConfig(rt *schema.ResolvedType, inst *schema.Instance
 			map[string]any{"path": path, "type": rt.ID})
 	}
 
-	var cfg any = inst.Config
-	if inst.Config == nil {
+	var cfg any = config
+	if config == nil {
 		cfg = map[string]any{}
 	}
 	if err := resolved.Validate(cfg); err != nil {
