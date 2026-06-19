@@ -333,6 +333,11 @@ const (
 	// STORAGE_INTERNAL indicates an unexpected error in a storage backend, or a
 	// backend operation not yet implemented in the current slice.
 	STORAGE_INTERNAL Code = "STORAGE_INTERNAL"
+
+	// STORAGE_BACKEND_UNKNOWN indicates the requested backend kind (the --store
+	// flag value) names no known backend. The recognized kinds are "fs" and
+	// "git". The offending value is reported in Details["store"].
+	STORAGE_BACKEND_UNKNOWN Code = "STORAGE_BACKEND_UNKNOWN"
 )
 
 // CONFIGURATOR domain - The configurator item type (E5): an item that renders an

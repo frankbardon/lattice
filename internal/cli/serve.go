@@ -30,7 +30,7 @@ func ServeCommand() *cli.Command {
 		Name:      "serve",
 		Usage:     "Serve a dashboard document as an HTML structural sketch",
 		ArgsUsage: "<document>",
-		Flags: []cli.Flag{
+		Flags: append([]cli.Flag{
 			&cli.StringFlag{
 				Name:  "schemas",
 				Usage: "Directory holding the dashboard schema and item-type catalog",
@@ -41,7 +41,7 @@ func ServeCommand() *cli.Command {
 				Usage: "TCP port to listen on",
 				Value: defaultServePort,
 			},
-		},
+		}, storeFlags()...),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			asJSON := cmd.Bool("json")
 
@@ -49,6 +49,14 @@ func ServeCommand() *cli.Command {
 			if docPath == "" {
 				return reportError(cmd, asJSON, errors.NewCodedError(errors.SERVE_INVALID,
 					"serve requires a dashboard document path argument"))
+			}
+
+			// Construct the selected backend so an unknown --store fails fast
+			// with a coded error before binding the listener. The backend is not
+			// yet on the load path (E3-S2 reroutes loading); existing per-request
+			// resolution is unchanged below.
+			if _, err := newStore(cmd); err != nil {
+				return reportError(cmd, asJSON, err)
 			}
 
 			port := cmd.Int("port")

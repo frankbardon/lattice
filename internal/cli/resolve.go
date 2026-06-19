@@ -12,6 +12,7 @@ import (
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
+	"github.com/frankbardon/lattice/internal/storage"
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
@@ -24,6 +25,40 @@ const defaultSchemasDir = "schemas"
 // schemas directory; it is loaded for the structural (Pass 1) validation.
 const dashboardSchemaFile = "dashboard.schema.json"
 
+// defaultStore is the storage backend selected when --store is not supplied. It
+// matches the existing direct-path behavior: a filesystem backend.
+const defaultStore = string(storage.BackendFS)
+
+// defaultStoreRoot is the storage root used when --root is not supplied. It is
+// the process working directory (config is via flags, not config files).
+const defaultStoreRoot = "."
+
+// storeFlags returns the --store/--root flags shared by the resolve and serve
+// commands so backend selection is declared in one place.
+func storeFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:  "store",
+			Usage: "Storage backend to construct: fs or git",
+			Value: defaultStore,
+		},
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "Root directory for the storage backend",
+			Value: defaultStoreRoot,
+		},
+	}
+}
+
+// newStore constructs the storage backend selected by the --store/--root flags
+// over the real filesystem. Backend construction lives in the storage factory;
+// this is the thin CLI adapter that reads the flags and reports an unknown
+// backend as a coded error. The constructed store is not yet on the load path
+// (E3-S2); this wires selection so the chosen backend is constructible.
+func newStore(cmd *cli.Command) (storage.Store, error) {
+	return storage.New(storage.Backend(cmd.String("store")), afero.NewOsFs(), cmd.String("root"))
+}
+
 // ResolveCommand returns the `resolve` subcommand.
 //
 // It runs the two-pass resolver against the given document and prints the
@@ -35,19 +70,27 @@ func ResolveCommand() *cli.Command {
 		Name:      "resolve",
 		Usage:     "Resolve and validate a dashboard document, emitting the resolved tree",
 		ArgsUsage: "<document>",
-		Flags: []cli.Flag{
+		Flags: append([]cli.Flag{
 			&cli.StringFlag{
 				Name:  "schemas",
 				Usage: "Directory holding the dashboard schema and item-type catalog",
 				Value: defaultSchemasDir,
 			},
-		},
+		}, storeFlags()...),
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			asJSON := cmd.Bool("json")
 			docPath := cmd.Args().First()
 			if docPath == "" {
 				return reportError(cmd, asJSON, errors.NewCodedError(errors.RESOLVE_INVALID,
 					"resolve requires a dashboard document path argument"))
+			}
+
+			// Construct the selected backend so an unknown --store fails fast
+			// with a coded error. The backend is not yet on the load path
+			// (E3-S2 reroutes loading); existing direct-path resolution is
+			// unchanged below.
+			if _, err := newStore(cmd); err != nil {
+				return reportError(cmd, asJSON, err)
 			}
 
 			tree, err := runResolve(cmd.String("schemas"), docPath)
