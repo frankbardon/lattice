@@ -4,8 +4,41 @@
   "title": "Checkbox Group Item",
   "description": "An array-family variable widget rendering a set of independent checkboxes, one per option, from which a viewer ticks zero or more values. It binds one document/container variable (the `variable` it sets) whose declared type is `array`; on change the ticked values flow through the resolver's override path as an array and re-resolve the document so dependent `${var}`/`$var` consumers update live. A checkbox-group may only bind a variable whose declared type is `array` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. It is an option-constrained array widget: it requires a bounded `{value,label}` option set (the resolver reports RESOLVE_CONFIG_INVALID when the option set is absent), in contrast to the freeform `tag-input`. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config declares the binding, its presentation, the selectable option set, and how the displayed options are ordered. A checkbox-group never has children.",
   "type": "object",
-  "required": ["variable"],
+  "required": [
+    "variable"
+  ],
   "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "sort": {
+      "type": "enum",
+      "label": "Option sort",
+      "rendering": "select",
+      "constraints": {
+        "description": "How the option set is ordered for display — editable at runtime.",
+        "enum": [
+          "declared",
+          "label",
+          "value"
+        ]
+      }
+    }
+  },
   "properties": {
     "variable": {
       "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (array family → array). The values ticked here become that variable's runtime override on re-resolve.",
@@ -30,7 +63,9 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["value"],
+        "required": [
+          "value"
+        ],
         "additionalProperties": false,
         "properties": {
           "value": {
@@ -47,7 +82,11 @@
     "sort": {
       "description": "Optional ordering applied to the displayed options. `declared` (the default) keeps the options in the order they are listed; `label` sorts ascending by display label (falling back to value); `value` sorts ascending by value.",
       "type": "string",
-      "enum": ["declared", "label", "value"],
+      "enum": [
+        "declared",
+        "label",
+        "value"
+      ],
       "default": "declared"
     }
   }

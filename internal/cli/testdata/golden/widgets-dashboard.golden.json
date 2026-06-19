@@ -154,7 +154,36 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "placeholder",
+            "type": "string",
+            "label": "Placeholder",
+            "constraints": {
+              "description": "Placeholder text shown in the empty control — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
       },
       {
         "id": "threshold-slider",
@@ -224,7 +253,54 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "max",
+            "type": "number",
+            "label": "Maximum",
+            "constraints": {
+              "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "min",
+            "type": "number",
+            "label": "Minimum",
+            "constraints": {
+              "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "step",
+            "type": "number",
+            "label": "Step",
+            "constraints": {
+              "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+            },
+            "rendering": "number-field"
+          }
+        ]
       },
       {
         "id": "live-toggle",
@@ -291,7 +367,27 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
       },
       {
         "id": "region-select",
@@ -372,7 +468,41 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "sort",
+            "type": "enum",
+            "label": "Option sort",
+            "constraints": {
+              "description": "How the option set is ordered for display — editable at runtime.",
+              "enum": [
+                "declared",
+                "label",
+                "value"
+              ]
+            },
+            "rendering": "select"
+          }
+        ]
       },
       {
         "id": "metrics-multiselect",
@@ -454,7 +584,41 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "sort",
+            "type": "enum",
+            "label": "Option sort",
+            "constraints": {
+              "description": "How the option set is ordered for display — editable at runtime.",
+              "enum": [
+                "declared",
+                "label",
+                "value"
+              ]
+            },
+            "rendering": "select"
+          }
+        ]
       },
       {
         "id": "tags-input",
@@ -522,7 +686,36 @@
             "default": 50,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "placeholder",
+            "type": "string",
+            "label": "Placeholder",
+            "constraints": {
+              "description": "Placeholder text shown in the empty control — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
       },
       {
         "id": "summary",

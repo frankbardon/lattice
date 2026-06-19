@@ -16,6 +16,7 @@
 - [Variables](format/variables.md)
 - [Widgets](format/widgets.md)
 - [Forms & Widget Placement](format/forms.md)
+- [Configurable Surfaces](format/configurable.md)
 - [Connections](format/connections.md)
 
 # Reference

@@ -164,7 +164,36 @@
                 "default": 15,
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "placeholder",
+                "type": "string",
+                "label": "Placeholder",
+                "constraints": {
+                  "description": "Placeholder text shown in the empty control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
           },
           {
             "id": "region-select",
@@ -236,7 +265,41 @@
                 "default": 15,
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
           },
           {
             "id": "live-toggle",
@@ -294,7 +357,27 @@
                 "default": 15,
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
           }
         ],
         "varEnv": {
@@ -339,7 +422,40 @@
             "default": 15,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "layout",
+            "type": "array",
+            "label": "Form layout",
+            "constraints": {
+              "description": "The form's layout declaration (E3-S3 surface). Editable at runtime: the layout `mode` (flow vs grid) and, in flow mode, the unitless `columns` count children pack into; in grid mode the relative-weight `columns`/`rows` track lists and `gap`. All unitless and relative — NO CSS units or keywords. Declared with the array variable type per the top-level-only surface limitation (the layout is an object whose editable sub-fields are described here, matching the container `grid` surface convention).",
+              "fields": {
+                "columns": {
+                  "description": "Flow mode: a unitless integer column count (1–12). Grid mode: a positive-number relative-weight track array."
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "mode": {
+                  "enum": [
+                    "flow",
+                    "grid"
+                  ],
+                  "type": "string"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        ]
       },
       {
         "id": "thresholds-form",
@@ -456,7 +572,54 @@
                 "default": 15,
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "max",
+                "type": "number",
+                "label": "Maximum",
+                "constraints": {
+                  "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "min",
+                "type": "number",
+                "label": "Minimum",
+                "constraints": {
+                  "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "step",
+                "type": "number",
+                "label": "Step",
+                "constraints": {
+                  "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                },
+                "rendering": "number-field"
+              }
+            ]
           },
           {
             "id": "window-stepper",
@@ -521,7 +684,54 @@
                 "default": 15,
                 "declaredAt": "doc"
               }
-            }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "max",
+                "type": "number",
+                "label": "Maximum",
+                "constraints": {
+                  "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "min",
+                "type": "number",
+                "label": "Minimum",
+                "constraints": {
+                  "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "step",
+                "type": "number",
+                "label": "Step",
+                "constraints": {
+                  "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                },
+                "rendering": "number-field"
+              }
+            ]
           }
         ],
         "varEnv": {
@@ -566,7 +776,40 @@
             "default": 15,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "layout",
+            "type": "array",
+            "label": "Form layout",
+            "constraints": {
+              "description": "The form's layout declaration (E3-S3 surface). Editable at runtime: the layout `mode` (flow vs grid) and, in flow mode, the unitless `columns` count children pack into; in grid mode the relative-weight `columns`/`rows` track lists and `gap`. All unitless and relative — NO CSS units or keywords. Declared with the array variable type per the top-level-only surface limitation (the layout is an object whose editable sub-fields are described here, matching the container `grid` surface convention).",
+              "fields": {
+                "columns": {
+                  "description": "Flow mode: a unitless integer column count (1–12). Grid mode: a positive-number relative-weight track array."
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "mode": {
+                  "enum": [
+                    "flow",
+                    "grid"
+                  ],
+                  "type": "string"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        ]
       },
       {
         "id": "note-input",
@@ -629,7 +872,36 @@
             "default": 15,
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "placeholder",
+            "type": "string",
+            "label": "Placeholder",
+            "constraints": {
+              "description": "Placeholder text shown in the empty control — editable at runtime."
+            },
+            "rendering": "text-input"
+          }
+        ]
       },
       {
         "id": "summary",

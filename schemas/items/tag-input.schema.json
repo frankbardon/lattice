@@ -4,8 +4,36 @@
   "title": "Tag Input Item",
   "description": "An array-family variable widget rendering a freeform tag/chip entry field. It binds one document/container variable (the `variable` it sets) whose declared type is `array`; a viewer types arbitrary values that accumulate as tags, and on change the tag list flows through the resolver's override path as an array and re-resolves the document so dependent `${var}`/`$var` consumers update live. A tag-input may only bind a variable whose declared type is `array` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. Unlike the option-constrained array widgets (`multiselect`, `checkbox-group`), a tag-input is freeform: it declares no option set, so the resolver never requires one. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config only declares the binding and its presentation. A tag-input never has children.",
   "type": "object",
-  "required": ["variable"],
+  "required": [
+    "variable"
+  ],
   "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "placeholder": {
+      "type": "string",
+      "label": "Placeholder",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "Placeholder text shown in the empty control — editable at runtime."
+      }
+    }
+  },
   "properties": {
     "variable": {
       "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (array family → array). The tags entered here become that variable's runtime override on re-resolve.",

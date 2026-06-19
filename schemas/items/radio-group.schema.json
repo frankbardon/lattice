@@ -4,8 +4,42 @@
   "title": "Radio Group Item",
   "description": "An enum-family variable widget rendering a vertical set of mutually-exclusive radio buttons, one per option. It binds one document/container variable (the `variable` it sets) and lets a viewer pick exactly one value from a fixed option set; on change the value flows through the resolver's override path and re-resolves the document so dependent `${var}`/`$var` consumers update live. A radio-group may only bind a variable whose declared type is `enum` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. It shares the enum family's `{value,label}` option shape and ordering config with `select`. The variable itself is declared in the document/container `variables`, which supplies the effective default and the authoritative option set; this config only declares the binding, its presentation, and how the options are ordered. A radio-group never has children.",
   "type": "object",
-  "required": ["variable", "options"],
+  "required": [
+    "variable",
+    "options"
+  ],
   "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "sort": {
+      "type": "enum",
+      "label": "Option sort",
+      "rendering": "select",
+      "constraints": {
+        "description": "How the option set is ordered for display — editable at runtime.",
+        "enum": [
+          "declared",
+          "label",
+          "value"
+        ]
+      }
+    }
+  },
   "properties": {
     "variable": {
       "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (enum family → enum). The value chosen here becomes that variable's runtime override on re-resolve.",
@@ -34,7 +68,9 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["value"],
+        "required": [
+          "value"
+        ],
         "additionalProperties": false,
         "properties": {
           "value": {
@@ -51,7 +87,11 @@
     "sort": {
       "description": "Optional ordering applied to the displayed options. `declared` (the default) keeps the options in the order they are listed; `label` sorts ascending by display label (falling back to value); `value` sorts ascending by value.",
       "type": "string",
-      "enum": ["declared", "label", "value"],
+      "enum": [
+        "declared",
+        "label",
+        "value"
+      ],
       "default": "declared"
     }
   }

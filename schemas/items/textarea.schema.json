@@ -4,8 +4,36 @@
   "title": "Textarea Item",
   "description": "A multi-line string-family variable widget. It binds one document/container variable (the `variable` it sets) and lets a viewer type a multi-line free-text value; on change the value flows through the resolver's override path and re-resolves the document so dependent `${var}`/`$var` consumers update live. A textarea may only bind a variable whose declared type is `string` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config only declares the binding plus its presentation. A textarea never has children.",
   "type": "object",
-  "required": ["variable"],
+  "required": [
+    "variable"
+  ],
   "additionalProperties": false,
+  "configurable": {
+    "label": {
+      "type": "string",
+      "label": "Label",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The human label rendered beside the control — editable at runtime."
+      }
+    },
+    "disabled": {
+      "type": "boolean",
+      "label": "Disabled",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+      }
+    },
+    "placeholder": {
+      "type": "string",
+      "label": "Placeholder",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "Placeholder text shown in the empty control — editable at runtime."
+      }
+    }
+  },
   "properties": {
     "variable": {
       "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (string family → string). The value entered here becomes that variable's runtime override on re-resolve.",

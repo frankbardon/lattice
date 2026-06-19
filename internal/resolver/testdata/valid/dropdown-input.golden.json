@@ -93,7 +93,41 @@
             ],
             "declaredAt": "doc"
           }
-        }
+        },
+        "surface": [
+          {
+            "field": "disabled",
+            "type": "boolean",
+            "label": "Disabled",
+            "constraints": {
+              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+            },
+            "rendering": "toggle"
+          },
+          {
+            "field": "label",
+            "type": "string",
+            "label": "Label",
+            "constraints": {
+              "description": "The human label rendered beside the control — editable at runtime."
+            },
+            "rendering": "text-input"
+          },
+          {
+            "field": "sort",
+            "type": "enum",
+            "label": "Option sort",
+            "constraints": {
+              "description": "How the option set is ordered for display — editable at runtime.",
+              "enum": [
+                "declared",
+                "label",
+                "value"
+              ]
+            },
+            "rendering": "select"
+          }
+        ]
       },
       {
         "id": "region-metrics",
