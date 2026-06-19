@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/dashboard/1.0.0",
+  "title": "Lattice Dashboard",
+  "description": "Top-level schema for a Lattice dashboard document: a manifest plus a single root item instance forming a recursive tree.",
+  "type": "object",
+  "required": ["manifest", "root"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest": {
+      "$ref": "#/$defs/manifest"
+    },
+    "root": {
+      "$ref": "#/$defs/instance",
+      "description": "The root item instance. Conventionally a container, but the container-only-children rule is enforced by the resolver (E1-S4), not the schema."
+    }
+  },
+  "$defs": {
+    "manifest": {
+      "title": "Dashboard Manifest",
+      "description": "Document-level metadata describing the dashboard.",
+      "type": "object",
+      "required": ["formatVersion", "id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "formatVersion": {
+          "description": "Semantic version of the dashboard document format this document targets.",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "id": {
+          "description": "Stable, machine-readable identifier for the dashboard.",
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "description": "Human-readable dashboard title.",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "description": "Optional longer-form description of the dashboard.",
+          "type": "string"
+        },
+        "author": {
+          "description": "Optional author or owner of the dashboard.",
+          "type": "string"
+        }
+      }
+    },
+    "instance": {
+      "title": "Item Instance",
+      "description": "A recursive instance node. References an item type via $ref, carries opaque per-instance config and placement, and may declare children. Whether children are permitted depends on the referenced item type (container-only); that rule is enforced by the resolver in E1-S4, not structurally here.",
+      "type": "object",
+      "required": ["$ref"],
+      "additionalProperties": false,
+      "properties": {
+        "$ref": {
+          "description": "URI of the item-type schema this instance is an instance of (e.g. https://lattice.dev/schemas/items/table/1.0.0). Validated against the catalog by the resolver.",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "id": {
+          "description": "Optional instance-local identifier, unique within the document.",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "description": "Per-instance configuration. Structure is defined by the referenced item type's schema; opaque at the dashboard level.",
+          "type": "object"
+        },
+        "placement": {
+          "description": "Optional layout placement hints interpreted by the parent container's grid. Minimal/stubbed here; E2-S1 formalizes track placement.",
+          "type": "object"
+        },
+        "children": {
+          "description": "Optional child instances. Structurally permitted on any instance; only valid when the referenced type is a container, enforced by the resolver in E1-S4.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instance"
+          }
+        }
+      }
+    }
+  }
+}

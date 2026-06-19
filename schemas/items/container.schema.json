@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/container/1.0.0",
+  "title": "Container Item",
+  "description": "The container item type. The only structurally-special type: it groups child instances and arranges them on a grid. Children are validated by the dashboard instance schema; the container-only-children rule is enforced by the resolver (E1-S4). Grid fields are intentionally minimal here and will be formalized (relative-weight tracks + placement) in E2-S1.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "grid": {
+      "title": "Container Grid",
+      "description": "Minimal grid stub describing how children are laid out. E2-S1 formalizes relative-weight tracks and placement; treat these fields as provisional.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "description": "Primary flow direction of the grid.",
+          "type": "string",
+          "enum": ["row", "column"],
+          "default": "row"
+        },
+        "columns": {
+          "description": "Provisional column count. Superseded by relative-weight tracks in E2-S1.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "rows": {
+          "description": "Provisional row count. Superseded by relative-weight tracks in E2-S1.",
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    }
+  }
+}

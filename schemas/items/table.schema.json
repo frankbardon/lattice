@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/table/1.0.0",
+  "title": "Table Item",
+  "description": "A static leaf item type that renders tabular data. Its config is opaque to the resolver (no data binding yet; data binding arrives in later epics). A table never has children.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "description": "Optional heading rendered above the table.",
+      "type": "string"
+    },
+    "columns": {
+      "description": "Static column definitions.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["header"],
+        "additionalProperties": false,
+        "properties": {
+          "header": {
+            "description": "Column header label.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rows": {
+      "description": "Static row data. Each row is an array of cell strings aligned to columns.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
