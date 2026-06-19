@@ -20,10 +20,13 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 // ResolveFunc loads and resolves a dashboard document into a resolved tree,
-// applying the given runtime variable overrides (E3-S4: values from a dropdown
-// change or URL query params; nil/empty means defaults only). It is injected by
-// the caller (the CLI `serve` command) so the server package does not own
-// resolver wiring. On failure it returns a CodedError.
+// applying the given unified runtime overrides (E4): the map keys are
+// addresses — a bare name targets a settable variable (a widget selection or
+// URL query param), a "<node-id>.<field>" name targets a node config field.
+// Both kinds are routed verbatim into the resolver's addressable override set;
+// nil/empty means defaults only. It is injected by the caller (the CLI `serve`
+// command) so the server package does not own resolver wiring. On failure it
+// returns a CodedError.
 type ResolveFunc func(overrides map[string]any) (*resolver.ResolvedTree, error)
 
 // Server is the lattice reference-renderer web layer. It serves an HTML page
@@ -116,12 +119,15 @@ func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	s.writeTree(w, tree)
 }
 
-// handleResolve is the E3-S4 live re-resolve endpoint. It accepts a JSON object
-// of runtime variable values ({"region":"eu", ...}) in the POST body, resolves
-// the document with those overrides applied (override > default; computed
-// variables stay computed), and returns the freshly resolved tree as JSON. A bad
-// runtime value (wrong type / out-of-enum) surfaces as the usual VAR_* error
-// envelope with a 422, so the client can show it without the page crashing.
+// handleResolve is the live re-resolve endpoint. It accepts a JSON object of
+// unified runtime overrides in the POST body — variable values keyed by name
+// ({"region":"eu", ...}) and/or config-field values keyed by "<node-id>.<field>"
+// ({"summary.title":"Pinned", ...}) — resolves the document with those overrides
+// applied (override > default; computed variables stay computed; config
+// overrides are ephemeral and validated against the node's surface), and returns
+// the freshly resolved tree as JSON. A bad value (wrong type / out-of-enum /
+// unknown field) surfaces as the usual VAR_*/CONFIG_OVERRIDE_* error envelope
+// with a 422, so the client can show it without the page crashing.
 func (s *Server) handleResolve(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -160,11 +166,13 @@ func (s *Server) writeTree(w http.ResponseWriter, tree *resolver.ResolvedTree) {
 	}
 }
 
-// queryOverrides extracts runtime variable overrides from the request's URL
-// query params (E3-S4: e.g. ?region=eu). Each single-valued param becomes a
-// string override; the resolver coerces it to the variable's declared type. A
-// repeated param keeps its first value. Reserved/empty handling stays minimal —
-// any name that is not a declared variable is simply ignored by resolution.
+// queryOverrides extracts unified runtime overrides from the request's URL
+// query params (E4). Each single-valued param becomes a string override keyed
+// by its name: a bare name (?region=eu) targets a variable; a "<node-id>.<field>"
+// name (?summary.title=Pinned) targets a node config field. The resolver coerces
+// each string to the target's declared type. A repeated param keeps its first
+// value. A bare name that is not a declared variable is ignored; an unknown
+// config-field address fails fast (CONFIG_OVERRIDE_FIELD_UNKNOWN).
 func queryOverrides(r *http.Request) map[string]any {
 	q := r.URL.Query()
 	if len(q) == 0 {

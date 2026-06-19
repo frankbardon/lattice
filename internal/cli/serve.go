@@ -59,9 +59,13 @@ func ServeCommand() *cli.Command {
 
 			schemasDir := cmd.String("schemas")
 			// Re-resolve on every request so a document edit is reflected on
-			// reload and resolution errors render as the HTML error page. Runtime
-			// variable overrides (E3-S4: dropdown selections / URL query params)
-			// are threaded into resolution per request.
+			// reload and resolution errors render as the HTML error page. The
+			// per-request override map is the UNIFIED override set (E4): a bare
+			// key names a variable (widget selection / URL query param), a
+			// "<node-id>.<field>" key names a node config field. Both kinds flow
+			// straight into the addressable OverrideSet inside
+			// runResolveWithValues, so serve routes both to ResolveWithValues
+			// without distinguishing them.
 			resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
 				return runResolveWithValues(schemasDir, docPath, overrides)
 			}

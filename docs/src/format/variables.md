@@ -160,3 +160,7 @@ Overrides come from two sources, both wired by `lattice serve`:
 An override for an undeclared name is a no-op. A `nil`/empty override set leaves
 every variable at its declared default, so the resolved-tree contract is
 identical to a plain `resolve`.
+
+Variable overrides are one half of the unified override set; the other half,
+config overrides addressed by `<node-id>.<field>`, plus the precedence between
+them, is covered in [Runtime Overrides](overrides.md).

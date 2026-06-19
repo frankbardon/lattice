@@ -28,9 +28,9 @@
 
       <!-- Recursive node renderer. A container draws its own grid and recurses
            into its children; a leaf draws a single labeled placeholder box. -->
-      <!-- A single delegated @change on the sketch root catches every dropdown
-           <select> rendered via x-html (change events bubble), so the runtime
-           inputs need no per-element Alpine wiring. -->
+      <!-- A single delegated @change on the sketch root catches every widget
+           control (<select>, <input>) rendered via x-html (change events
+           bubble), so the runtime inputs need no per-element Alpine wiring. -->
       <template x-if="!error && tree && tree.root">
         <div class="sketch-root" @change="onControlChange($event)">
           <template x-data x-for="(node, i) in [tree.root]" :key="i">
@@ -61,9 +61,10 @@
         treeJSON: '',
         error: '',
         inspectorOpen: false,
-        // values holds the current runtime variable overrides (E3-S4): seeded
-        // from URL query params, then updated as dropdowns change. It is the
-        // body POSTed to /api/resolve on every re-resolve.
+        // values holds the current unified runtime overrides (E4): seeded from
+        // URL query params (bare-name variable overrides and "<node-id>.<field>"
+        // config overrides alike), then updated as widget controls change. It is
+        // the body POSTed to /api/resolve on every re-resolve.
         values: {},
         resolving: false,
 
@@ -84,7 +85,7 @@
 
         // resolve POSTs the current runtime values and replaces the tree with the
         // freshly resolved one. It is the single re-resolve round-trip used for
-        // both the initial load (with URL-param values) and dropdown changes.
+        // both the initial load (with URL-param values) and widget changes.
         async resolve() {
           this.resolving = true;
           try {
@@ -109,13 +110,24 @@
           }
         },
 
-        // onControlChange handles a bubbled change from any rendered dropdown
-        // <select>: it records the chosen value against the bound variable and
-        // re-resolves the whole document (partials deferred per E3-S4).
+        // onControlChange handles a bubbled change from any rendered widget
+        // control (<select> or <input>): it records the chosen value against the
+        // bound variable and re-resolves the whole document. Every control posts
+        // its bound variable name via data-var; a checkbox/toggle posts its
+        // boolean .checked state, everything else its .value (strings the server
+        // coerces to the variable's declared type).
         onControlChange(ev) {
           const el = ev.target;
-          if (!el || el.tagName !== 'SELECT' || !el.dataset || !el.dataset.var) { return; }
-          this.values = Object.assign({}, this.values, { [el.dataset.var]: el.value });
+          if (!el || !el.dataset || !el.dataset.var) { return; }
+          const tag = el.tagName;
+          if (tag !== 'SELECT' && tag !== 'INPUT') { return; }
+          let val;
+          if (tag === 'INPUT' && el.type === 'checkbox') {
+            val = el.checked;
+          } else {
+            val = el.value;
+          }
+          this.values = Object.assign({}, this.values, { [el.dataset.var]: val });
           this.resolve();
         },
 
@@ -179,22 +191,45 @@
             + 'grid-row:' + rs + ' / span ' + rspan + ';';
         },
 
-        // renderNode recursively renders a resolved instance. Containers draw a
-        // grid and recurse into children (positioned by the parent's Layout
-        // placements); leaves draw a single labeled box.
-        // dropdownHTML renders a runtime-input dropdown leaf (E3-S4) as a real
-        // <select> bound (via data-var, caught by the delegated @change) to its
-        // variable. The current selection is the variable's EFFECTIVE value as
-        // resolved (varEnv[name].default), so it reflects URL-param/override
-        // state after each re-resolve.
-        dropdownHTML(node) {
-          const cfg = node.config || {};
-          const varName = cfg.variable || '';
-          const options = Array.isArray(cfg.options) ? cfg.options : [];
-          let current = '';
-          if (node.varEnv && node.varEnv[varName] && node.varEnv[varName].default != null) {
-            current = String(node.varEnv[varName].default);
+        // WIDGET_TYPES maps a resolved item-type name to the control family the
+        // serve UI renders for it. Each family posts its bound variable as a
+        // runtime override on change (caught by the delegated @change). Widget
+        // families without a dedicated renderer fall back to a read-only box.
+        widgetFamily(node) {
+          const name = node.type && node.type.name;
+          switch (name) {
+            case 'select': return 'select';
+            case 'text-input': return 'text';
+            case 'number-field':
+            case 'slider': return name;
+            case 'toggle':
+            case 'checkbox': return 'boolean';
+            default: return '';
           }
+        },
+
+        // effectiveValue is the bound variable's resolved value (varEnv[name]),
+        // i.e. the value after URL-param/override application, so the rendered
+        // control reflects override state after each re-resolve.
+        effectiveValue(node, varName) {
+          if (node.varEnv && node.varEnv[varName] && node.varEnv[varName].default != null) {
+            return node.varEnv[varName].default;
+          }
+          return null;
+        },
+
+        // controlLabelHTML renders the shared label row for a widget control.
+        controlLabelHTML(cfg, varName) {
+          const labelText = cfg.label ? cfg.label : varName;
+          return '<span class="widget-label">' + this.escapeHTML(labelText) + '</span>';
+        },
+
+        // selectHTML renders an enum select as a real <select> bound to its
+        // variable. The selected option is the variable's effective value.
+        selectHTML(node, cfg, varName, disabled) {
+          const options = Array.isArray(cfg.options) ? cfg.options : [];
+          const ev = this.effectiveValue(node, varName);
+          const current = (ev != null) ? String(ev) : '';
           let opts = '';
           for (const o of options) {
             const val = (o && o.value != null) ? String(o.value) : '';
@@ -203,11 +238,63 @@
             opts += '<option value="' + this.escapeHTML(val) + '"' + sel + '>'
               + this.escapeHTML(olabel) + '</option>';
           }
-          const labelText = cfg.label ? cfg.label : varName;
-          return '<label class="dropdown-control">'
-            + '<span class="dropdown-label">' + this.escapeHTML(labelText) + '</span>'
-            + '<select class="dropdown-select" data-var="' + this.escapeHTML(varName) + '">'
-            + opts + '</select></label>';
+          return '<select class="widget-select" data-var="' + this.escapeHTML(varName) + '"'
+            + disabled + '>' + opts + '</select>';
+        },
+
+        // textHTML renders a text-input as a bound single-line <input>.
+        textHTML(node, cfg, varName, disabled) {
+          const ev = this.effectiveValue(node, varName);
+          const current = (ev != null) ? String(ev) : '';
+          const placeholder = cfg.placeholder
+            ? ' placeholder="' + this.escapeHTML(String(cfg.placeholder)) + '"' : '';
+          return '<input type="text" class="widget-input" data-var="' + this.escapeHTML(varName) + '"'
+            + ' value="' + this.escapeHTML(current) + '"' + placeholder + disabled + '>';
+        },
+
+        // numberHTML renders a number-field/slider as a bound <input>. The
+        // `kind` is 'number' or 'range' (slider); min/max/step come from config.
+        numberHTML(node, cfg, varName, disabled, kind) {
+          const ev = this.effectiveValue(node, varName);
+          const current = (ev != null) ? String(ev) : '';
+          const attr = (k, v) => (v != null ? ' ' + k + '="' + this.escapeHTML(String(v)) + '"' : '');
+          const cls = (kind === 'range') ? 'widget-range' : 'widget-input';
+          return '<input type="' + kind + '" class="' + cls + '" data-var="' + this.escapeHTML(varName) + '"'
+            + ' value="' + this.escapeHTML(current) + '"'
+            + attr('min', cfg.min) + attr('max', cfg.max) + attr('step', cfg.step)
+            + disabled + '>';
+        },
+
+        // booleanHTML renders a toggle/checkbox as a bound checkbox <input>. Its
+        // checked state is the variable's effective boolean value.
+        booleanHTML(node, cfg, varName, disabled) {
+          const ev = this.effectiveValue(node, varName);
+          const checked = (ev === true || ev === 'true') ? ' checked' : '';
+          return '<input type="checkbox" class="widget-checkbox" data-var="' + this.escapeHTML(varName) + '"'
+            + checked + disabled + '>';
+        },
+
+        // controlHTML renders the interactive control for a runtime-input widget
+        // leaf, dispatching on its widget family. Each control binds the node's
+        // `variable` (data-var) and posts a variable override on change.
+        controlHTML(node) {
+          const family = this.widgetFamily(node);
+          if (!family) { return ''; }
+          const cfg = node.config || {};
+          const varName = cfg.variable || '';
+          if (!varName) { return ''; }
+          const disabled = cfg.disabled ? ' disabled' : '';
+          let inner = '';
+          switch (family) {
+            case 'select': inner = this.selectHTML(node, cfg, varName, disabled); break;
+            case 'text': inner = this.textHTML(node, cfg, varName, disabled); break;
+            case 'number-field': inner = this.numberHTML(node, cfg, varName, disabled, 'number'); break;
+            case 'slider': inner = this.numberHTML(node, cfg, varName, disabled, 'range'); break;
+            case 'boolean': inner = this.booleanHTML(node, cfg, varName, disabled); break;
+            default: return '';
+          }
+          return '<label class="widget-control widget-' + family + '">'
+            + this.controlLabelHTML(cfg, varName) + inner + '</label>';
         },
 
         renderNode(node, placementStyle) {
@@ -239,13 +326,12 @@
               + '</div></div>';
           }
 
-          const isDropdown = (node.type && node.type.name === 'dropdown');
-          const controlHTML = isDropdown ? this.dropdownHTML(node) : '';
-          const leafClass = isDropdown ? 'node node-leaf node-input' : 'node node-leaf';
+          const control = this.controlHTML(node);
+          const leafClass = control ? 'node node-leaf node-input' : 'node node-leaf';
           return '<div class="' + leafClass + '"' + slotStyle + '>'
             + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML + '</div>'
             + summaryHTML
-            + controlHTML
+            + control
             + '</div>';
         }
       };
