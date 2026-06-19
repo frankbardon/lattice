@@ -175,6 +175,15 @@ const (
 	// bound variable name, the widget type, and the variable's declared type are
 	// reported in Details["path"]/["variable"]/["widget"]/["varType"].
 	WIDGET_TYPE_MISMATCH Code = "WIDGET_TYPE_MISMATCH"
+
+	// CONFIGURABLE_SURFACE_INVALID indicates an item type's configurable-surface
+	// declaration (E3-S1) is malformed: it names a config field the item type does
+	// not declare, gives a field an unknown value type, or sets a rendering hint
+	// naming a widget item-type the catalog does not know. The offending instance
+	// path, the item type, and the offending surface field are reported in
+	// Details["path"]/["type"]/["field"] (rendering violations also report
+	// Details["rendering"]).
+	CONFIGURABLE_SURFACE_INVALID Code = "CONFIGURABLE_SURFACE_INVALID"
 )
 
 // LAYOUT domain - Container grid interpretation and child placement (E2-S1).

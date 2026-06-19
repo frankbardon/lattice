@@ -101,6 +101,49 @@ type ResolvedInstance struct {
 	// dedicated pass after the tree is assembled and connections are resolved (see
 	// binding.go).
 	Binding *ResolvedBinding `json:"binding,omitempty"`
+
+	// Surface is this item's CONFIGURABLE SURFACE (E3-S1): the validated set of
+	// config fields the item type declares as runtime-configurable, each with its
+	// value type, label, optional constraints, and optional preferred widget
+	// rendering. It is derived from the item type's schema-level `configurable`
+	// keyword (not per-instance config) and validated by a dedicated pass after
+	// the tree is assembled (see surface.go). Surfacing it on the resolved
+	// instance lets E4 (config overrides) and E5 (configurator auto-generation)
+	// read the surface without re-parsing the item-type schema. The slice is in
+	// declared field order; omitted when the item type declares no surface.
+	Surface []ConfigurableField `json:"surface,omitempty"`
+}
+
+// ConfigurableField is one entry of an item type's configurable surface (E3-S1):
+// it maps a single config field of the item type to the metadata a configurator
+// needs to render an editor for it. The field name is validated against the item
+// type's own config schema, the type against the variable type set, and the
+// optional rendering hint against the widget catalog, so every ConfigurableField
+// on a ResolvedInstance is known-valid.
+type ConfigurableField struct {
+	// Field is the name of the item type's config property this entry exposes.
+	// Guaranteed to be a real config property of the item type (validated against
+	// the item-type schema's properties).
+	Field string `json:"field"`
+
+	// Type is the field's value type, one of the variable type set (string,
+	// number, integer, boolean, enum, array). It tells a configurator which editor
+	// primitive the field needs.
+	Type variables.VarType `json:"type"`
+
+	// Label is the human-readable label a configurator renders for the field.
+	Label string `json:"label"`
+
+	// Constraints is the optional, opaque constraint object declared for the field
+	// (e.g. min/max/options). It is passed through verbatim; its interpretation is
+	// left to the configurator. Nil when the field declared no constraints.
+	Constraints map[string]any `json:"constraints,omitempty"`
+
+	// Rendering is the optional preferred widget item-type name a configurator
+	// should use to render the field's editor (e.g. "slider" for a number field).
+	// When present it is guaranteed to name a registered widget family. Empty when
+	// the field declared no rendering preference.
+	Rendering string `json:"rendering,omitempty"`
 }
 
 // ResolvedBinding is an item's direct data-flow binding (E4-S2): a reference to a

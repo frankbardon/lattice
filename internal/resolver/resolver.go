@@ -163,6 +163,17 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// Configurable-surface pass (E3-S1): for every node whose item type declares a
+	// `configurable` surface, validate the declaration (real config field, known
+	// value type, rendering hint naming a catalogued widget) and attach the
+	// validated surface to the node so E4 (config overrides) and E5 (configurator
+	// auto-gen) can read it. Runs after the instance walk because it reads each
+	// node's resolved type identity. Fail-fast, same machinery as the other
+	// passes. See surface.go.
+	if err := resolveSurfaces(g, root); err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
 		Manifest:    g.Document.Manifest,
 		Root:        root,
