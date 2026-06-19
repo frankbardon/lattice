@@ -188,4 +188,16 @@ const (
 	// its parent container's grid bounds. The offending instance path is
 	// reported in Details["path"] (with "axis", "start", "span", "tracks").
 	LAYOUT_PLACEMENT_OUT_OF_BOUNDS Code = "LAYOUT_PLACEMENT_OUT_OF_BOUNDS"
+
+	// LAYOUT_FORM_COLUMNS_INVALID indicates a `form` container's flow-layout
+	// column count is out of range (non-positive or above the maximum). The
+	// offending form path is reported in Details["path"] (with "field" and
+	// "value").
+	LAYOUT_FORM_COLUMNS_INVALID Code = "LAYOUT_FORM_COLUMNS_INVALID"
+
+	// LAYOUT_FORM_CHILD_INVALID indicates a `form` container holds a child that
+	// is not a variable widget. A form arranges widget controls in flow mode and
+	// rejects non-widget children fail-fast. The offending child's instance path
+	// and resolved item-type name are reported in Details["path"]/["type"].
+	LAYOUT_FORM_CHILD_INVALID Code = "LAYOUT_FORM_CHILD_INVALID"
 )

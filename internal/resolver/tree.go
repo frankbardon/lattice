@@ -74,6 +74,14 @@ type ResolvedInstance struct {
 	// placement. Non-nil only for container nodes; nil for leaf item types.
 	Layout *layout.Block `json:"layout,omitempty"`
 
+	// Flow is the normalized, renderer-agnostic FLOW layout for a `form` node
+	// (E2-S1): the column count the form flows its widget children into plus each
+	// child's computed (column, row) cell. It is a representation parallel to
+	// Layout/Block, not a grid — form widgets are packed into compact label+control
+	// cells and do not consume a main-grid placement. Non-nil only for form nodes;
+	// nil for plain containers and leaf item types.
+	Flow *layout.Flow `json:"flow,omitempty"`
+
 	// Children are the resolved child instances, in document order. Always empty
 	// (never nil-vs-non-nil significant) for non-container types, since the
 	// container-only-children rule is enforced before the tree is assembled.

@@ -34,9 +34,18 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// containerTypeName is the item-type name whose instances may carry children.
-// It is the only structurally-special item type (see schemas/items/container).
+// containerTypeName is the weighted-grid container item-type name. It and the
+// form item-type are the structurally-special types permitted to carry children
+// (see schemas/items/container and schemas/items/form).
 const containerTypeName = "container"
+
+// formTypeName is the form item-type name (E2-S1): a container-like type that
+// packs variable-widget children into a compact flow layout (label+control rows,
+// optionally split into N columns) rather than the weighted-grid Block. A form
+// may carry children but is NOT a grid container — its children resolve into a
+// parallel layout.Flow attached to the node, and they do not consume main-grid
+// placements.
+const formTypeName = "form"
 
 // Resolver validates dashboard documents and emits resolved trees. It wraps the
 // schema loader (which links every instance $ref to its item-type schema) and
@@ -207,9 +216,12 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	}
 
 	isContainer := rt.Name == containerTypeName
+	isForm := rt.Name == formTypeName
 
-	// Container-only-children rule: children on a non-container type fail fast.
-	if len(inst.Children) > 0 && !isContainer {
+	// Children-allowed rule: children are permitted only on the structurally
+	// special types — the weighted-grid container and the flow-packing form. A
+	// child on any other type fails fast.
+	if len(inst.Children) > 0 && !isContainer && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{
@@ -281,6 +293,15 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	// block (no-op for non-containers). See layout.go.
 	if err := r.resolveLayout(node, path); err != nil {
 		return nil, err
+	}
+
+	// E2-S1: a form packs its widget children into a parallel flow layout
+	// (label+control rows, optionally split into N columns) instead of the
+	// weighted grid. No-op for non-forms. See form.go.
+	if isForm {
+		if err := r.resolveForm(node, path); err != nil {
+			return nil, err
+		}
 	}
 
 	return node, nil

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/form/1.0.0",
+  "title": "Form Item",
+  "description": "The form item type: a container-like type that groups variable-widget children and packs them compactly so each widget occupies a label+control cell rather than consuming a whole main-grid placement. Like container, form is structurally special — it may carry `children` — but it normalizes to a FLOW layout (label+control rows, optionally split into N columns) rather than the weighted grid. The resolver (E2-S1) computes each child's flow cell from its document order and the form's column count; form children never declare or consume a main-grid placement. A form rejects non-widget children fail-fast (LAYOUT_FORM_CHILD_INVALID), and an out-of-range column count fails LAYOUT_FORM_COLUMNS_INVALID. The `layout.mode` discriminator currently supports only `flow`; the weighted-grid form mode is a separate story (E2-S2). NO CSS keywords or absolute units appear anywhere — columns is a unitless count.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "layout": {
+      "title": "Form Layout",
+      "description": "The form's layout declaration. `mode` selects the arrangement (currently only `flow`, the compact label+control stacking; a future weighted-grid mode is added in E2-S2). Omit the whole object for a single-column flow.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "title": "Layout Mode",
+          "description": "Discriminator selecting the form's arrangement. `flow` (the default and only current value) stacks each child into a label+control row, filling left-to-right across `columns` then wrapping. Structured so additional modes can be added without changing existing forms.",
+          "type": "string",
+          "enum": ["flow"],
+          "default": "flow"
+        },
+        "columns": {
+          "title": "Flow Columns",
+          "description": "Number of columns the flow arranges children into, as a unitless count. Children fill row-major (left-to-right, then wrap). Defaults to 1 (a single stacked column). NO CSS units or keywords.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12,
+          "default": 1
+        }
+      }
+    }
+  }
+}
