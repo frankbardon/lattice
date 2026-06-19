@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+  "title": "Variable Box Item",
+  "description": "A POSITIONAL REGION (E3-S1) dedicated to holding VARIABLE WIDGETS — the runtime-input leaf family from the variable-widgets effort (text-input, textarea, number-field, slider, stepper, toggle, checkbox, checkbox-group, radio-group, select, multiselect, segmented, tag-input). Like `container` it is layout-only: it positions its children and carries NO chrome/theme of its own (the schema-level `positional: true` marker designates it; the resolver grammar pass (E3-S2) reads that marker rather than any hardcoded type list, so the legal region set is extensible). It is DISTINCT from `container`: a container groups arbitrary items on a relative-weight grid, whereas a variable-box is the dedicated home for variable widgets and provides their distinct downstream styling as a group. Its variable-widget children are held DIRECTLY — they are NOT individually wrapped in a `block` (the box, not a per-widget wrapper, supplies their grouped presentation downstream). A variable-box is distinguishable from a container in resolved output by its item-type identity ($id / name `variable-box`). The container/variable-box-children grammar is enforced by the resolver (E3-S2), not by this schema; this schema declares only the box's own layout-only surface.",
+  "type": "object",
+  "additionalProperties": false,
+  "positional": true,
+  "configurable": {
+    "arrangement": {
+      "type": "enum",
+      "label": "Arrangement",
+      "rendering": "segmented",
+      "constraints": {
+        "description": "How the box arranges its variable widgets — editable at runtime. `stacked` lays them out one per row; `inline` flows them along a single row. Semantic and renderer-agnostic: NO CSS units or keywords."
+      }
+    }
+  },
+  "properties": {
+    "arrangement": {
+      "title": "Variable Widget Arrangement",
+      "description": "Layout-only, renderer-agnostic arrangement for the variable widgets this box holds. `stacked` (the default) places each widget on its own row; `inline` flows them along a single row. This is the box's positioning surface — the analogue of a container's grid — NOT chrome or theme: no emphasis, spacing, color or any presentation token appears here, and no CSS units or keywords. Tunable at runtime via the configurable surface.",
+      "type": "string",
+      "enum": ["stacked", "inline"],
+      "default": "stacked"
+    }
+  }
+}

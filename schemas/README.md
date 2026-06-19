@@ -27,9 +27,19 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
   `children` is permitted structurally on any node; the rule that only containers
   may have children is enforced by the resolver (E1-S4), not by this schema.
 - `items/` — item-type schemas referenced by instance `$ref`s.
-  - `container.schema.json` (`.../items/container/1.0.0`) — the only
-    structurally-special type; groups children on a (stubbed) grid. E2-S1
-    formalizes relative-weight tracks + placement.
+  - `container.schema.json` (`.../items/container/1.0.0`) — a **positional
+    region** (see the `positional` marker below); groups children on a
+    relative-weight grid. E2-S1 formalizes relative-weight tracks + placement.
+  - `variable-box.schema.json` (`.../items/variable-box/1.0.0`) — a **positional
+    region** dedicated to holding the **variable widgets** (text-input, slider,
+    select, …). Like `container` it is layout-only and carries no chrome/theme;
+    it is distinguished from a container by its type identity and provides the
+    grouped downstream styling for the variable widgets it holds. Its
+    variable-widget children are held DIRECTLY — they are NOT individually
+    `block`-wrapped (the box, not a per-widget wrapper, supplies their grouped
+    presentation). It declares a single layout-only `arrangement`
+    (`stacked`|`inline`) surface — the analogue of a container's grid. The
+    container/variable-box-children grammar is enforced by the resolver (E3-S2).
   - `table.schema.json` (`.../items/table/1.0.0`) — a tabular leaf type. It may
     render static columns/rows or bind to a connection by `connectionId` (E4-S2).
     It declares an `expectedResult` keyword — the result-shape contract (E4-S3):
@@ -67,6 +77,24 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
   - `static.schema.json` (`.../connections/static/1.0.0`) — an inline data
     source whose rows live in `config`; lets the result-shape contract (E4-S3)
     be exercised without a real backend.
+
+## Schema-level keywords
+
+Item-type schemas may carry top-level keywords that are NOT instance config and
+NOT standard JSON Schema validation — they are read by the resolver/catalog
+(captured by the parser as unknown keywords). Existing examples: `configurable`
+(the runtime-configurable surface), `expectedResult` (the result-shape contract).
+
+- `positional` (boolean) — designates a type as a **layout-only positional
+  region**: a node that only positions children and carries no chrome/theme of
+  its own. `container` and `variable-box` set `positional: true`. The marker is
+  the **single source of truth** for which types are legal positional regions —
+  the grammar pass (E3-S2) reads it via the catalog (`Catalog.IsPositional` /
+  `ResolvedType.IsPositional`) rather than any hardcoded type list, so adding a
+  new type with the marker makes it a legal root/container child WITHOUT any
+  validation-code change. Positional region schemas declare no chrome/theme
+  fields, only their own layout-only surface (e.g. `container`'s `grid`,
+  `variable-box`'s `arrangement`).
 
 ## Examples
 

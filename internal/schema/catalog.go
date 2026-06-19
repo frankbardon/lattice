@@ -119,6 +119,36 @@ func (c *Catalog) Lookup(id string) *ResolvedType {
 	return nil
 }
 
+// positionalKey is the reserved item-type schema keyword that designates a type
+// as a layout-only POSITIONAL REGION (E3-S1): a node that only positions
+// children and carries no chrome/theme of its own. Like `configurable` and
+// `expectedResult` it is a top-level, schema-level keyword (a sibling of
+// `properties`, not per-instance config), captured by google/jsonschema-go as an
+// unknown keyword in Schema.Extra. The grammar pass (E3-S2) reads this marker —
+// it is the SINGLE SOURCE OF TRUTH for which types are legal positional regions;
+// no type list is hardcoded anywhere.
+const positionalKey = "positional"
+
+// IsPositional reports whether the resolved item-type schema is marked as a
+// positional region (via the schema-level `positional: true` keyword). It is the
+// exported accessor the grammar pass (E3-S2) consumes to decide, without any
+// hardcoded type list, whether a type may appear as a root or container child.
+// A type that omits the marker, sets it to a non-true value, or carries no
+// schema reports false.
+func (rt *ResolvedType) IsPositional() bool {
+	if rt == nil || rt.Schema == nil || rt.Schema.Extra == nil {
+		return false
+	}
+	v, ok := rt.Schema.Extra[positionalKey].(bool)
+	return ok && v
+}
+
+// IsPositional reports whether the item type indexed under the given canonical
+// $id is marked as a positional region. Unknown ids report false.
+func (c *Catalog) IsPositional(id string) bool {
+	return c.byID[id].IsPositional()
+}
+
 // hasName reports whether any version of the named item type is catalogued.
 func (c *Catalog) hasName(name string) bool {
 	_, ok := c.byName[name]
