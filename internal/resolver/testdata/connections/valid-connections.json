@@ -1,0 +1,40 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-connections",
+    "title": "Connections Example Dashboard",
+    "description": "A hand-written fixture exercising E4-S1: a root container plus two document-scoped connections (one static, one http). Connections are declared and validated only, never dialed."
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": { "direction": "row", "columns": 1 }
+    }
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "columns": ["name", "color"],
+        "rows": [
+          { "name": "Apple", "color": "Red" },
+          { "name": "Banana", "color": "Yellow" }
+        ]
+      }
+    },
+    {
+      "id": "metrics-api",
+      "$ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+      "config": {
+        "url": "https://api.example.com/metrics",
+        "method": "GET",
+        "query": { "window": "1h" }
+      },
+      "secretRefs": {
+        "token": "vault://lattice/metrics-api#token"
+      }
+    }
+  ]
+}

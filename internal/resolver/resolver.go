@@ -93,9 +93,18 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 		return nil, err
 	}
 
+	// Connection pass (E4-S1): decode document-scoped connections, validate each
+	// against its connection-type schema, and reject duplicate ids. Fail-fast,
+	// same machinery as the item-type passes. See connections.go.
+	conns, err := r.resolveConnections(g, data, source)
+	if err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
-		Manifest: g.Document.Manifest,
-		Root:     root,
+		Manifest:    g.Document.Manifest,
+		Root:        root,
+		Connections: conns,
 	}
 
 	// E3-S1: compute and attach the tree-scoped variable environment per node.

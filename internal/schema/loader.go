@@ -104,6 +104,15 @@ func (l *Loader) parse(data []byte, source string) (*ResolvedGraph, error) {
 	return g, nil
 }
 
+// ResolveRef resolves a single $ref against the catalog, relative roots, or the
+// supplied graph's inline $defs, returning the resolved type. It is the exported
+// hook that non-instance consumers (e.g. the connection pass in E4-S1) reuse so
+// connection-type $refs are resolved by exactly the same machinery as item-type
+// instance $refs. g may be nil when no inline-fragment resolution is needed.
+func (l *Loader) ResolveRef(g *ResolvedGraph, ref string) (*ResolvedType, error) {
+	return l.resolveRef(g, ref)
+}
+
 // resolveInstance resolves one node's $ref then recurses into children.
 func (l *Loader) resolveInstance(g *ResolvedGraph, inst *Instance) error {
 	rt, err := l.resolveRef(g, inst.Ref)

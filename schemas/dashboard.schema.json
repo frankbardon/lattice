@@ -20,6 +20,13 @@
       "items": {
         "$ref": "#/$defs/varDeclaration"
       }
+    },
+    "connections": {
+      "description": "Optional document-scoped data connection instances. Each references a connection-type schema in schemas/connections/ via $ref; the resolver validates each connection's config against that type (E4-S1). Connections are declared and validated only, never dialed.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
     }
   },
   "$defs": {
@@ -48,6 +55,38 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "connection": {
+      "title": "Connection Instance",
+      "description": "A document-scoped data connection instance. References a connection-type schema via $ref and carries opaque per-connection config validated against that type by the resolver (E4-S1). Secrets are referenced indirectly via secretRefs, never inlined.",
+      "type": "object",
+      "required": ["id", "$ref"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Connection identifier, unique within the document. Items bind to a connection by this id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "$ref": {
+          "description": "URI of the connection-type schema this connection is an instance of (e.g. https://lattice.dev/schemas/connections/static/1.0.0). Validated against the catalog by the resolver.",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "config": {
+          "description": "Per-connection configuration. Structure is defined by the referenced connection-type's schema; opaque at the dashboard level.",
+          "type": "object"
+        },
+        "secretRefs": {
+          "description": "Optional indirection from a config slot to a named secret resolved out-of-band. Maps a logical secret name to an opaque reference token; secret values are never inlined in the document.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

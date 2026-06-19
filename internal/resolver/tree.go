@@ -28,6 +28,12 @@ type ResolvedTree struct {
 
 	// Root is the resolved root instance. It is never nil in a successful result.
 	Root *ResolvedInstance `json:"root"`
+
+	// Connections are the document-scoped data connections, in declaration order,
+	// each validated against its connection-type schema (E4-S1). Connections are
+	// declared and validated only, never dialed (no live fetch). Empty/omitted
+	// when the document declares no connections.
+	Connections []*ResolvedConnection `json:"connections,omitempty"`
 }
 
 // ResolvedInstance is one node of the resolved tree: a single item instance with

@@ -32,7 +32,15 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
     formalizes relative-weight tracks + placement.
   - `table.schema.json` (`.../items/table/1.0.0`) — a static leaf type with
     opaque config; no data binding.
-- `connections/` — connection (data source) type schemas; populated in E4.
+- `connections/` — connection (data source) type schemas, referenced by
+  document-scoped connection instances (`{ id, $ref, config, secretRefs? }`).
+  Loaded into the same catalog as item types and validated the same way by the
+  resolver (E4-S1). Connections are declared and validated only — never dialed.
+  - `http.schema.json` (`.../connections/http/1.0.0`) — a query-style backend
+    (endpoint + request shape; credentials via `secretRefs`, never inlined).
+  - `static.schema.json` (`.../connections/static/1.0.0`) — an inline data
+    source whose rows live in `config`; lets the result-shape contract (E4-S3)
+    be exercised without a real backend.
 
 ## Examples
 

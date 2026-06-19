@@ -1,0 +1,20 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-bad-connection-config",
+    "title": "Bad Connection Config"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root"
+  },
+  "connections": [
+    {
+      "id": "broken-http",
+      "$ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+      "config": {
+        "method": "GET"
+      }
+    }
+  ]
+}

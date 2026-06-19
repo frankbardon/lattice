@@ -88,6 +88,19 @@ const (
 
 	// CONNECTION_INVALID indicates a connection declaration is malformed.
 	CONNECTION_INVALID Code = "CONNECTION_INVALID"
+
+	// CONNECTION_DUPLICATE_ID indicates two document-scoped connections share the
+	// same id. The offending connection path is reported in Details["path"].
+	CONNECTION_DUPLICATE_ID Code = "CONNECTION_DUPLICATE_ID"
+
+	// CONNECTION_TYPE_UNRESOLVED indicates a connection's $ref could not be
+	// resolved to any known connection-type schema in the catalog.
+	CONNECTION_TYPE_UNRESOLVED Code = "CONNECTION_TYPE_UNRESOLVED"
+
+	// CONNECTION_CONFIG_INVALID indicates a connection's config failed validation
+	// against its resolved connection-type schema. The offending connection path
+	// is reported in Details["path"].
+	CONNECTION_CONFIG_INVALID Code = "CONNECTION_CONFIG_INVALID"
 )
 
 // SERVE domain - The HTTP reference-renderer web layer (serve subcommand).
