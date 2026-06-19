@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 
 	"github.com/spf13/afero"
@@ -51,6 +52,75 @@ func TestFSLoadMissing(t *testing.T) {
 	_, err := s.Load("nope")
 	if !errors.HasCode(err, errors.STORAGE_NOT_FOUND) {
 		t.Fatalf("want STORAGE_NOT_FOUND, got %v", err)
+	}
+}
+
+func docFor(id string) []byte {
+	return []byte(`{"manifest":{"id":` + jsonString(id) + `},"root":{}}`)
+}
+
+// TestFSListExistsDelete exercises the E1-S2 operations: List enumerates stored
+// ids in stable order and reflects saves/deletes, Exists is a cheap presence
+// check, and Delete removes a document (missing id → STORAGE_NOT_FOUND).
+func TestFSListExistsDelete(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	s := NewFS(fs, "/store")
+
+	// List on an absent root is empty, not an error.
+	ids, err := s.List()
+	if err != nil {
+		t.Fatalf("List (empty): %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("List (empty): want none, got %v", ids)
+	}
+
+	for _, id := range []string{"gamma", "alpha", "beta"} {
+		if err := s.Save(docFor(id)); err != nil {
+			t.Fatalf("Save %q: %v", id, err)
+		}
+	}
+
+	ids, err = s.List()
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if want := []string{"alpha", "beta", "gamma"}; !reflect.DeepEqual(ids, want) {
+		t.Fatalf("List: want %v, got %v", want, ids)
+	}
+
+	// Exists is true for a stored id, false otherwise.
+	if ok, err := s.Exists("alpha"); err != nil || !ok {
+		t.Fatalf("Exists(alpha): want true, got %v (err %v)", ok, err)
+	}
+	if ok, err := s.Exists("nope"); err != nil || ok {
+		t.Fatalf("Exists(nope): want false, got %v (err %v)", ok, err)
+	}
+
+	// Delete removes the document; afterwards Exists is false, Load is
+	// not-found, and List no longer reports it.
+	if err := s.Delete("beta"); err != nil {
+		t.Fatalf("Delete(beta): %v", err)
+	}
+	if ok, _ := s.Exists("beta"); ok {
+		t.Fatalf("Exists(beta) after Delete: want false")
+	}
+	if _, err := s.Load("beta"); !errors.HasCode(err, errors.STORAGE_NOT_FOUND) {
+		t.Fatalf("Load(beta) after Delete: want STORAGE_NOT_FOUND, got %v", err)
+	}
+	ids, err = s.List()
+	if err != nil {
+		t.Fatalf("List after Delete: %v", err)
+	}
+	if want := []string{"alpha", "gamma"}; !reflect.DeepEqual(ids, want) {
+		t.Fatalf("List after Delete: want %v, got %v", want, ids)
+	}
+}
+
+func TestFSDeleteMissing(t *testing.T) {
+	s := NewFS(afero.NewMemMapFs(), "/store")
+	if err := s.Delete("nope"); !errors.HasCode(err, errors.STORAGE_NOT_FOUND) {
+		t.Fatalf("Delete(missing): want STORAGE_NOT_FOUND, got %v", err)
 	}
 }
 

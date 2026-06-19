@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/spf13/afero"
@@ -108,20 +109,71 @@ func (s *FS) Load(id string) ([]byte, error) {
 	return data, nil
 }
 
-// List returns the manifest ids of all stored documents. Implemented in E1-S2.
+// List returns the manifest ids of all stored documents, in sorted order. It
+// enumerates the *.json files directly under root and strips the extension to
+// recover each id. A missing root is treated as empty (no documents stored
+// yet), not an error.
 func (s *FS) List() ([]string, error) {
-	return nil, errors.NewCodedError(errors.STORAGE_INTERNAL, "List not implemented (E1-S2)")
+	entries, err := afero.ReadDir(s.fs, s.root)
+	if err != nil {
+		if isNotExist(s.fs, s.root) {
+			return []string{}, nil
+		}
+		return nil, errors.WrapCodedErrorWithDetails(err, errors.STORAGE_IO,
+			"failed listing storage root "+s.root, map[string]any{"path": s.root})
+	}
+
+	ids := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		// Skip the temp files written during an atomic Save and anything that
+		// is not a stored document.
+		if strings.HasPrefix(name, tempPrefix) || !strings.HasSuffix(name, fileExt) {
+			continue
+		}
+		ids = append(ids, strings.TrimSuffix(name, fileExt))
+	}
+	sort.Strings(ids)
+	return ids, nil
 }
 
-// Exists reports whether a document with the given id is stored. Implemented in
-// E1-S2.
+// Exists reports whether a document with the given id is stored. It is a cheap
+// existence check (a stat via afero.Exists) and does not read the document.
 func (s *FS) Exists(id string) (bool, error) {
-	return false, errors.NewCodedError(errors.STORAGE_INTERNAL, "Exists not implemented (E1-S2)")
+	if err := validateID(id); err != nil {
+		return false, err
+	}
+	ok, err := afero.Exists(s.fs, s.pathFor(id))
+	if err != nil {
+		return false, errors.WrapCodedErrorWithDetails(err, errors.STORAGE_IO,
+			"failed checking existence of document "+id, map[string]any{"id": id, "path": s.pathFor(id)})
+	}
+	return ok, nil
 }
 
-// Delete removes the stored document with the given id. Implemented in E1-S2.
+// Delete removes the stored document with the given id. A missing id returns a
+// STORAGE_NOT_FOUND coded error (the same code Load uses for an unknown id).
 func (s *FS) Delete(id string) error {
-	return errors.NewCodedError(errors.STORAGE_INTERNAL, "Delete not implemented (E1-S2)")
+	if err := validateID(id); err != nil {
+		return err
+	}
+	dest := s.pathFor(id)
+	if isNotExist(s.fs, dest) {
+		return errors.NewCodedErrorWithDetails(errors.STORAGE_NOT_FOUND,
+			"no stored document for id "+id, map[string]any{"id": id})
+	}
+	if err := s.fs.Remove(dest); err != nil {
+		if isNotExist(s.fs, dest) {
+			return errors.WrapCodedErrorWithDetails(err, errors.STORAGE_NOT_FOUND,
+				"no stored document for id "+id, map[string]any{"id": id})
+		}
+		return errors.WrapCodedErrorWithDetails(err, errors.STORAGE_IO,
+			"failed deleting document "+id, map[string]any{"id": id, "path": dest})
+	}
+	return nil
 }
 
 // pathFor maps a (validated) id to its on-disk path under root.
