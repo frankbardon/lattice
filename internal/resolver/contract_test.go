@@ -125,11 +125,11 @@ func TestResolveContractUnit(t *testing.T) {
 			wantCode:   errors.RESULT_SHAPE_INVALID,
 		},
 		{
-			name:     "malformed expectedResult fails fast",
-			expected: malformed,
-			connType: "static",
+			name:       "malformed expectedResult fails fast",
+			expected:   malformed,
+			connType:   "static",
 			connConfig: map[string]any{"rows": conformingRows},
-			wantCode: errors.CONTRACT_INVALID,
+			wantCode:   errors.CONTRACT_INVALID,
 		},
 		{
 			name:     "bound item type declares no expectedResult",

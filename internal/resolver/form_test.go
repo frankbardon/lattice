@@ -293,9 +293,9 @@ func TestResolveFormGrid(t *testing.T) {
 			},
 		},
 		{
-			name:     "missing grid and placement default to a single full cell",
-			layout:   `{"mode": "grid"}`,
-			children: widgetChild("text-input", "region"),
+			name:        "missing grid and placement default to a single full cell",
+			layout:      `{"mode": "grid"}`,
+			children:    widgetChild("text-input", "region"),
 			wantColumns: []float64{1.0},
 			wantRows:    []float64{1.0},
 			wantGap:     0,
