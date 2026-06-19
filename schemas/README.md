@@ -50,6 +50,14 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
     `${var}`/`$var` consumers update live. The resolver enforces widget↔variable
     type compatibility (enum widget bound to a non-enum variable →
     `WIDGET_TYPE_MISMATCH`).
+- `theme/` — the renderer-agnostic theme vocabulary.
+  - `theme.schema.json` (`.../theme/1.0.0`) — presentation choices expressed as
+    closed, enum-constrained **semantic tokens** (e.g. `emphasis: none|low|high`,
+    `spacing: compact|cosy|roomy`). No px, no hex, nothing HTML/CSS/medium-specific.
+    Tokens are ordinary `enum` fields compatible with the configurable-surface
+    mechanism. Referenced by the document default theme (E2-S2) and the block
+    wrapper's `theme` override (E2-S3); kept small and structured (base tokens +
+    room for per-type extension).
 - `connections/` — connection (data source) type schemas, referenced by
   document-scoped connection instances (`{ id, $ref, config, secretRefs? }`).
   Loaded into the same catalog as item types and validated the same way by the

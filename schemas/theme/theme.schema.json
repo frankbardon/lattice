@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/theme/1.0.0",
+  "title": "Theme",
+  "description": "A renderer-agnostic theme: a set of presentation CHOICES expressed purely as SEMANTIC TOKENS. Every token is a closed, enum-constrained vocabulary of meaning (e.g. `emphasis: none|low|high`, `spacing: compact|cosy|roomy`) — never a medium-specific value. A theme carries NO pixels, hex colours, fonts, CSS, or any HTML/medium detail; a renderer is free to map each semantic choice onto whatever concrete styling its medium uses. This schema is the shared theme vocabulary referenced by the document default theme (E2-S2) and a block wrapper's per-block theme override (E2-S3). Tokens are ordinary scalar fields drawn from the variable type set (each an `enum` over a fixed value list), so a theme is fully describable through the existing configurable-surface mechanism with no special chrome subsystem. The set is intentionally small and structured as a `base` group of cross-cutting tokens (`$defs/baseTokens`) that any future per-type token group can extend, so the vocabulary can grow without breaking existing themes.",
+  "type": "object",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$ref": "#/$defs/baseTokens"
+    }
+  ],
+  "$defs": {
+    "baseTokens": {
+      "title": "Base Theme Tokens",
+      "description": "The cross-cutting semantic tokens that apply uniformly to whatever a theme styles, independent of any particular item type. Each token is optional; an omitted token means \"inherit / renderer default\". This object is the extension point for the vocabulary: future per-type token groups compose alongside these base tokens rather than redefining them.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "emphasis": {
+          "title": "Emphasis",
+          "description": "How prominent the styled element should appear relative to its surroundings. `none` recedes, `low` is quiet, `high` is foregrounded. Renderer-agnostic: maps to whatever weight/contrast/size cue a medium uses.",
+          "type": "string",
+          "enum": ["none", "low", "high"]
+        },
+        "spacing": {
+          "title": "Spacing",
+          "description": "The relative amount of internal/outer breathing room. `compact` is tight, `cosy` is balanced, `roomy` is generous. No absolute units — a renderer chooses concrete distances.",
+          "type": "string",
+          "enum": ["compact", "cosy", "roomy"]
+        },
+        "density": {
+          "title": "Density",
+          "description": "How tightly repeated/listed content is packed. `comfortable` favours legibility, `compact` favours fitting more in view. Distinct from `spacing`, which governs surrounding room rather than per-item packing.",
+          "type": "string",
+          "enum": ["comfortable", "compact"]
+        },
+        "tone": {
+          "title": "Tone",
+          "description": "The semantic colour intent, expressed by MEANING rather than any colour value. `neutral` is the default, `accent` highlights, and `positive`/`caution`/`critical` carry status meaning. A renderer maps each to its own palette; no hex is implied.",
+          "type": "string",
+          "enum": ["neutral", "accent", "positive", "caution", "critical"]
+        },
+        "radius": {
+          "title": "Corner Radius",
+          "description": "How softened the corners of the styled surface are. `none` is square, `subtle` is gently eased, `rounded` is pronounced. No pixel radius — a renderer picks concrete values.",
+          "type": "string",
+          "enum": ["none", "subtle", "rounded"]
+        },
+        "border": {
+          "title": "Border Weight",
+          "description": "How present a separating edge is around the styled surface. `none` omits it, `hairline` is the thinnest visible divider, `standard` is a normal edge. No widths or colours — a renderer decides.",
+          "type": "string",
+          "enum": ["none", "hairline", "standard"]
+        }
+      }
+    }
+  }
+}

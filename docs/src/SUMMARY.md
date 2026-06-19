@@ -17,6 +17,7 @@
 - [Widgets](format/widgets.md)
 - [Forms & Widget Placement](format/forms.md)
 - [Configurable Surfaces](format/configurable.md)
+- [Theme & Semantic Tokens](format/theme.md)
 - [Runtime Overrides](format/overrides.md)
 - [Configurators](format/configurator.md)
 - [Connections](format/connections.md)
