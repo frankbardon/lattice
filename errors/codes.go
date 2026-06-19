@@ -85,6 +85,13 @@ const (
 	// its own value), so no evaluation order exists. The offending path and the
 	// participating names are reported in Details.
 	VAR_CYCLE Code = "VAR_CYCLE"
+
+	// VAR_OVERRIDE_INVALID indicates a runtime override ADDRESS is malformed: an
+	// empty address, or a node+field address ("<node-id>.<field>") missing its
+	// node id or field path. The offending address is reported in
+	// Details["address"]. (Whether the addressed variable/node exists is decided
+	// later by application, not by address parsing.)
+	VAR_OVERRIDE_INVALID Code = "VAR_OVERRIDE_INVALID"
 )
 
 // CONNECTION domain - Connection (data source) declaration and binding.

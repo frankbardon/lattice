@@ -83,15 +83,18 @@ func (r *Resolver) Resolve(docPath string) (*ResolvedTree, error) {
 	return r.ResolveWithValues(docPath, nil)
 }
 
-// ResolveWithValues is Resolve with E3-S4 runtime overrides: a map of EXTERNAL
-// variable values (from a dropdown change or URL query params) applied as
-// override > default to settable variables of those names. Computed variables
-// remain computed. A nil/empty map is identical to Resolve, so the resolved-tree
-// contract is unchanged; the only difference is which value a settable variable
-// carries. Passing an override for an undeclared name is a no-op (no scope
-// declares it); a bad override value fails fast with the same VAR_* codes a bad
-// default would.
-func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrides) (*ResolvedTree, error) {
+// ResolveWithValues is Resolve with E4-S1 runtime overrides: a UNIFIED,
+// addressable override set whose entries are keyed by ADDRESS. A bare name
+// ("region") addresses a settable variable (the E3-S4 path); a "<node-id>.<field>"
+// address targets a node config field (carried for E4-S2). Variable-addressed
+// values are applied as override > default to settable variables of those names;
+// computed variables remain computed. A nil/empty set is identical to Resolve, so
+// the resolved-tree contract is unchanged; the only difference is which value a
+// settable variable carries. A variable override for an undeclared name is a
+// no-op (no scope declares it); a bad override value fails fast with the same
+// VAR_* codes a bad default would; a malformed address fails fast with
+// VAR_OVERRIDE_INVALID.
+func (r *Resolver) ResolveWithValues(docPath string, overrides variables.OverrideSet) (*ResolvedTree, error) {
 	data, err := afero.ReadFile(r.fs, docPath)
 	if err != nil {
 		return nil, errors.WrapCodedError(err, errors.RESOLVE_IO, "failed reading dashboard document "+docPath)
@@ -101,7 +104,20 @@ func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrid
 
 // resolveBytes runs the full pipeline against raw document bytes. Split out so
 // tests can drive resolution without touching the filesystem for the document.
-func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.Overrides) (*ResolvedTree, error) {
+func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.OverrideSet) (*ResolvedTree, error) {
+	// E4-S1: classify the unified override set by address. The variable subset
+	// (bare names) feeds the scope walk exactly as the E3-S4 Overrides map did;
+	// the node+field subset ("<node-id>.<field>") is parsed and carried for E4-S2
+	// (config-override application is the next story — here it is a no-op beyond
+	// validating the address round-trips). A malformed address fails fast.
+	varOverrides, err := overrides.VariableOverrides()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := overrides.NodeFieldOverrides(); err != nil {
+		return nil, err
+	}
+
 	// Pass 1: structural validation of the whole document against the dashboard
 	// schema. We validate the raw decoded JSON value (not the typed Document)
 	// so the schema sees the document exactly as authored.
@@ -121,7 +137,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// DURING Pass 2 because config interpolation ($var / ${...}) runs before that
 	// node's config is validated — an interpolated config carries concrete values
 	// that satisfy the item-type schema, whereas a raw {"$var":…} node would not.
-	docEnv, rawRoot, err := buildVariableModel(data, overrides)
+	docEnv, rawRoot, err := buildVariableModel(data, varOverrides)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +145,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// Pass 2 + assembly: per node, layer variables, interpolate config, validate
 	// the interpolated config, enforce the container-only-children rule, and build
 	// the resolved node, all in one walk.
-	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, overrides)
+	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, varOverrides)
 	if err != nil {
 		return nil, err
 	}
