@@ -84,9 +84,9 @@ func TestParseOverrideTargetMalformed(t *testing.T) {
 // node+field-addressed entries are excluded.
 func TestOverrideSetVariableOverrides(t *testing.T) {
 	set := OverrideSet{
-		"region":        "apac",
-		"gap":           "4",
-		"chart-1.title": "Sales",
+		"region":         "apac",
+		"gap":            "4",
+		"chart-1.title":  "Sales",
 		"panel.grid.gap": 8,
 	}
 	vars, err := set.VariableOverrides()

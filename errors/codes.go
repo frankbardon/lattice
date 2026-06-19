@@ -304,6 +304,42 @@ const (
 	GRAMMAR_REGION_THEME_FORBIDDEN Code = "GRAMMAR_REGION_THEME_FORBIDDEN"
 )
 
+// STORAGE domain - Whole-document persistence backends (storage-backends E1):
+// the dumb blob store that loads and saves dashboard documents by manifest.id.
+// Backends (filesystem, git) share these codes; the store is upstream of the
+// resolver and carries no JSON Patch awareness.
+const (
+	// STORAGE_ID_INVALID indicates a document's manifest.id is not usable as an
+	// addressing key: it is absent, empty/whitespace-only, contains a path
+	// separator, or is a relative path element (".", ".."). The id is the
+	// filename stem (<id>.json), so it must be filename-safe. The offending id,
+	// when present, is reported in Details["id"].
+	STORAGE_ID_INVALID Code = "STORAGE_ID_INVALID"
+
+	// STORAGE_NOT_FOUND indicates a Load addressed an id that no stored document
+	// matches. The requested id is reported in Details["id"].
+	STORAGE_NOT_FOUND Code = "STORAGE_NOT_FOUND"
+
+	// STORAGE_IO indicates an I/O failure while reading or writing a document
+	// (open, write, rename, stat, remove). The offending id and/or path are
+	// reported in Details when known.
+	STORAGE_IO Code = "STORAGE_IO"
+
+	// STORAGE_INVALID indicates a document could not be parsed far enough to
+	// extract its manifest.id during Save (malformed JSON or a missing manifest
+	// object).
+	STORAGE_INVALID Code = "STORAGE_INVALID"
+
+	// STORAGE_INTERNAL indicates an unexpected error in a storage backend, or a
+	// backend operation not yet implemented in the current slice.
+	STORAGE_INTERNAL Code = "STORAGE_INTERNAL"
+
+	// STORAGE_BACKEND_UNKNOWN indicates the requested backend kind (the --store
+	// flag value) names no known backend. The recognized kinds are "fs" and
+	// "git". The offending value is reported in Details["store"].
+	STORAGE_BACKEND_UNKNOWN Code = "STORAGE_BACKEND_UNKNOWN"
+)
+
 // CONFIGURATOR domain - The configurator item type (E5): an item that renders an
 // editor for another item in the same document, referenced by its stable id.
 const (

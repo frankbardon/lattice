@@ -12,6 +12,7 @@ import (
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
+	"github.com/frankbardon/lattice/internal/storage"
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
@@ -24,6 +25,53 @@ const defaultSchemasDir = "schemas"
 // schemas directory; it is loaded for the structural (Pass 1) validation.
 const dashboardSchemaFile = "dashboard.schema.json"
 
+// defaultStore is the storage backend selected when --store is not supplied. It
+// matches the existing direct-path behavior: a filesystem backend.
+const defaultStore = string(storage.BackendFS)
+
+// defaultStoreRoot is the storage root used when --root is not supplied. It is
+// the process working directory (config is via flags, not config files).
+const defaultStoreRoot = "."
+
+// storeFlags returns the --store/--root flags shared by the resolve and serve
+// commands so backend selection is declared in one place.
+func storeFlags() []cli.Flag {
+	return []cli.Flag{
+		&cli.StringFlag{
+			Name:  "store",
+			Usage: "Storage backend to construct: fs or git",
+			Value: defaultStore,
+		},
+		&cli.StringFlag{
+			Name:  "root",
+			Usage: "Root directory for the storage backend",
+			Value: defaultStoreRoot,
+		},
+	}
+}
+
+// newStore constructs the storage backend selected by the --store/--root flags
+// over the real filesystem. Backend construction lives in the storage factory;
+// this is the thin CLI adapter that reads the flags and reports an unknown
+// backend as a coded error.
+//
+// It is called LAZILY — only when the positional argument is to be treated as a
+// manifest.id (see backendConfigured) — so a plain path-mode resolve never
+// constructs a backend and the git backend's `git init` side-effect (E3-S1
+// followup) is incurred only when actually loading by id.
+func newStore(cmd *cli.Command) (storage.Store, error) {
+	return storage.New(storage.Backend(cmd.String("store")), afero.NewOsFs(), cmd.String("root"))
+}
+
+// backendConfigured reports whether the user explicitly selected a storage
+// backend by setting --store or --root. When true, the positional argument is a
+// manifest.id loaded through the backend; when false, it is a filesystem path
+// resolved directly (the pre-existing, default behavior that keeps every
+// `resolve <path>` invocation, example, and golden test working unchanged).
+func backendConfigured(cmd *cli.Command) bool {
+	return cmd.IsSet("store") || cmd.IsSet("root")
+}
+
 // ResolveCommand returns the `resolve` subcommand.
 //
 // It runs the two-pass resolver against the given document and prints the
@@ -35,22 +83,34 @@ func ResolveCommand() *cli.Command {
 		Name:      "resolve",
 		Usage:     "Resolve and validate a dashboard document, emitting the resolved tree",
 		ArgsUsage: "<document>",
-		Flags: []cli.Flag{
+		Flags: append([]cli.Flag{
 			&cli.StringFlag{
 				Name:  "schemas",
 				Usage: "Directory holding the dashboard schema and item-type catalog",
 				Value: defaultSchemasDir,
 			},
-		},
+		}, storeFlags()...),
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			asJSON := cmd.Bool("json")
-			docPath := cmd.Args().First()
-			if docPath == "" {
+			arg := cmd.Args().First()
+			if arg == "" {
 				return reportError(cmd, asJSON, errors.NewCodedError(errors.RESOLVE_INVALID,
-					"resolve requires a dashboard document path argument"))
+					"resolve requires a dashboard document path or manifest id argument"))
 			}
 
-			tree, err := runResolve(cmd.String("schemas"), docPath)
+			schemasDir := cmd.String("schemas")
+
+			var tree *resolver.ResolvedTree
+			var err error
+			if backendConfigured(cmd) {
+				// The user selected a backend (--store/--root): the argument is a
+				// manifest.id loaded through the store, then resolved from its bytes.
+				tree, err = runResolveByID(cmd, schemasDir, arg, nil)
+			} else {
+				// Default, path-friendly behavior: the argument is a filesystem path
+				// resolved directly. No backend is constructed.
+				tree, err = runResolve(schemasDir, arg)
+			}
 			if err != nil {
 				return reportError(cmd, asJSON, err)
 			}
@@ -78,6 +138,51 @@ func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
 // field, carried for E4-S2). A nil/empty overrides map is identical to
 // runResolve.
 func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
+	res, err := newResolver(schemasDir)
+	if err != nil {
+		return nil, err
+	}
+	return res.ResolveWithValues(docPath, variables.OverrideSet(overrides))
+}
+
+// runResolveByID loads the document addressed by id through the configured
+// backend, then resolves its bytes with the given overrides. It is the
+// backend-addressed load path: the store is constructed lazily here (only now
+// that we know the argument is a manifest.id), Load(id) yields the whole-document
+// bytes, and ResolveBytesWithValues runs the identical two-pass pipeline. A
+// not-found id surfaces as the store's STORAGE_NOT_FOUND coded error, reported
+// through the normal CLI error path. id is also used as the error source.
+func runResolveByID(cmd *cli.Command, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
+	store, err := newStore(cmd)
+	if err != nil {
+		return nil, err
+	}
+	return resolveBytesByID(store, schemasDir, id, overrides)
+}
+
+// resolveBytesByID loads the document addressed by id through store, then
+// resolves its bytes with the given overrides. It is the shared backend-load
+// step: resolve constructs the store per invocation (runResolveByID), serve
+// constructs it once and reuses it across per-request resolves. A not-found id
+// surfaces as the store's STORAGE_NOT_FOUND coded error. id doubles as the error
+// source.
+func resolveBytesByID(store storage.Store, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
+	data, err := store.Load(id)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := newResolver(schemasDir)
+	if err != nil {
+		return nil, err
+	}
+	return res.ResolveBytesWithValues(data, id, variables.OverrideSet(overrides))
+}
+
+// newResolver builds a resolver over the on-disk schema catalog in schemasDir.
+// It is the shared construction step for both the path-addressed and
+// id-addressed resolve paths.
+func newResolver(schemasDir string) (*resolver.Resolver, error) {
 	fs := afero.NewOsFs()
 
 	dashSch, err := loadDashboardSchema(fs, schemasDir)
@@ -85,11 +190,7 @@ func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) 
 		return nil, err
 	}
 
-	res, err := resolver.New(fs, dashSch, []string{schemasDir})
-	if err != nil {
-		return nil, err
-	}
-	return res.ResolveWithValues(docPath, variables.OverrideSet(overrides))
+	return resolver.New(fs, dashSch, []string{schemasDir})
 }
 
 // loadDashboardSchema reads and parses the dashboard document schema from
