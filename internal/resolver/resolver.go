@@ -93,10 +93,17 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 		return nil, err
 	}
 
-	return &ResolvedTree{
+	tree := &ResolvedTree{
 		Manifest: g.Document.Manifest,
 		Root:     root,
-	}, nil
+	}
+
+	// E3-S1: compute and attach the tree-scoped variable environment per node.
+	if err := attachVariableEnvironments(data, tree); err != nil {
+		return nil, err
+	}
+
+	return tree, nil
 }
 
 // validateDocument runs Pass 1: the whole document validates against the

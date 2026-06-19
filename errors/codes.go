@@ -68,6 +68,17 @@ const (
 
 	// VAR_EXPR indicates a computed-variable expression failed to evaluate.
 	VAR_EXPR Code = "VAR_EXPR"
+
+	// VAR_DECLARATION_INVALID indicates a variable declaration is malformed: a
+	// missing name, an unknown type, or a duplicate name within one scope. The
+	// offending declaration path is reported in Details["path"].
+	VAR_DECLARATION_INVALID Code = "VAR_DECLARATION_INVALID"
+
+	// VAR_OPTIONS_INVALID indicates an enum variable's options are missing or
+	// malformed, options were declared on a non-enum variable, or an enum default
+	// is not one of the declared options. The offending path is in
+	// Details["path"].
+	VAR_OPTIONS_INVALID Code = "VAR_OPTIONS_INVALID"
 )
 
 // CONNECTION domain - Connection (data source) declaration and binding.

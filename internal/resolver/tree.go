@@ -1,6 +1,9 @@
 package resolver
 
-import "github.com/frankbardon/lattice/internal/layout"
+import (
+	"github.com/frankbardon/lattice/internal/layout"
+	"github.com/frankbardon/lattice/internal/variables"
+)
 
 // This file defines the RESOLVED TREE: the durable, JSON-serializable contract
 // that E1-S4 emits and that three downstream epics consume unchanged —
@@ -69,6 +72,14 @@ type ResolvedInstance struct {
 	// (never nil-vs-non-nil significant) for non-container types, since the
 	// container-only-children rule is enforced before the tree is assembled.
 	Children []*ResolvedInstance `json:"children,omitempty"`
+
+	// VarEnv is the variable environment VISIBLE at this node (E3-S1): every
+	// variable name in scope mapped to its shadowing-winner declaration plus the
+	// path of the node that declared it. Computed by a dedicated pass after the
+	// tree is assembled (see variables.go). Omitted when no variables are in
+	// scope. Each entry's DeclaredAt exposes var->node visibility so downstream
+	// consumers and a future dependency tracker can scope re-resolution.
+	VarEnv variables.Environment `json:"varEnv,omitempty"`
 }
 
 // ResolvedTypeRef is the resolved identity of an item type as referenced by an

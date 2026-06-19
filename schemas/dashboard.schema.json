@@ -13,9 +13,45 @@
     "root": {
       "$ref": "#/$defs/instance",
       "description": "The root item instance. Conventionally a container, but the container-only-children rule is enforced by the resolver (E1-S4), not the schema."
+    },
+    "variables": {
+      "description": "Document-scope variable declarations. Visible to every node unless shadowed by a same-named declaration on a descendant container (E3-S1).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/varDeclaration"
+      }
     }
   },
   "$defs": {
+    "varDeclaration": {
+      "title": "Variable Declaration",
+      "description": "A typed variable declaration { name, type, default?, options? }. Declarable at document scope and on container instances; resolution walks the tree with inner-shadows-outer semantics (E3-S1).",
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Variable identifier, unique within its declaring scope.",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "description": "Declared value type.",
+          "type": "string",
+          "enum": ["string", "number", "integer", "boolean", "enum", "array"]
+        },
+        "default": {
+          "description": "Optional default value; validated against type by the resolver (E3-S1)."
+        },
+        "options": {
+          "description": "Permitted values for enum-typed variables. Required for enum, forbidden otherwise; enforced by the resolver (E3-S1).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "manifest": {
       "title": "Dashboard Manifest",
       "description": "Document-level metadata describing the dashboard.",
@@ -79,6 +115,13 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/instance"
+          }
+        },
+        "variables": {
+          "description": "Optional variable declarations scoped to this instance and its descendants. Meaningful on container instances; an inner declaration shadows a same-named outer one (E3-S1).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/varDeclaration"
           }
         }
       }
