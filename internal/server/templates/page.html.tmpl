@@ -297,6 +297,69 @@
             + this.controlLabelHTML(cfg, varName) + inner + '</label>';
         },
 
+        // generatedControlHTML renders a single auto-generated configurator
+        // widget (E5-S2). Unlike an authored widget — which binds a document
+        // variable via data-var=<name> — a generated widget edits a TARGET item's
+        // config field, so it posts a "<target-id>.<field>" config override
+        // (E4-S2). The override address is carried on the resolved widget
+        // (w.target + w.field); the renderer dispatches on the widget item-type
+        // (w.widget) the same way authored controls do. The control's value is not
+        // pre-seeded — config overrides are ephemeral and start unset — so each
+        // control begins at its native empty/default and posts on change.
+        generatedControlHTML(w) {
+          const addr = String(w.target || '') + '.' + String(w.field || '');
+          const dataVar = ' data-var="' + this.escapeHTML(addr) + '"';
+          const labelText = w.label ? w.label : w.field;
+          const label = '<span class="widget-label">' + this.escapeHTML(labelText) + '</span>';
+          let inner = '';
+          switch (w.widget) {
+            case 'select': {
+              // Enum fields carry their option set in the surface constraints.
+              const c = w.constraints || {};
+              const options = Array.isArray(c.enum) ? c.enum : [];
+              let opts = '';
+              for (const o of options) {
+                const val = String(o);
+                opts += '<option value="' + this.escapeHTML(val) + '">'
+                  + this.escapeHTML(val) + '</option>';
+              }
+              inner = '<select class="widget-select"' + dataVar + '>' + opts + '</select>';
+              break;
+            }
+            case 'multiselect':
+            case 'text-input': {
+              inner = '<input type="text" class="widget-input"' + dataVar + '>';
+              break;
+            }
+            case 'number-field': {
+              inner = '<input type="number" class="widget-input"' + dataVar + '>';
+              break;
+            }
+            case 'toggle': {
+              inner = '<input type="checkbox" class="widget-checkbox"' + dataVar + '>';
+              break;
+            }
+            default: {
+              inner = '<input type="text" class="widget-input"' + dataVar + '>';
+              break;
+            }
+          }
+          return '<label class="widget-control widget-generated">' + label + inner + '</label>';
+        },
+
+        // generatedHTML renders a configurator's whole auto-generated editor form
+        // (E5-S2): one control per generated widget, laid out in the form flow
+        // order the resolver computed. Returns '' when the node carries no
+        // generated form (a non-configurator, or a configurator whose target
+        // declares no configurable surface).
+        generatedHTML(node) {
+          const gen = node.generated;
+          if (!gen || !Array.isArray(gen.widgets) || gen.widgets.length === 0) { return ''; }
+          let controls = '';
+          for (const w of gen.widgets) { controls += this.generatedControlHTML(w); }
+          return '<div class="node-generated-form">' + controls + '</div>';
+        },
+
         renderNode(node, placementStyle) {
           const label = this.escapeHTML(this.typeLabel(node));
           const summary = this.configSummary(node);
@@ -326,12 +389,20 @@
               + '</div></div>';
           }
 
+          // A leaf is either an authored variable widget (controlHTML, posts a
+          // bare-name variable override) OR a configurator carrying an
+          // auto-generated editor form (generatedHTML, each control posts a
+          // "<target-id>.<field>" config override). Both flow through the same
+          // delegated @change on .sketch-root via their data-var address.
           const control = this.controlHTML(node);
-          const leafClass = control ? 'node node-leaf node-input' : 'node node-leaf';
+          const generated = this.generatedHTML(node);
+          const interactive = control || generated;
+          const leafClass = interactive ? 'node node-leaf node-input' : 'node node-leaf';
           return '<div class="' + leafClass + '"' + slotStyle + '>'
             + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML + '</div>'
             + summaryHTML
             + control
+            + generated
             + '</div>';
         }
       };

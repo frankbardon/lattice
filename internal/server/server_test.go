@@ -126,6 +126,36 @@ func TestPageRendersWidgetControls(t *testing.T) {
 	}
 }
 
+// TestPageRendersConfiguratorControls asserts the served page carries the
+// renderer for a configurator's auto-generated editor form (E5-S2): the
+// generatedHTML/generatedControlHTML functions that walk node.generated.widgets
+// and emit one data-var="<target-id>.<field>" control per widget. Those controls
+// reuse the same delegated @change path authored widgets use, so a change posts a
+// config override that re-resolves the target.
+func TestPageRendersConfiguratorControls(t *testing.T) {
+	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+
+	for _, want := range []string{
+		"generatedHTML(",
+		"generatedControlHTML(",
+		"node.generated",
+		"w.target",
+		"w.field",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing configurator-control markup %q", want)
+		}
+	}
+}
+
 func TestTreeEndpointReturnsJSON(t *testing.T) {
 	h := newTestServer(t, func(map[string]any) (*resolver.ResolvedTree, error) { return okTree(), nil })
 
