@@ -20,7 +20,7 @@ const docWithVars = `{
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {"grid": {"direction": "row", "columns": 1}},
+    "config": {"grid": {"columns": [1]}},
     "variables": [
       {"name": "region", "type": "string", "default": "eu"}
     ],
@@ -108,7 +108,7 @@ func TestResolveVariableErrors(t *testing.T) {
 			doc: `{
               "manifest": {"formatVersion": "1.0.0", "id": "x", "title": "X"},
               "variables": [{"name": "n", "type": "integer", "default": "nope"}],
-              "root": {"$ref": "https://lattice.dev/schemas/items/container/1.0.0", "id": "r", "config": {"grid": {"direction": "row", "columns": 1}}}
+              "root": {"$ref": "https://lattice.dev/schemas/items/container/1.0.0", "id": "r", "config": {"grid": {"columns": [1]}}}
             }`,
 			wantCode: errors.VAR_TYPE,
 		},
@@ -116,7 +116,7 @@ func TestResolveVariableErrors(t *testing.T) {
 			name: "enum without options on instance",
 			doc: `{
               "manifest": {"formatVersion": "1.0.0", "id": "x", "title": "X"},
-              "root": {"$ref": "https://lattice.dev/schemas/items/container/1.0.0", "id": "r", "config": {"grid": {"direction": "row", "columns": 1}}, "variables": [{"name": "e", "type": "enum"}]}
+              "root": {"$ref": "https://lattice.dev/schemas/items/container/1.0.0", "id": "r", "config": {"grid": {"columns": [1]}}, "variables": [{"name": "e", "type": "enum"}]}
             }`,
 			wantCode: errors.VAR_OPTIONS_INVALID,
 		},

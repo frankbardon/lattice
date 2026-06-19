@@ -9,7 +9,7 @@
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
     "config": {
-      "grid": { "direction": "row", "columns": 1 }
+      "grid": { "columns": [1] }
     }
   },
   "connections": [
