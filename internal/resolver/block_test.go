@@ -17,9 +17,14 @@ import (
 //   - the inner content resolves IDENTICALLY to how it resolves unwrapped,
 //   - a wrapper carries its own concerns (id/title/visibility) + configurable
 //     surface, and does NOT duplicate the inner item inside its own config,
-//   - a wrapper missing `id` fails fast (WRAPPER_ID_MISSING, path named), and
+//   - a wrapper missing `id` fails fast (WRAPPER_ID_MISSING, path named),
 //   - a wrapper not wrapping exactly one content item fails fast
-//     (WRAPPER_CHILD_COUNT_INVALID, path named).
+//     (WRAPPER_CHILD_COUNT_INVALID, path named), and
+//   - a per-wrapper theme override (E2-S3) is validated against the shared theme
+//     vocabulary and emitted SIDE-BY-SIDE with the document default theme: a legal
+//     partial override is attached verbatim, an out-of-vocabulary token/value is
+//     rejected fail-fast (RESOLVE_CONFIG_INVALID, path named), and the resolver
+//     performs NO cascade/merge (no effective/computed theme is produced).
 
 // blockWrapDoc wraps a single table in a block. The block carries its own
 // concerns (id/title/visibility) and a theme override; the table is its content.
@@ -36,7 +41,7 @@ const blockWrapDoc = `{
           "id": "revenue-block",
           "title": "Revenue",
           "visibility": true,
-          "theme": { "accent": "blue" },
+          "theme": { "tone": "accent" },
           "content": {
             "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
             "id": "revenue",
@@ -234,6 +239,155 @@ func TestBlockMissingContentFailsFast(t *testing.T) {
 	}
 	if got, _ := ce.Details["path"].(string); got != "root.children[0]" {
 		t.Errorf("error path = %q, want root.children[0]", got)
+	}
+}
+
+// blockThemeOverrideDoc declares a document DEFAULT theme and a block wrapper with
+// a PARTIAL theme override (only some tokens). Used to assert the override is
+// accepted, attached to the wrapper node, and emitted SIDE-BY-SIDE with the
+// document default — with NO merge.
+const blockThemeOverrideDoc = `{
+  "manifest": { "formatVersion": "1.0.0", "id": "block-theme", "title": "Block Theme" },
+  "theme": { "emphasis": "low", "spacing": "cosy" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+        "config": {
+          "id": "themed-block",
+          "theme": { "emphasis": "high", "tone": "accent" },
+          "content": {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "t",
+            "config": { "columns": [{ "header": "Name" }] }
+          }
+        }
+      }
+    ]
+  }
+}`
+
+// TestBlockThemeOverrideAcceptedAndAttached asserts a legal per-wrapper theme
+// override (a PARTIAL subset of the shared vocabulary, overriding the document
+// default's choices) is accepted and attached verbatim to the resolved wrapper
+// node (E2-S3).
+func TestBlockThemeOverrideAcceptedAndAttached(t *testing.T) {
+	tree := resolveDoc(t, blockThemeOverrideDoc)
+
+	wrapper := tree.Root.Children[0]
+	override, ok := wrapper.Config["theme"].(map[string]any)
+	if !ok {
+		t.Fatalf("wrapper theme override missing/!object: %v", wrapper.Config["theme"])
+	}
+	// A partial override (only two of six tokens) validates and is attached verbatim.
+	if got, _ := override["emphasis"].(string); got != "high" {
+		t.Errorf("override emphasis = %q, want high", got)
+	}
+	if got, _ := override["tone"].(string); got != "accent" {
+		t.Errorf("override tone = %q, want accent", got)
+	}
+	if len(override) != 2 {
+		t.Errorf("override has %d tokens, want 2 (partial override must not be padded): %v", len(override), override)
+	}
+}
+
+// TestBlockThemeOverrideSideBySideNoMerge is the CRITICAL no-merge assertion: the
+// resolved tree exposes the document default theme AND the wrapper override
+// SEPARATELY, side-by-side. The resolver performs NO cascade/merge — it produces
+// no effective/computed theme. We assert each layer is verbatim and untouched by
+// the other (the wrapper override does NOT absorb the default's `spacing`, and the
+// default does NOT absorb the override's `tone`).
+func TestBlockThemeOverrideSideBySideNoMerge(t *testing.T) {
+	tree := resolveDoc(t, blockThemeOverrideDoc)
+
+	// Layer 1: document default theme, verbatim, untouched by the override.
+	if tree.DefaultTheme == nil {
+		t.Fatal("DefaultTheme is nil; the document default layer must be exposed")
+	}
+	wantDefault := map[string]any{"emphasis": "low", "spacing": "cosy"}
+	if !reflect.DeepEqual(tree.DefaultTheme, wantDefault) {
+		t.Errorf("DefaultTheme = %v, want %v (must be verbatim, no merge from override)", tree.DefaultTheme, wantDefault)
+	}
+
+	// Layer 2: wrapper override, verbatim, untouched by the default.
+	wrapper := tree.Root.Children[0]
+	override, _ := wrapper.Config["theme"].(map[string]any)
+	wantOverride := map[string]any{"emphasis": "high", "tone": "accent"}
+	if !reflect.DeepEqual(override, wantOverride) {
+		t.Errorf("wrapper override = %v, want %v (must be verbatim, no merge from default)", override, wantOverride)
+	}
+
+	// No cascade: the override did NOT inherit the default's `spacing`, and the
+	// default did NOT absorb the override's `tone`. The two layers are independent.
+	if _, leaked := override["spacing"]; leaked {
+		t.Error("wrapper override leaked the default's `spacing`; resolver must NOT merge layers")
+	}
+	if _, leaked := tree.DefaultTheme["tone"]; leaked {
+		t.Error("DefaultTheme leaked the override's `tone`; resolver must NOT merge layers")
+	}
+
+	// No effective/computed theme: the resolved contract carries only the default
+	// layer and per-node overrides — there is no merged theme field anywhere.
+	if got := wrapper.Config["effectiveTheme"]; got != nil {
+		t.Errorf("wrapper carries an effectiveTheme (%v); the resolver must produce NO merged theme", got)
+	}
+}
+
+// TestBlockThemeOverrideIllegalTokenRejected asserts an override carrying an
+// out-of-vocabulary token (or value) fails fast with a coded, path-named error.
+// The block schema $refs the shared theme vocabulary, whose tokens are a closed,
+// enum-constrained set with additionalProperties:false; the wrapper's config
+// validation pass therefore rejects it via RESOLVE_CONFIG_INVALID (the same
+// schema-validation path E2-S2 reuses, not a new bespoke code).
+func TestBlockThemeOverrideIllegalTokenRejected(t *testing.T) {
+	cases := []struct {
+		name  string
+		theme string
+	}{
+		{"unknown token", `{ "accent": "blue" }`},
+		{"out-of-vocab value for known token", `{ "emphasis": "loud" }`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			doc := `{
+  "manifest": { "formatVersion": "1.0.0", "id": "block-bad-theme", "title": "Block Bad Theme" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+        "config": {
+          "id": "bad-block",
+          "theme": ` + tc.theme + `,
+          "content": {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "config": { "columns": [{ "header": "Name" }] }
+          }
+        }
+      }
+    ]
+  }
+}`
+			err := resolveDocErr(t, doc)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !errors.HasCode(err, errors.RESOLVE_CONFIG_INVALID) {
+				t.Fatalf("error = %v, want code %s", err, errors.RESOLVE_CONFIG_INVALID)
+			}
+			var ce *errors.CodedError
+			if !asCoded(err, &ce) {
+				t.Fatalf("error is not a CodedError: %v", err)
+			}
+			if got, _ := ce.Details["path"].(string); got != "root.children[0]" {
+				t.Errorf("error path = %q, want root.children[0]", got)
+			}
+		})
 	}
 }
 

@@ -31,8 +31,13 @@ package resolver
 //                                    item (its `content` is absent/null or is not a
 //                                    single instance object).
 //
-// The resolver stays "dumb" here: NO theme merge/cascade happens (a block's
-// `theme` override is carried opaquely; cascade lands in E2). Grammar/placement
+// The resolver stays "dumb" here: a block's `theme` override is VALIDATED against
+// the shared theme vocabulary (E2-S3 — the block schema $refs the theme schema, so
+// the wrapper's config-validation pass rejects an out-of-vocabulary token/value as
+// RESOLVE_CONFIG_INVALID, path named) and then attached VERBATIM to the wrapper
+// node. NO theme merge/cascade happens: the document default theme (E2-S2) and each
+// wrapper override are emitted SIDE-BY-SIDE; composing the cascade is a downstream
+// consumer's job. There is no effective/computed theme. Grammar/placement
 // rules (root→regions, the wrapper-in-wrapper prohibition) are E3-S2 — this pass
 // resolves only the wrapper's own concerns plus the two validations above.
 
@@ -65,7 +70,9 @@ const (
 // then resolves the inner content independently via the generic instance walk and
 // emits it as the wrapper's single child. The wrapper's own invariants (required
 // `id`, exactly-one content) are enforced fail-fast before any of this work, on
-// the raw authored config. theme override is carried opaquely — NO cascade here.
+// the raw authored config. The `theme` override rides through the wrapper's own
+// config validation (validated against the theme vocabulary, E2-S3) and is attached
+// VERBATIM — NO cascade/merge here; the default and override are side-by-side.
 func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, rt *schema.ResolvedType, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides) (*ResolvedInstance, error) {
 	// A block must declare a config (it carries its required id + content there). A
 	// config-less block is missing both invariants; surface the id one first to

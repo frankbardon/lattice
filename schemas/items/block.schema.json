@@ -38,8 +38,8 @@
     },
     "theme": {
       "title": "Block Theme Override",
-      "description": "Optional per-block theme override. Its value is drawn from the theme vocabulary formalized in E2; here the field is present and passed through opaquely — validation of the value against the theme vocab lands in E2-S3. Omit to inherit the surrounding theme.",
-      "type": "object"
+      "description": "Optional per-block THEME OVERRIDE drawn from the shared theme vocabulary (E2-S1). Its value is constrained to the theme schema's semantic tokens, so an out-of-vocabulary token (or value) is rejected by config validation (E2-S3), naming the wrapper's path. A PARTIAL override is allowed: any subset of tokens may be set, each overriding the corresponding document default choice; an omitted token inherits. The resolver attaches this override verbatim to the resolved wrapper node SIDE-BY-SIDE with the document default theme — it performs NO cascade/merge/effective-theme computation; a downstream consumer composes the layers. Omit to inherit the surrounding theme wholesale.",
+      "$ref": "https://lattice.dev/schemas/theme/1.0.0"
     },
     "visibility": {
       "title": "Block Visibility",
