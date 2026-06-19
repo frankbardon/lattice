@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/connections/static/1.0.0",
+  "title": "Static Connection",
+  "description": "An inline data source: rows are embedded directly in config. It exists so the result-shape contract (E4-S3) can be exercised without a real backend; there is nothing to dial. rows is a list of objects whose keys are column names.",
+  "type": "object",
+  "required": ["rows"],
+  "additionalProperties": false,
+  "properties": {
+    "rows": {
+      "description": "Inline result rows. Each row is an object mapping column name to a JSON-scalar cell value.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": {
+          "type": ["string", "number", "boolean", "null"]
+        }
+      }
+    },
+    "columns": {
+      "description": "Optional explicit column ordering. When present, lists the column names in display order; rows may only use these names.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "interpolated-vars",
+    "title": "Interpolated Variables",
+    "description": "Exercises E3-S2 interpolation end to end: a ${} string template and a {\"$var\"} typed binding, resolved against the tree-scoped environment with per-node shadowing."
+  },
+  "variables": [
+    { "name": "region", "type": "string", "default": "us" },
+    { "name": "rowCount", "type": "integer", "default": 2 }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1],
+        "rows": [1]
+      }
+    },
+    "variables": [
+      { "name": "region", "type": "string", "default": "eu" }
+    ],
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "report",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Report for ${region}",
+          "columns": [{ "header": "Region" }],
+          "rows": [["${region}"]]
+        }
+      }
+    ]
+  }
+}

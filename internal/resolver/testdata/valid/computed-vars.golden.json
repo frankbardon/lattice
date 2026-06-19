@@ -1,0 +1,120 @@
+{
+  "manifest": {
+    "description": "Exercises E3-S3 computed variables end to end: a base literal, a computed integer over it, and a computed string, both feeding interpolation (a ${} template and a {\"$var\"} typed binding) on a descendant instance.",
+    "formatVersion": "1.0.0",
+    "id": "computed-vars",
+    "title": "Computed Variables"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ],
+        "rows": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "report",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Region"
+            }
+          ],
+          "rows": [
+            [
+              "count=12"
+            ]
+          ],
+          "title": "Rows: 12"
+        },
+        "placement": {
+          "colSpan": 1,
+          "colStart": 1,
+          "rowSpan": 1,
+          "rowStart": 1
+        },
+        "varEnv": {
+          "base": {
+            "name": "base",
+            "type": "integer",
+            "default": 4,
+            "declaredAt": "doc"
+          },
+          "rowCount": {
+            "name": "rowCount",
+            "type": "integer",
+            "default": 12,
+            "expr": "base * 3",
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Rows: 12",
+            "expr": "\"Rows: \" + string(rowCount)",
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "base": {
+        "name": "base",
+        "type": "integer",
+        "default": 4,
+        "declaredAt": "doc"
+      },
+      "rowCount": {
+        "name": "rowCount",
+        "type": "integer",
+        "default": 12,
+        "expr": "base * 3",
+        "declaredAt": "doc"
+      },
+      "title": {
+        "name": "title",
+        "type": "string",
+        "default": "Rows: 12",
+        "expr": "\"Rows: \" + string(rowCount)",
+        "declaredAt": "doc"
+      }
+    }
+  }
+}

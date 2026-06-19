@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/table/1.0.0",
+  "title": "Table Item",
+  "description": "A leaf item type that renders tabular data. It may render static columns/rows or bind to a document-scoped connection via connectionId and carry its own query (E4-S2). A table never has children.",
+  "type": "object",
+  "additionalProperties": false,
+  "expectedResult": {
+    "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
+    "type": "array",
+    "items": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": ["string", "number", "boolean"]
+      }
+    }
+  },
+  "properties": {
+    "title": {
+      "description": "Optional heading rendered above the table.",
+      "type": "string"
+    },
+    "connectionId": {
+      "description": "Optional id of a document-scoped connection this table draws its rows from (E4-S2). Must match a declared connection; validated by the resolver.",
+      "type": "string",
+      "minLength": 1
+    },
+    "query": {
+      "description": "Optional query passed to the bound connection. Parameter values may reference variables ($var typed bindings / ${} string templates), filled by the resolver's interpolation pass before binding. Requires connectionId.",
+      "type": "object"
+    },
+    "columns": {
+      "description": "Static column definitions.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["header"],
+        "additionalProperties": false,
+        "properties": {
+          "header": {
+            "description": "Column header label.",
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rows": {
+      "description": "Static row data. Each row is an array of cell strings aligned to columns.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-minimal",
+    "title": "Minimal Example Dashboard",
+    "description": "A hand-written fixture: a root container holding two static tables. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1, 1],
+        "rows": [1],
+        "gap": 1
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "fruits",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Fruits",
+          "columns": [
+            { "header": "Name" },
+            { "header": "Color" }
+          ],
+          "rows": [
+            ["Apple", "Red"],
+            ["Banana", "Yellow"]
+          ]
+        }
+      },
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "metrics",
+        "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Metrics",
+          "columns": [
+            { "header": "Metric" },
+            { "header": "Value" }
+          ],
+          "rows": [
+            ["Requests", "1024"],
+            ["Errors", "3"]
+          ]
+        }
+      }
+    ]
+  }
+}

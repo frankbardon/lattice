@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/dashboard/1.0.0",
+  "title": "Lattice Dashboard",
+  "description": "Top-level schema for a Lattice dashboard document: a manifest plus a single root item instance forming a recursive tree.",
+  "type": "object",
+  "required": ["manifest", "root"],
+  "additionalProperties": false,
+  "properties": {
+    "manifest": {
+      "$ref": "#/$defs/manifest"
+    },
+    "root": {
+      "$ref": "#/$defs/instance",
+      "description": "The root item instance. Conventionally a container, but the container-only-children rule is enforced by the resolver (E1-S4), not the schema."
+    },
+    "variables": {
+      "description": "Document-scope variable declarations. Visible to every node unless shadowed by a same-named declaration on a descendant container (E3-S1).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/varDeclaration"
+      }
+    },
+    "connections": {
+      "description": "Optional document-scoped data connection instances. Each references a connection-type schema in schemas/connections/ via $ref; the resolver validates each connection's config against that type (E4-S1). Connections are declared and validated only, never dialed.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/connection"
+      }
+    }
+  },
+  "$defs": {
+    "varDeclaration": {
+      "title": "Variable Declaration",
+      "description": "A typed variable declaration { name, type, default?|expr?, options? }. Declarable at document scope and on container instances; resolution walks the tree with inner-shadows-outer semantics (E3-S1). A variable's value is either a literal default or a computed expr (E3-S3), never both.",
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Variable identifier, unique within its declaring scope.",
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "description": "Declared value type.",
+          "type": "string",
+          "enum": ["string", "number", "integer", "boolean", "enum", "array"]
+        },
+        "default": {
+          "description": "Optional default value; validated against type by the resolver (E3-S1). Mutually exclusive with expr."
+        },
+        "expr": {
+          "description": "Optional computed-variable expression (github.com/expr-lang/expr) evaluated against the in-scope variables; its result is coerced/validated to type by the resolver (E3-S3). Mutually exclusive with default.",
+          "type": "string",
+          "minLength": 1
+        },
+        "options": {
+          "description": "Permitted values for enum-typed variables. Required for enum, forbidden otherwise; enforced by the resolver (E3-S1).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "connection": {
+      "title": "Connection Instance",
+      "description": "A document-scoped data connection instance. References a connection-type schema via $ref and carries opaque per-connection config validated against that type by the resolver (E4-S1). Secrets are referenced indirectly via secretRefs, never inlined.",
+      "type": "object",
+      "required": ["id", "$ref"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Connection identifier, unique within the document. Items bind to a connection by this id.",
+          "type": "string",
+          "minLength": 1
+        },
+        "$ref": {
+          "description": "URI of the connection-type schema this connection is an instance of (e.g. https://lattice.dev/schemas/connections/static/1.0.0). Validated against the catalog by the resolver.",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "config": {
+          "description": "Per-connection configuration. Structure is defined by the referenced connection-type's schema; opaque at the dashboard level.",
+          "type": "object"
+        },
+        "secretRefs": {
+          "description": "Optional indirection from a config slot to a named secret resolved out-of-band. Maps a logical secret name to an opaque reference token; secret values are never inlined in the document.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "manifest": {
+      "title": "Dashboard Manifest",
+      "description": "Document-level metadata describing the dashboard.",
+      "type": "object",
+      "required": ["formatVersion", "id", "title"],
+      "additionalProperties": false,
+      "properties": {
+        "formatVersion": {
+          "description": "Semantic version of the dashboard document format this document targets.",
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "id": {
+          "description": "Stable, machine-readable identifier for the dashboard.",
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "description": "Human-readable dashboard title.",
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "description": "Optional longer-form description of the dashboard.",
+          "type": "string"
+        },
+        "author": {
+          "description": "Optional author or owner of the dashboard.",
+          "type": "string"
+        }
+      }
+    },
+    "instance": {
+      "title": "Item Instance",
+      "description": "A recursive instance node. References an item type via $ref, carries opaque per-instance config and placement, and may declare children. Whether children are permitted depends on the referenced item type (container-only); that rule is enforced by the resolver in E1-S4, not structurally here.",
+      "type": "object",
+      "required": ["$ref"],
+      "additionalProperties": false,
+      "properties": {
+        "$ref": {
+          "description": "URI of the item-type schema this instance is an instance of (e.g. https://lattice.dev/schemas/items/table/1.0.0). Validated against the catalog by the resolver.",
+          "type": "string",
+          "format": "uri",
+          "minLength": 1
+        },
+        "id": {
+          "description": "Optional instance-local identifier, unique within the document.",
+          "type": "string",
+          "minLength": 1
+        },
+        "config": {
+          "description": "Per-instance configuration. Structure is defined by the referenced item type's schema; opaque at the dashboard level.",
+          "type": "object"
+        },
+        "placement": {
+          "description": "Optional layout placement hints interpreted by the parent container's grid. Minimal/stubbed here; E2-S1 formalizes track placement.",
+          "type": "object"
+        },
+        "children": {
+          "description": "Optional child instances. Structurally permitted on any instance; only valid when the referenced type is a container, enforced by the resolver in E1-S4.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/instance"
+          }
+        },
+        "variables": {
+          "description": "Optional variable declarations scoped to this instance and its descendants. Meaningful on container instances; an inner declaration shadows a same-named outer one (E3-S1).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/varDeclaration"
+          }
+        }
+      }
+    }
+  }
+}

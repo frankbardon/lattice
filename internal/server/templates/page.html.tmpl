@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} — lattice</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+</head>
+<body>
+  <main x-data="dashboard()" x-init="load()">
+    <header class="topbar">
+      <h1>lattice</h1>
+      <span class="subtitle" x-text="title || 'loading…'"></span>
+    </header>
+
+    <!-- Structural sketch (E2-S3): the resolved tree is walked client-side and
+         rendered as nested CSS-Grid boxes. The relative-weight -> CSS-Grid
+         translation lives here; the resolved tree stays CSS-agnostic. -->
+    <section class="sketch">
+      <template x-if="error">
+        <p class="error" x-text="error"></p>
+      </template>
+
+      <template x-if="!error && !tree">
+        <p class="hint">Loading resolved tree…</p>
+      </template>
+
+      <!-- Recursive node renderer. A container draws its own grid and recurses
+           into its children; a leaf draws a single labeled placeholder box. -->
+      <!-- A single delegated @change on the sketch root catches every dropdown
+           <select> rendered via x-html (change events bubble), so the runtime
+           inputs need no per-element Alpine wiring. -->
+      <template x-if="!error && tree && tree.root">
+        <div class="sketch-root" @change="onControlChange($event)">
+          <template x-data x-for="(node, i) in [tree.root]" :key="i">
+            <div class="node-slot" x-html="renderNode(node)"></div>
+          </template>
+        </div>
+      </template>
+
+      <p class="hint reresolving" x-show="resolving" x-cloak>Re-resolving…</p>
+    </section>
+
+    <!-- Tree inspector: collapsible panel showing the full resolved-tree JSON. -->
+    <section class="inspector" x-show="!error && tree" x-cloak>
+      <button type="button" class="inspector-toggle" @click="inspectorOpen = !inspectorOpen"
+              :aria-expanded="inspectorOpen.toString()">
+        <span x-text="inspectorOpen ? '▾' : '▸'"></span>
+        Resolved tree inspector
+      </button>
+      <pre class="inspector-json" x-show="inspectorOpen" x-text="treeJSON"></pre>
+    </section>
+  </main>
+
+  <script>
+    function dashboard() {
+      return {
+        title: '',
+        tree: null,
+        treeJSON: '',
+        error: '',
+        inspectorOpen: false,
+        // values holds the current runtime variable overrides (E3-S4): seeded
+        // from URL query params, then updated as dropdowns change. It is the
+        // body POSTed to /api/resolve on every re-resolve.
+        values: {},
+        resolving: false,
+
+        // initialValues reads URL query params (?region=eu) as the starting
+        // runtime overrides. Values are strings; the server coerces each to its
+        // variable's declared type.
+        initialValues() {
+          const out = {};
+          const params = new URLSearchParams(window.location.search);
+          for (const [k, v] of params.entries()) { out[k] = v; }
+          return out;
+        },
+
+        async load() {
+          this.values = this.initialValues();
+          await this.resolve();
+        },
+
+        // resolve POSTs the current runtime values and replaces the tree with the
+        // freshly resolved one. It is the single re-resolve round-trip used for
+        // both the initial load (with URL-param values) and dropdown changes.
+        async resolve() {
+          this.resolving = true;
+          try {
+            const res = await fetch('/api/resolve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(this.values),
+            });
+            if (!res.ok) {
+              const body = await res.json().catch(() => ({}));
+              this.error = body.message ? (body.code + ': ' + body.message) : ('HTTP ' + res.status);
+              return;
+            }
+            this.error = '';
+            this.tree = await res.json();
+            this.treeJSON = JSON.stringify(this.tree, null, 2);
+            this.title = (this.tree.manifest && this.tree.manifest.title) || '';
+          } catch (e) {
+            this.error = String(e);
+          } finally {
+            this.resolving = false;
+          }
+        },
+
+        // onControlChange handles a bubbled change from any rendered dropdown
+        // <select>: it records the chosen value against the bound variable and
+        // re-resolves the whole document (partials deferred per E3-S4).
+        onControlChange(ev) {
+          const el = ev.target;
+          if (!el || el.tagName !== 'SELECT' || !el.dataset || !el.dataset.var) { return; }
+          this.values = Object.assign({}, this.values, { [el.dataset.var]: el.value });
+          this.resolve();
+        },
+
+        // escapeHTML guards text injected via x-html (config values, types).
+        escapeHTML(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        },
+
+        // typeLabel is the human-facing node type name.
+        typeLabel(node) {
+          const t = node.type || {};
+          let label = t.name || t.id || t.ref || 'item';
+          if (t.version) { label += ' v' + t.version; }
+          return label;
+        },
+
+        // configSummary renders a concise one-line summary of a node's config:
+        // up to three key=value pairs, scalars only, objects/arrays abbreviated.
+        configSummary(node) {
+          const cfg = node.config;
+          if (!cfg || typeof cfg !== 'object') { return ''; }
+          const parts = [];
+          for (const k of Object.keys(cfg)) {
+            if (parts.length >= 3) { break; }
+            let v = cfg[k];
+            if (v === null) { v = 'null'; }
+            else if (Array.isArray(v)) { v = '[' + v.length + ']'; }
+            else if (typeof v === 'object') { v = '{…}'; }
+            else { v = String(v); }
+            if (v.length > 24) { v = v.slice(0, 23) + '…'; }
+            parts.push(k + '=' + v);
+          }
+          let summary = parts.join(', ');
+          if (Object.keys(cfg).length > 3) { summary += ', …'; }
+          return summary;
+        },
+
+        // gridStyle translates a container's normalized fractional tracks
+        // (sum to 1.0, renderer-agnostic) into a CSS Grid template. Each
+        // fraction becomes an `fr` unit; the relative gap becomes a rem gap.
+        gridStyle(layout) {
+          const cols = (layout.columns && layout.columns.length ? layout.columns : [1]);
+          const rows = (layout.rows && layout.rows.length ? layout.rows : [1]);
+          const toFr = (tracks) => tracks.map((f) => (f.toFixed(4) + 'fr')).join(' ');
+          const gap = (layout.gap || 0) * 0.5;
+          return 'display:grid;'
+            + 'grid-template-columns:' + toFr(cols) + ';'
+            + 'grid-template-rows:' + toFr(rows) + ';'
+            + 'gap:' + gap.toFixed(3) + 'rem;';
+        },
+
+        // placementStyle maps a child's 1-indexed grid placement onto CSS Grid
+        // line numbers (grid-column / grid-row: start / span N).
+        placementStyle(p) {
+          if (!p) { return ''; }
+          const cs = p.colStart || 1, cspan = p.colSpan || 1;
+          const rs = p.rowStart || 1, rspan = p.rowSpan || 1;
+          return 'grid-column:' + cs + ' / span ' + cspan + ';'
+            + 'grid-row:' + rs + ' / span ' + rspan + ';';
+        },
+
+        // renderNode recursively renders a resolved instance. Containers draw a
+        // grid and recurse into children (positioned by the parent's Layout
+        // placements); leaves draw a single labeled box.
+        // dropdownHTML renders a runtime-input dropdown leaf (E3-S4) as a real
+        // <select> bound (via data-var, caught by the delegated @change) to its
+        // variable. The current selection is the variable's EFFECTIVE value as
+        // resolved (varEnv[name].default), so it reflects URL-param/override
+        // state after each re-resolve.
+        dropdownHTML(node) {
+          const cfg = node.config || {};
+          const varName = cfg.variable || '';
+          const options = Array.isArray(cfg.options) ? cfg.options : [];
+          let current = '';
+          if (node.varEnv && node.varEnv[varName] && node.varEnv[varName].default != null) {
+            current = String(node.varEnv[varName].default);
+          }
+          let opts = '';
+          for (const o of options) {
+            const val = (o && o.value != null) ? String(o.value) : '';
+            const olabel = (o && o.label != null) ? String(o.label) : val;
+            const sel = (val === current) ? ' selected' : '';
+            opts += '<option value="' + this.escapeHTML(val) + '"' + sel + '>'
+              + this.escapeHTML(olabel) + '</option>';
+          }
+          const labelText = cfg.label ? cfg.label : varName;
+          return '<label class="dropdown-control">'
+            + '<span class="dropdown-label">' + this.escapeHTML(labelText) + '</span>'
+            + '<select class="dropdown-select" data-var="' + this.escapeHTML(varName) + '">'
+            + opts + '</select></label>';
+        },
+
+        renderNode(node, placementStyle) {
+          const label = this.escapeHTML(this.typeLabel(node));
+          const summary = this.configSummary(node);
+          const summaryHTML = summary
+            ? '<div class="node-summary">' + this.escapeHTML(summary) + '</div>'
+            : '';
+          const idHTML = node.id
+            ? '<span class="node-id">#' + this.escapeHTML(node.id) + '</span>'
+            : '';
+          const slotStyle = placementStyle ? (' style="' + placementStyle + '"') : '';
+
+          if (node.container) {
+            const layout = node.layout || { columns: [1], rows: [1], placements: [] };
+            const children = node.children || [];
+            const placements = layout.placements || [];
+            let inner = '';
+            for (let i = 0; i < children.length; i++) {
+              const ps = this.placementStyle(placements[i]);
+              inner += this.renderNode(children[i], ps);
+            }
+            return '<div class="node node-container"' + slotStyle + '>'
+              + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML
+              + '<span class="node-kind">container</span></div>'
+              + summaryHTML
+              + '<div class="node-grid" style="' + this.gridStyle(layout) + '">'
+              + (inner || '<div class="node-empty">(no children)</div>')
+              + '</div></div>';
+          }
+
+          const isDropdown = (node.type && node.type.name === 'dropdown');
+          const controlHTML = isDropdown ? this.dropdownHTML(node) : '';
+          const leafClass = isDropdown ? 'node node-leaf node-input' : 'node node-leaf';
+          return '<div class="' + leafClass + '"' + slotStyle + '>'
+            + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML + '</div>'
+            + summaryHTML
+            + controlHTML
+            + '</div>';
+        }
+      };
+    }
+  </script>
+</body>
+</html>

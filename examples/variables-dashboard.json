@@ -1,0 +1,38 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-variables",
+    "title": "Variables: Static, Runtime & Computed Example",
+    "description": "Focused E3 example covering all three variable kinds in one document: a static string variable (env), a runtime-settable integer with a default (window), and a computed variable derived from the others via an expr (heading). The variables feed both a ${} string template and {\"$var\"} typed bindings on a descendant table. The resolved tree carries each node's varEnv (the variables in scope, with their resolved defaults and declaredAt). Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "variables": [
+    { "name": "env", "type": "string", "default": "prod" },
+    { "name": "window", "type": "integer", "default": 12 },
+    { "name": "heading", "type": "string", "expr": "\"[\" + env + \"] last \" + string(window) + \"h\"" }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1], "rows": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "report",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "${heading}",
+          "columns": [
+            { "header": "Variable" },
+            { "header": "Value" }
+          ],
+          "rows": [
+            ["env", { "$var": "env" }],
+            ["window", "${window}"],
+            ["heading", { "$var": "heading" }]
+          ]
+        }
+      }
+    ]
+  }
+}

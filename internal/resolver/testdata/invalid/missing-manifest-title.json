@@ -1,0 +1,10 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "missing-title"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root"
+  }
+}

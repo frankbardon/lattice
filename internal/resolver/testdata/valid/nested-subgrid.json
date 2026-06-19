@@ -1,0 +1,64 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "nested-subgrid",
+    "title": "Nested Subgrid Dashboard",
+    "description": "A root container whose grid holds a child container; the child container declares its own (sub)grid and places its own children. Exercises arbitrary grid nesting (E2-S1)."
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1, 2],
+        "rows": [1],
+        "gap": 1
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "sidebar",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "Sidebar",
+          "columns": [{ "header": "Link" }],
+          "rows": [["Home"], ["About"]]
+        }
+      },
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "panel",
+        "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "grid": {
+            "columns": [1],
+            "rows": [3, 1]
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "main",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "title": "Main",
+              "columns": [{ "header": "Item" }],
+              "rows": [["one"]]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "footer",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 2, "rowSpan": 1 },
+            "config": {
+              "title": "Footer",
+              "columns": [{ "header": "Note" }],
+              "rows": [["foot"]]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

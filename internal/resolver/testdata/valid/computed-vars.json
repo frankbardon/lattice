@@ -1,0 +1,35 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "computed-vars",
+    "title": "Computed Variables",
+    "description": "Exercises E3-S3 computed variables end to end: a base literal, a computed integer over it, and a computed string, both feeding interpolation (a ${} template and a {\"$var\"} typed binding) on a descendant instance."
+  },
+  "variables": [
+    { "name": "base", "type": "integer", "default": 4 },
+    { "name": "rowCount", "type": "integer", "expr": "base * 3" },
+    { "name": "title", "type": "string", "expr": "\"Rows: \" + string(rowCount)" }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1],
+        "rows": [1]
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "report",
+        "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+        "config": {
+          "title": "${title}",
+          "columns": [{ "header": "Region" }],
+          "rows": [["count=${rowCount}"]]
+        }
+      }
+    ]
+  }
+}

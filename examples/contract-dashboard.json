@@ -1,0 +1,37 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "contract-example",
+    "title": "Result-Shape Contract Example",
+    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result)."
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "fruit-table",
+        "config": {
+          "title": "Fruit Inventory",
+          "connectionId": "inline-fruits"
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "columns": ["name", "qty"],
+        "rows": [
+          { "name": "apple", "qty": 3 },
+          { "name": "pear", "qty": 7 },
+          { "name": "kiwi", "qty": 12 }
+        ]
+      }
+    }
+  ]
+}

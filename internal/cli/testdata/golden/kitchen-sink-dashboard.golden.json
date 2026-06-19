@@ -1,0 +1,447 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a dropdown runtime input bound to a variable (E3-S4); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz lattice resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "kitchen-sink",
+    "title": "Kitchen-Sink Dashboard"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ],
+        "gap": 1,
+        "rows": [
+          1,
+          3
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        0.25,
+        0.75
+      ],
+      "gap": 1,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 2,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "region-picker",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+          "id": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+          "name": "dropdown",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "label": "Region",
+          "options": [
+            {
+              "label": "United States",
+              "value": "us"
+            },
+            {
+              "label": "Europe",
+              "value": "eu"
+            },
+            {
+              "label": "Asia-Pacific",
+              "value": "apac"
+            }
+          ],
+          "variable": "region"
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 1
+        },
+        "varEnv": {
+          "heading": {
+            "name": "heading",
+            "type": "string",
+            "default": "Metrics for us (last 1d)",
+            "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "integer",
+            "default": 24,
+            "declaredAt": "doc"
+          },
+          "windowDays": {
+            "name": "windowDays",
+            "type": "integer",
+            "default": 1,
+            "expr": "window / 24",
+            "declaredAt": "doc"
+          }
+        }
+      },
+      {
+        "id": "body",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
+          "version": "1.0.0"
+        },
+        "container": true,
+        "config": {
+          "grid": {
+            "columns": [
+              1,
+              2
+            ],
+            "gap": 1,
+            "rows": [
+              1
+            ]
+          }
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 2
+        },
+        "layout": {
+          "columns": [
+            0.3333333333333333,
+            0.6666666666666666
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 1,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 2,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "summary",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+              "id": "https://lattice.dev/schemas/items/table/1.0.0",
+              "name": "table",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "columns": [
+                {
+                  "header": "Field"
+                },
+                {
+                  "header": "Value"
+                }
+              ],
+              "rows": [
+                [
+                  "Region",
+                  "us"
+                ],
+                [
+                  "Window (hours)",
+                  "24"
+                ],
+                [
+                  "Window (days)",
+                  "1"
+                ]
+              ],
+              "title": "Metrics for us (last 1d)"
+            },
+            "placement": {
+              "colSpan": 1,
+              "colStart": 1,
+              "rowSpan": 1,
+              "rowStart": 1
+            },
+            "varEnv": {
+              "heading": {
+                "name": "heading",
+                "type": "string",
+                "default": "Metrics for us (last 1d)",
+                "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "integer",
+                "default": 24,
+                "declaredAt": "doc"
+              },
+              "windowDays": {
+                "name": "windowDays",
+                "type": "integer",
+                "default": 1,
+                "expr": "window / 24",
+                "declaredAt": "doc"
+              }
+            }
+          },
+          {
+            "id": "live-metrics",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+              "id": "https://lattice.dev/schemas/items/table/1.0.0",
+              "name": "table",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "connectionId": "metrics-api",
+              "query": {
+                "hours": 24,
+                "label": "last 24h",
+                "region": "us"
+              },
+              "title": "Live metrics for us"
+            },
+            "placement": {
+              "colSpan": 1,
+              "colStart": 2,
+              "rowSpan": 1,
+              "rowStart": 1
+            },
+            "varEnv": {
+              "heading": {
+                "name": "heading",
+                "type": "string",
+                "default": "Metrics for us (last 1d)",
+                "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "integer",
+                "default": 24,
+                "declaredAt": "doc"
+              },
+              "windowDays": {
+                "name": "windowDays",
+                "type": "integer",
+                "default": 1,
+                "expr": "window / 24",
+                "declaredAt": "doc"
+              }
+            },
+            "binding": {
+              "connectionId": "metrics-api",
+              "query": {
+                "hours": 24,
+                "label": "last 24h",
+                "region": "us"
+              },
+              "contract": {
+                "itemType": "table",
+                "connectionId": "metrics-api",
+                "expectedResult": {
+                  "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
+                  "items": {
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean"
+                      ]
+                    },
+                    "minProperties": 1,
+                    "type": "object"
+                  },
+                  "type": "array"
+                }
+              }
+            }
+          }
+        ],
+        "varEnv": {
+          "heading": {
+            "name": "heading",
+            "type": "string",
+            "default": "Metrics for us (last 1d)",
+            "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "integer",
+            "default": 24,
+            "declaredAt": "doc"
+          },
+          "windowDays": {
+            "name": "windowDays",
+            "type": "integer",
+            "default": 1,
+            "expr": "window / 24",
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "heading": {
+        "name": "heading",
+        "type": "string",
+        "default": "Metrics for us (last 1d)",
+        "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"",
+        "declaredAt": "doc"
+      },
+      "region": {
+        "name": "region",
+        "type": "enum",
+        "default": "us",
+        "options": [
+          "us",
+          "eu",
+          "apac"
+        ],
+        "declaredAt": "doc"
+      },
+      "window": {
+        "name": "window",
+        "type": "integer",
+        "default": 24,
+        "declaredAt": "doc"
+      },
+      "windowDays": {
+        "name": "windowDays",
+        "type": "integer",
+        "default": 1,
+        "expr": "window / 24",
+        "declaredAt": "doc"
+      }
+    }
+  },
+  "connections": [
+    {
+      "id": "inventory",
+      "type": {
+        "ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "id": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "name": "static",
+        "version": "1.0.0"
+      },
+      "config": {
+        "columns": [
+          "name",
+          "qty"
+        ],
+        "rows": [
+          {
+            "name": "apple",
+            "qty": 3
+          },
+          {
+            "name": "pear",
+            "qty": 7
+          }
+        ]
+      }
+    },
+    {
+      "id": "metrics-api",
+      "type": {
+        "ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+        "id": "https://lattice.dev/schemas/connections/http/1.0.0",
+        "name": "http",
+        "version": "1.0.0"
+      },
+      "config": {
+        "headers": {
+          "Authorization": {
+            "$secret": "METRICS_API_TOKEN"
+          }
+        },
+        "method": "GET",
+        "url": "https://api.example.com/metrics"
+      },
+      "secrets": [
+        "METRICS_API_TOKEN"
+      ]
+    }
+  ]
+}

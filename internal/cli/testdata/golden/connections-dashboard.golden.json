@@ -1,0 +1,82 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Focused E4-S1 example declaring both connection kinds at the document scope: a static inline data source (rows embedded in config) and an http (query) connection (endpoint + request shape). Connections are declared and validated against their connection-type schemas only — never dialed (no live fetch). The query connection references its credential indirectly via secretRefs rather than inlining it. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-connections",
+    "title": "Connections: Static \u0026 Query Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": []
+    }
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "type": {
+        "ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "id": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "name": "static",
+        "version": "1.0.0"
+      },
+      "config": {
+        "columns": [
+          "name",
+          "color"
+        ],
+        "rows": [
+          {
+            "color": "Red",
+            "name": "Apple"
+          },
+          {
+            "color": "Yellow",
+            "name": "Banana"
+          }
+        ]
+      }
+    },
+    {
+      "id": "metrics-api",
+      "type": {
+        "ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+        "id": "https://lattice.dev/schemas/connections/http/1.0.0",
+        "name": "http",
+        "version": "1.0.0"
+      },
+      "config": {
+        "method": "GET",
+        "query": {
+          "window": "1h"
+        },
+        "url": "https://api.example.com/metrics"
+      },
+      "secretRefs": {
+        "token": "vault://lattice/metrics-api#token"
+      }
+    }
+  ]
+}

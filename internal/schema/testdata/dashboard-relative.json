@@ -1,0 +1,10 @@
+{
+  "manifest": { "formatVersion": "1.0.0", "id": "rel", "title": "Relative Refs" },
+  "root": {
+    "$ref": "items/container/1.0.0",
+    "id": "root",
+    "children": [
+      { "$ref": "note.schema.json", "id": "n1" }
+    ]
+  }
+}

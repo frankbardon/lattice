@@ -1,0 +1,59 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-dropdown",
+    "title": "Dropdown Runtime Input Example",
+    "description": "Demonstrates the E3-S4 live loop: a dropdown sets the document-scoped `region` variable, and a table consumes it via a ${region} string template and a {\"$var\":\"region\"} typed binding. Changing the dropdown re-resolves the document and the consumer updates. Serve with `?region=eu` to set the initial value. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "variables": [
+    {
+      "name": "region",
+      "type": "enum",
+      "default": "us",
+      "options": ["us", "eu", "apac"]
+    }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1],
+        "rows": [1, 2],
+        "gap": 1
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+        "id": "region-picker",
+        "placement": { "colStart": 1, "rowStart": 1 },
+        "config": {
+          "label": "Region",
+          "variable": "region",
+          "options": [
+            { "value": "us", "label": "United States" },
+            { "value": "eu", "label": "Europe" },
+            { "value": "apac", "label": "Asia-Pacific" }
+          ]
+        }
+      },
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "region-metrics",
+        "placement": { "colStart": 1, "rowStart": 2 },
+        "config": {
+          "title": "Metrics for ${region}",
+          "columns": [
+            { "header": "Region" },
+            { "header": "Value" }
+          ],
+          "rows": [
+            [{ "$var": "region" }, "live"]
+          ]
+        }
+      }
+    ]
+  }
+}

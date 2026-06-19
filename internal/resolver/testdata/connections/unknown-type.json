@@ -1,0 +1,18 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-unknown-connection-type",
+    "title": "Unknown Connection Type"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root"
+  },
+  "connections": [
+    {
+      "id": "mystery",
+      "$ref": "https://lattice.dev/schemas/connections/nonexistent/1.0.0",
+      "config": {}
+    }
+  ]
+}

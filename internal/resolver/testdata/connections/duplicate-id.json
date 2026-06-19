@@ -1,0 +1,23 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-duplicate-connection-id",
+    "title": "Duplicate Connection Id"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root"
+  },
+  "connections": [
+    {
+      "id": "dupe",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": { "rows": [] }
+    },
+    {
+      "id": "dupe",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": { "rows": [] }
+    }
+  ]
+}

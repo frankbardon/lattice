@@ -1,0 +1,111 @@
+{
+  "manifest": {
+    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result).",
+    "formatVersion": "1.0.0",
+    "id": "contract-example",
+    "title": "Result-Shape Contract Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "fruit-table",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "connectionId": "inline-fruits",
+          "title": "Fruit Inventory"
+        },
+        "binding": {
+          "connectionId": "inline-fruits",
+          "contract": {
+            "itemType": "table",
+            "connectionId": "inline-fruits",
+            "expectedResult": {
+              "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
+              "items": {
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                },
+                "minProperties": 1,
+                "type": "object"
+              },
+              "type": "array"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "type": {
+        "ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "id": "https://lattice.dev/schemas/connections/static/1.0.0",
+        "name": "static",
+        "version": "1.0.0"
+      },
+      "config": {
+        "columns": [
+          "name",
+          "qty"
+        ],
+        "rows": [
+          {
+            "name": "apple",
+            "qty": 3
+          },
+          {
+            "name": "pear",
+            "qty": 7
+          },
+          {
+            "name": "kiwi",
+            "qty": 12
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "manifest": {
+    "description": "Exercises E3-S2 interpolation end to end: a ${} string template and a {\"$var\"} typed binding, resolved against the tree-scoped environment with per-node shadowing.",
+    "formatVersion": "1.0.0",
+    "id": "interpolated-vars",
+    "title": "Interpolated Variables"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ],
+        "rows": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "report",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Region"
+            }
+          ],
+          "rows": [
+            [
+              "eu"
+            ]
+          ],
+          "title": "Report for eu"
+        },
+        "placement": {
+          "colSpan": 1,
+          "colStart": 1,
+          "rowSpan": 1,
+          "rowStart": 1
+        },
+        "varEnv": {
+          "region": {
+            "name": "region",
+            "type": "string",
+            "default": "eu",
+            "declaredAt": "root"
+          },
+          "rowCount": {
+            "name": "rowCount",
+            "type": "integer",
+            "default": 2,
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "region": {
+        "name": "region",
+        "type": "string",
+        "default": "eu",
+        "declaredAt": "root"
+      },
+      "rowCount": {
+        "name": "rowCount",
+        "type": "integer",
+        "default": 2,
+        "declaredAt": "doc"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "manifest": { "formatVersion": "1.0.0", "id": "abs", "title": "Absolute Refs" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "children": [
+      { "$ref": "https://lattice.dev/schemas/items/table/1.0.0", "id": "t1" }
+    ]
+  }
+}

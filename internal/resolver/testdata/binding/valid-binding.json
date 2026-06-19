@@ -1,0 +1,45 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-binding",
+    "title": "Direct Binding + Secret Refs",
+    "description": "E4-S2 fixture: a table item bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config resolved from the environment. The secret value is never serialized into the resolved tree."
+  },
+  "variables": [
+    { "name": "region", "type": "string", "default": "us-east" },
+    { "name": "window", "type": "integer", "default": 24 }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "metrics-table",
+        "config": {
+          "title": "Metrics for ${region}",
+          "connectionId": "metrics-api",
+          "query": {
+            "region": { "$var": "region" },
+            "hours": { "$var": "window" },
+            "label": "last ${window}h"
+          }
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "metrics-api",
+      "$ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+      "config": {
+        "url": "https://api.example.com/metrics",
+        "method": "GET",
+        "headers": {
+          "Authorization": { "$secret": "METRICS_API_TOKEN" }
+        }
+      }
+    }
+  ]
+}

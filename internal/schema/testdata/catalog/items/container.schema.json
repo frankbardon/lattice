@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/container/1.0.0",
+  "title": "Container Item",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "grid": { "type": "object" }
+  }
+}

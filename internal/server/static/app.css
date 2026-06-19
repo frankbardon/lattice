@@ -1,0 +1,181 @@
+:root {
+  --bg: #0f1420;
+  --panel: #1a2233;
+  --fg: #e6ebf5;
+  --muted: #8a97b0;
+  --accent: #5aa7ff;
+  --error: #ff6b6b;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #2a3550;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--accent);
+}
+
+.subtitle { color: var(--muted); font-size: 0.9rem; }
+
+main { max-width: 1100px; margin: 0 auto; }
+
+[x-cloak] { display: none !important; }
+
+.sketch,
+.inspector,
+.error-card {
+  margin: 1.5rem;
+  padding: 1.25rem;
+  background: var(--panel);
+  border: 1px solid #2a3550;
+  border-radius: 8px;
+}
+
+.hint { color: var(--muted); font-size: 0.9rem; }
+
+/* Structural sketch: nested CSS-Grid boxes. Legible, not pretty. */
+.sketch-root > .node-slot { display: block; }
+
+.node {
+  border: 1px solid #3a4870;
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: #131b2b;
+  min-width: 0;
+  min-height: 2.5rem;
+}
+
+.node-container { background: #161f33; }
+.node-leaf { background: #1b2436; }
+.node-input { border-color: var(--accent); }
+
+/* Runtime input controls (E3-S4): a dropdown leaf renders a real <select>. */
+.dropdown-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+}
+
+.dropdown-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.dropdown-select {
+  background: #0b0f18;
+  color: var(--fg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.9rem;
+}
+
+.reresolving { margin: 0 1.5rem; font-style: italic; }
+
+.node-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.25rem;
+}
+
+.node-type {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.node-id { color: var(--muted); font-size: 0.8rem; }
+
+.node-kind {
+  margin-left: auto;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border: 1px solid #2a3550;
+  border-radius: 4px;
+  padding: 0 0.35rem;
+}
+
+.node-summary {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-word;
+  margin-bottom: 0.4rem;
+}
+
+.node-grid { width: 100%; }
+
+.node-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-style: italic;
+  padding: 0.5rem;
+}
+
+/* Tree inspector */
+.inspector-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.inspector-json {
+  margin: 0.75rem 0 0 0;
+  padding: 0.75rem;
+  max-height: 28rem;
+  overflow: auto;
+  background: #0b0f18;
+  border: 1px solid #2a3550;
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  white-space: pre;
+}
+
+code {
+  background: #0b0f18;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.error { color: var(--error); }
+
+.error-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--error);
+  font-weight: 600;
+}
+
+.error-message { font-size: 1.05rem; }
+
+.error-details dt { color: var(--muted); font-weight: 600; }
+.error-details dd { margin: 0 0 0.5rem 0; }

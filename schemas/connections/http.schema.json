@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/connections/http/1.0.0",
+  "title": "HTTP Connection",
+  "description": "A query-style data connection that fetches rows from an HTTP(S) endpoint. This effort only declares and validates the connection; it is never dialed (no live fetch). config carries the endpoint and request shape; credentials are referenced indirectly via the connection's secretRefs, never inlined here.",
+  "type": "object",
+  "required": ["url"],
+  "additionalProperties": false,
+  "properties": {
+    "url": {
+      "description": "Absolute HTTP(S) endpoint the connection would query.",
+      "type": "string",
+      "format": "uri",
+      "minLength": 1
+    },
+    "method": {
+      "description": "HTTP method used for the request.",
+      "type": "string",
+      "enum": ["GET", "POST"],
+      "default": "GET"
+    },
+    "headers": {
+      "description": "Static request headers. Values are literal strings; secret values must be supplied via the connection's secretRefs rather than inlined.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "query": {
+      "description": "Static query-string parameters appended to the request URL.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}
