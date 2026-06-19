@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/slider/1.0.0",
+  "title": "Slider Item",
+  "description": "A numeric-family variable widget rendering a draggable slider track. It binds one document/container variable (the `variable` it sets) and lets a viewer pick a numeric value along a range; on change the value flows through the resolver's override path and re-resolves the document so dependent `${var}`/`$var` consumers update live. A slider may only bind a variable whose declared type is `number` or `integer` — the resolver enforces this widget↔variable type compatibility and reports WIDGET_TYPE_MISMATCH otherwise. A slider benefits from `min`/`max` being present to bound its track; the optional `step` sets the increment. The resolver rejects an inverted range (min > max) or a non-positive step. The variable itself is declared in the document/container `variables`, which supplies the effective default; this config only declares the binding plus its presentation. A slider never has children.",
+  "type": "object",
+  "required": ["variable"],
+  "additionalProperties": false,
+  "properties": {
+    "variable": {
+      "description": "Name of the variable this widget sets. Must be a variable visible in the widget's scope (declared at document scope or on an ancestor container) and declared with a type the widget's family permits (number family → number or integer). The value chosen here becomes that variable's runtime override on re-resolve.",
+      "type": "string",
+      "minLength": 1
+    },
+    "label": {
+      "description": "Optional label rendered next to the control.",
+      "type": "string"
+    },
+    "description": {
+      "description": "Optional help text describing what the input controls, rendered beneath or beside the control.",
+      "type": "string"
+    },
+    "default": {
+      "description": "Optional widget-local default shown before the viewer moves the slider. The variable's declared default remains the authoritative resolution-time value; this is presentation only.",
+      "type": "number"
+    },
+    "disabled": {
+      "description": "When true the control is rendered read-only and cannot be moved.",
+      "type": "boolean"
+    },
+    "min": {
+      "description": "Optional inclusive lower bound of the slider track. Must not exceed max. Sliders benefit from min/max being present to bound the track.",
+      "type": "number"
+    },
+    "max": {
+      "description": "Optional inclusive upper bound of the slider track. Must not be less than min. Sliders benefit from min/max being present to bound the track.",
+      "type": "number"
+    },
+    "step": {
+      "description": "Optional increment between selectable values along the track. Must be a positive number.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    }
+  }
+}

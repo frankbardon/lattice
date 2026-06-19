@@ -46,6 +46,27 @@ var widgetFamilies = map[string]map[variables.VarType]bool{
 	// string variable.
 	"text-input": {variables.VarTypeString: true},
 	"textarea":   {variables.VarTypeString: true},
+
+	// Number family (E1-S2): free-entry field, draggable slider, and increment
+	// stepper bind a number or integer variable. Each carries optional
+	// min/max/step range config (validated below).
+	"number-field": {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
+	"slider":       {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
+	"stepper":      {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
+
+	// Boolean family (E1-S2): on/off switch and checkbox bind a boolean variable.
+	"toggle":   {variables.VarTypeBoolean: true},
+	"checkbox": {variables.VarTypeBoolean: true},
+}
+
+// numberWidgets is the subset of widget families that accept the optional
+// min/max/step range config. Membership gates the semantic range check
+// (validateWidgetRange) — JSON Schema already enforces each value's type and a
+// positive step, but the cross-field min > max relationship is checked here.
+var numberWidgets = map[string]bool{
+	"number-field": true,
+	"slider":       true,
+	"stepper":      true,
 }
 
 // resolveWidgets walks the assembled resolved tree and validates every variable
@@ -113,5 +134,58 @@ func validateWidgetBinding(inst *ResolvedInstance, path string) error {
 				"varType":  string(v.Type),
 			})
 	}
+
+	if numberWidgets[inst.Type.Name] {
+		if err := validateWidgetRange(inst, path); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+// validateWidgetRange enforces the cross-field range invariants on a number
+// widget's optional min/max/step config: min may not exceed max, and step must
+// be positive. Each value's individual JSON type — and the positive-step bound
+// (exclusiveMinimum 0) — is already guaranteed by the widget item-type schema in
+// Pass 2, so a violation reaching here is the inverted-range case JSON Schema
+// cannot express. The step guard is retained defensively. Violations reuse the
+// config-validation code RESOLVE_CONFIG_INVALID, naming the offending field.
+func validateWidgetRange(inst *ResolvedInstance, path string) error {
+	min, hasMin := numberConfig(inst.Config, "min")
+	max, hasMax := numberConfig(inst.Config, "max")
+	step, hasStep := numberConfig(inst.Config, "step")
+
+	if hasMin && hasMax && min > max {
+		return errors.NewCodedErrorWithDetails(errors.RESOLVE_CONFIG_INVALID,
+			"number widget range is inverted: min must not exceed max",
+			map[string]any{
+				"path":   path,
+				"widget": inst.Type.Name,
+				"field":  "min",
+				"min":    min,
+				"max":    max,
+			})
+	}
+	if hasStep && step <= 0 {
+		return errors.NewCodedErrorWithDetails(errors.RESOLVE_CONFIG_INVALID,
+			"number widget step must be a positive number",
+			map[string]any{
+				"path":   path,
+				"widget": inst.Type.Name,
+				"field":  "step",
+				"step":   step,
+			})
+	}
+	return nil
+}
+
+// numberConfig reads a numeric config value by key. Decoded JSON numbers arrive
+// as float64; the value's type is already schema-validated, so a non-number is
+// treated as absent. The bool reports whether a numeric value was present.
+func numberConfig(config map[string]any, key string) (float64, bool) {
+	if config == nil {
+		return 0, false
+	}
+	n, ok := config[key].(float64)
+	return n, ok
 }

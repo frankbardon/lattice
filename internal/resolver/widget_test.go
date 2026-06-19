@@ -140,3 +140,170 @@ func TestResolveWidgetBinding(t *testing.T) {
 		})
 	}
 }
+
+// numberBooleanDoc builds a minimal dashboard with a single widget instance whose
+// config is supplied verbatim (so number-family range config min/max/step can be
+// exercised). The bound variable is declared at document scope with the given
+// type and a type-appropriate default.
+func numberBooleanDoc(widgetType, varName, varType, config string) string {
+	return fmt.Sprintf(`{
+  "manifest": {"formatVersion": "1.0.0", "id": "wdoc", "title": "Widget Doc"},
+  "variables": [{"name": %q, "type": %q, "default": %s}],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
+        "config": %s
+      }
+    ]
+  }
+}`, varName, varType, defaultFor(varType), widgetType, config)
+}
+
+// TestResolveNumberBooleanWidgets drives the E1-S2 number (number-field, slider,
+// stepper) and boolean (toggle, checkbox) families through the real pipeline:
+// each widget binds a compatible variable (resolves), a mismatched variable
+// (WIDGET_TYPE_MISMATCH), and — for number widgets — invalid range config
+// (RESOLVE_CONFIG_INVALID for both an inverted min>max range and a non-positive
+// step). Table-driven so every new widget is covered uniformly.
+func TestResolveNumberBooleanWidgets(t *testing.T) {
+	tests := []struct {
+		name     string
+		widget   string
+		varName  string
+		varType  string
+		config   string
+		wantCode errors.Code // "" = resolves successfully
+		wantKV   [2]string   // expected Details key/value; "" key to skip
+	}{
+		// Number family: compatible binds (number and integer both satisfy).
+		{
+			name:    "number-field binds a number variable",
+			widget:  "number-field",
+			varName: "ratio",
+			varType: "number",
+			config:  `{"variable": "ratio", "min": 0, "max": 10, "step": 0.5}`,
+		},
+		{
+			name:    "slider binds an integer variable with a bounded track",
+			widget:  "slider",
+			varName: "level",
+			varType: "integer",
+			config:  `{"variable": "level", "min": 1, "max": 100}`,
+		},
+		{
+			name:    "stepper binds a number variable",
+			widget:  "stepper",
+			varName: "qty",
+			varType: "number",
+			config:  `{"variable": "qty", "step": 2}`,
+		},
+		// Number family: type mismatch.
+		{
+			name:     "number-field bound to a string variable mismatches",
+			widget:   "number-field",
+			varName:  "label",
+			varType:  "string",
+			config:   `{"variable": "label"}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"varType", "string"},
+		},
+		{
+			name:     "slider bound to a boolean variable mismatches",
+			widget:   "slider",
+			varName:  "active",
+			varType:  "boolean",
+			config:   `{"variable": "active"}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"widget", "slider"},
+		},
+		// Number family: invalid range config.
+		{
+			name:     "number-field with inverted range fails",
+			widget:   "number-field",
+			varName:  "ratio",
+			varType:  "number",
+			config:   `{"variable": "ratio", "min": 10, "max": 1}`,
+			wantCode: errors.RESOLVE_CONFIG_INVALID,
+			wantKV:   [2]string{"field", "min"},
+		},
+		{
+			name:     "stepper with non-positive step fails",
+			widget:   "stepper",
+			varName:  "qty",
+			varType:  "number",
+			config:   `{"variable": "qty", "step": 0}`,
+			wantCode: errors.RESOLVE_CONFIG_INVALID,
+		},
+		// Boolean family: compatible binds.
+		{
+			name:    "toggle binds a boolean variable",
+			widget:  "toggle",
+			varName: "enabled",
+			varType: "boolean",
+			config:  `{"variable": "enabled"}`,
+		},
+		{
+			name:    "checkbox binds a boolean variable",
+			widget:  "checkbox",
+			varName: "agreed",
+			varType: "boolean",
+			config:  `{"variable": "agreed"}`,
+		},
+		// Boolean family: type mismatch.
+		{
+			name:     "toggle bound to a number variable mismatches",
+			widget:   "toggle",
+			varName:  "count",
+			varType:  "number",
+			config:   `{"variable": "count"}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"varType", "number"},
+		},
+		{
+			name:     "checkbox bound to a string variable mismatches",
+			widget:   "checkbox",
+			varName:  "region",
+			varType:  "string",
+			config:   `{"variable": "region"}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"widget", "checkbox"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := numberBooleanDoc(tc.widget, tc.varName, tc.varType, tc.config)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+
+			if tc.wantCode == "" {
+				if err != nil {
+					t.Fatalf("resolveBytes: unexpected error: %v", err)
+				}
+				widget := tree.Root.Children[0]
+				if got := widget.Config["variable"]; got != tc.varName {
+					t.Errorf("widget variable = %v, want %q", got, tc.varName)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("expected error %s, got nil", tc.wantCode)
+			}
+			if !errors.HasCode(err, tc.wantCode) {
+				t.Fatalf("error = %v, want code %s", err, tc.wantCode)
+			}
+			var ce *errors.CodedError
+			if !asCoded(err, &ce) {
+				t.Fatalf("error is not a CodedError: %v", err)
+			}
+			if tc.wantKV[0] != "" {
+				if got, _ := ce.Details[tc.wantKV[0]].(string); got != tc.wantKV[1] {
+					t.Errorf("error %s = %q, want %q", tc.wantKV[0], got, tc.wantKV[1])
+				}
+			}
+		})
+	}
+}
