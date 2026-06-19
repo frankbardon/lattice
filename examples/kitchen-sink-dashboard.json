@@ -1,0 +1,111 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "kitchen-sink",
+    "title": "Kitchen-Sink Dashboard",
+    "description": "Exercises every feature of the spec in one document: nested grids with subgrids and explicit placement (E2-S1); static, runtime, and computed variables (E3-S1/S2/S3); $var typed binding and ${} string templating (E3-S2); a dropdown runtime input bound to a variable (E3-S4); both connection types — a static inline source and an http (query) connection (E4-S1/S2); a $secret reference that is redacted from the resolved tree (E4-S2); and a result-shape expectedResult contract on a bound table (E4-S3). Resolve with METRICS_API_TOKEN set: METRICS_API_TOKEN=xyz dashspec resolve examples/kitchen-sink-dashboard.json — the token value never appears in the output. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "variables": [
+    { "name": "region", "type": "enum", "default": "us", "options": ["us", "eu", "apac"] },
+    { "name": "window", "type": "integer", "default": 24 },
+    { "name": "windowDays", "type": "integer", "expr": "window / 24" },
+    { "name": "heading", "type": "string", "expr": "\"Metrics for \" + region + \" (last \" + string(windowDays) + \"d)\"" }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": {
+        "columns": [1],
+        "rows": [1, 3],
+        "gap": 1
+      }
+    },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+        "id": "region-picker",
+        "placement": { "colStart": 1, "rowStart": 1 },
+        "config": {
+          "label": "Region",
+          "variable": "region",
+          "options": [
+            { "value": "us", "label": "United States" },
+            { "value": "eu", "label": "Europe" },
+            { "value": "apac", "label": "Asia-Pacific" }
+          ]
+        }
+      },
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "placement": { "colStart": 1, "rowStart": 2 },
+        "config": {
+          "grid": {
+            "columns": [1, 2],
+            "rows": [1],
+            "gap": 1
+          }
+        },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "summary",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "title": "${heading}",
+              "columns": [
+                { "header": "Field" },
+                { "header": "Value" }
+              ],
+              "rows": [
+                ["Region", { "$var": "region" }],
+                ["Window (hours)", "${window}"],
+                ["Window (days)", "${windowDays}"]
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+            "id": "live-metrics",
+            "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "title": "Live metrics for ${region}",
+              "connectionId": "metrics-api",
+              "query": {
+                "region": { "$var": "region" },
+                "hours": { "$var": "window" },
+                "label": "last ${window}h"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "inventory",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "columns": ["name", "qty"],
+        "rows": [
+          { "name": "apple", "qty": 3 },
+          { "name": "pear", "qty": 7 }
+        ]
+      }
+    },
+    {
+      "id": "metrics-api",
+      "$ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+      "config": {
+        "url": "https://api.example.com/metrics",
+        "method": "GET",
+        "headers": {
+          "Authorization": { "$secret": "METRICS_API_TOKEN" }
+        }
+      }
+    }
+  ]
+}

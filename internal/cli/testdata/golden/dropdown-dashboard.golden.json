@@ -1,0 +1,159 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Demonstrates the E3-S4 live loop: a dropdown sets the document-scoped `region` variable, and a table consumes it via a ${region} string template and a {\"$var\":\"region\"} typed binding. Changing the dropdown re-resolves the document and the consumer updates. Serve with `?region=eu` to set the initial value. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-dropdown",
+    "title": "Dropdown Runtime Input Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ],
+        "gap": 1,
+        "rows": [
+          1,
+          2
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        0.3333333333333333,
+        0.6666666666666666
+      ],
+      "gap": 1,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 2,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "region-picker",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+          "id": "https://lattice.dev/schemas/items/dropdown/1.0.0",
+          "name": "dropdown",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "label": "Region",
+          "options": [
+            {
+              "label": "United States",
+              "value": "us"
+            },
+            {
+              "label": "Europe",
+              "value": "eu"
+            },
+            {
+              "label": "Asia-Pacific",
+              "value": "apac"
+            }
+          ],
+          "variable": "region"
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 1
+        },
+        "varEnv": {
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          }
+        }
+      },
+      {
+        "id": "region-metrics",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Region"
+            },
+            {
+              "header": "Value"
+            }
+          ],
+          "rows": [
+            [
+              "us",
+              "live"
+            ]
+          ],
+          "title": "Metrics for us"
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 2
+        },
+        "varEnv": {
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "region": {
+        "name": "region",
+        "type": "enum",
+        "default": "us",
+        "options": [
+          "us",
+          "eu",
+          "apac"
+        ],
+        "declaredAt": "doc"
+      }
+    }
+  }
+}

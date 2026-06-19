@@ -1,0 +1,131 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Focused E3 example covering all three variable kinds in one document: a static string variable (env), a runtime-settable integer with a default (window), and a computed variable derived from the others via an expr (heading). The variables feed both a ${} string template and {\"$var\"} typed bindings on a descendant table. The resolved tree carries each node's varEnv (the variables in scope, with their resolved defaults and declaredAt). Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-variables",
+    "title": "Variables: Static, Runtime \u0026 Computed Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ],
+        "rows": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "report",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Variable"
+            },
+            {
+              "header": "Value"
+            }
+          ],
+          "rows": [
+            [
+              "env",
+              "prod"
+            ],
+            [
+              "window",
+              "12"
+            ],
+            [
+              "heading",
+              "[prod] last 12h"
+            ]
+          ],
+          "title": "[prod] last 12h"
+        },
+        "placement": {
+          "colSpan": 1,
+          "colStart": 1,
+          "rowSpan": 1,
+          "rowStart": 1
+        },
+        "varEnv": {
+          "env": {
+            "name": "env",
+            "type": "string",
+            "default": "prod",
+            "declaredAt": "doc"
+          },
+          "heading": {
+            "name": "heading",
+            "type": "string",
+            "default": "[prod] last 12h",
+            "expr": "\"[\" + env + \"] last \" + string(window) + \"h\"",
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "integer",
+            "default": 12,
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "env": {
+        "name": "env",
+        "type": "string",
+        "default": "prod",
+        "declaredAt": "doc"
+      },
+      "heading": {
+        "name": "heading",
+        "type": "string",
+        "default": "[prod] last 12h",
+        "expr": "\"[\" + env + \"] last \" + string(window) + \"h\"",
+        "declaredAt": "doc"
+      },
+      "window": {
+        "name": "window",
+        "type": "integer",
+        "default": 12,
+        "declaredAt": "doc"
+      }
+    }
+  }
+}

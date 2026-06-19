@@ -1,0 +1,39 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-connections",
+    "title": "Connections: Static & Query Example",
+    "description": "Focused E4-S1 example declaring both connection kinds at the document scope: a static inline data source (rows embedded in config) and an http (query) connection (endpoint + request shape). Connections are declared and validated against their connection-type schemas only — never dialed (no live fetch). The query connection references its credential indirectly via secretRefs rather than inlining it. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } }
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "columns": ["name", "color"],
+        "rows": [
+          { "name": "Apple", "color": "Red" },
+          { "name": "Banana", "color": "Yellow" }
+        ]
+      }
+    },
+    {
+      "id": "metrics-api",
+      "$ref": "https://lattice.dev/schemas/connections/http/1.0.0",
+      "config": {
+        "url": "https://api.example.com/metrics",
+        "method": "GET",
+        "query": { "window": "1h" }
+      },
+      "secretRefs": {
+        "token": "vault://lattice/metrics-api#token"
+      }
+    }
+  ]
+}
