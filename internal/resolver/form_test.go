@@ -8,6 +8,13 @@ import (
 	"github.com/frankbardon/lattice/internal/layout"
 )
 
+// widgetChildPlaced is a widget child instance JSON of the given type bound to
+// the given variable, carrying an explicit placement object (spliced verbatim,
+// e.g. `{"colStart": 2, "colSpan": 1}`). Used to exercise grid-mode placement.
+func widgetChildPlaced(widgetType, variable, placementJSON string) string {
+	return fmt.Sprintf(`{"$ref": "https://lattice.dev/schemas/items/%s/1.0.0", "config": {"variable": %q}, "placement": %s}`, widgetType, variable, placementJSON)
+}
+
 // formDoc builds a minimal dashboard whose root is a `form` (with the supplied
 // layout config object, e.g. `{"columns": 2}` or empty `{}`) holding the given
 // child instances. Variables it needs are declared at document scope so the
@@ -199,4 +206,245 @@ func TestResolveFormChildValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestResolveFormGrid drives a grid-mode `form` through the real pipeline: with
+// `layout.mode == "grid"` the form normalizes its weighted grid into the SAME
+// layout.Block path container uses (fractional tracks + validated child
+// placements) and carries NO flow. It exercises track normalization, gap
+// passthrough, explicit child placement, and placement defaulting.
+func TestResolveFormGrid(t *testing.T) {
+	const vars = `{"name": "region", "type": "string", "default": "us"},
+		{"name": "active", "type": "boolean", "default": true}`
+
+	tests := []struct {
+		name        string
+		layout      string
+		children    string
+		wantColumns []float64
+		wantRows    []float64
+		wantGap     float64
+		wantPlaces  []layout.Placement
+	}{
+		{
+			name:   "two-column grid normalizes tracks and honors placements",
+			layout: `{"mode": "grid", "columns": [1, 3], "gap": 0.5}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 1}`) + "," +
+				widgetChildPlaced("toggle", "active", `{"colStart": 2}`),
+			wantColumns: []float64{0.25, 0.75},
+			wantRows:    []float64{1.0},
+			wantGap:     0.5,
+			wantPlaces: []layout.Placement{
+				{ColStart: 1, ColSpan: 1, RowStart: 1, RowSpan: 1},
+				{ColStart: 2, ColSpan: 1, RowStart: 1, RowSpan: 1},
+			},
+		},
+		{
+			name:   "rows and spans across a 2x2 grid",
+			layout: `{"mode": "grid", "columns": [1, 1], "rows": [2, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 1, "colSpan": 2, "rowStart": 1}`) + "," +
+				widgetChildPlaced("toggle", "active", `{"colStart": 1, "rowStart": 2, "rowSpan": 1}`),
+			wantColumns: []float64{0.5, 0.5},
+			wantRows:    []float64{2.0 / 3.0, 1.0 / 3.0},
+			wantGap:     0,
+			wantPlaces: []layout.Placement{
+				{ColStart: 1, ColSpan: 2, RowStart: 1, RowSpan: 1},
+				{ColStart: 1, ColSpan: 1, RowStart: 2, RowSpan: 1},
+			},
+		},
+		{
+			name:     "missing grid and placement default to a single full cell",
+			layout:   `{"mode": "grid"}`,
+			children: widgetChild("text-input", "region"),
+			wantColumns: []float64{1.0},
+			wantRows:    []float64{1.0},
+			wantGap:     0,
+			wantPlaces: []layout.Placement{
+				{ColStart: 1, ColSpan: 1, RowStart: 1, RowSpan: 1},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := formDoc(tc.layout, vars, tc.children)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+			if err != nil {
+				t.Fatalf("resolveBytes: unexpected error: %v", err)
+			}
+
+			form := tree.Root
+			if form.Layout == nil {
+				t.Fatalf("grid-mode form has no layout block")
+			}
+			if form.Flow != nil {
+				t.Errorf("grid-mode form unexpectedly carries a flow: %+v", form.Flow)
+			}
+			if form.Container {
+				t.Errorf("form should not report Container=true")
+			}
+			if !floatsNear(form.Layout.Columns, tc.wantColumns) {
+				t.Errorf("columns = %v, want %v", form.Layout.Columns, tc.wantColumns)
+			}
+			if !floatsNear(form.Layout.Rows, tc.wantRows) {
+				t.Errorf("rows = %v, want %v", form.Layout.Rows, tc.wantRows)
+			}
+			if form.Layout.Gap != tc.wantGap {
+				t.Errorf("gap = %v, want %v", form.Layout.Gap, tc.wantGap)
+			}
+			if len(form.Layout.Placements) != len(tc.wantPlaces) {
+				t.Fatalf("placements = %+v, want %d", form.Layout.Placements, len(tc.wantPlaces))
+			}
+			for i := range tc.wantPlaces {
+				if form.Layout.Placements[i] != tc.wantPlaces[i] {
+					t.Errorf("placement[%d] = %+v, want %+v", i, form.Layout.Placements[i], tc.wantPlaces[i])
+				}
+			}
+		})
+	}
+}
+
+// TestResolveFormGridPlacementValidation covers grid-mode placement bounds and
+// positivity, asserting the form reuses the SAME LAYOUT_PLACEMENT_* errors as
+// container (no forked validation) and names the offending child path.
+func TestResolveFormGridPlacementValidation(t *testing.T) {
+	const vars = `{"name": "region", "type": "string", "default": "us"}`
+
+	tests := []struct {
+		name     string
+		layout   string
+		children string
+		wantCode errors.Code // "" => resolves successfully
+		wantPath string
+	}{
+		{
+			name:     "in-bounds placement resolves",
+			layout:   `{"mode": "grid", "columns": [1, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 2}`),
+		},
+		{
+			name:     "column out of bounds",
+			layout:   `{"mode": "grid", "columns": [1, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 3}`),
+			wantCode: errors.LAYOUT_PLACEMENT_OUT_OF_BOUNDS,
+			wantPath: "root.children[0]",
+		},
+		{
+			name:     "span exceeds column bounds",
+			layout:   `{"mode": "grid", "columns": [1, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 2, "colSpan": 2}`),
+			wantCode: errors.LAYOUT_PLACEMENT_OUT_OF_BOUNDS,
+			wantPath: "root.children[0]",
+		},
+		{
+			name:     "row out of bounds",
+			layout:   `{"mode": "grid", "columns": [1], "rows": [1, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"rowStart": 3}`),
+			wantCode: errors.LAYOUT_PLACEMENT_OUT_OF_BOUNDS,
+			wantPath: "root.children[0]",
+		},
+		{
+			name:     "non-positive span rejected",
+			layout:   `{"mode": "grid", "columns": [1, 1]}`,
+			children: widgetChildPlaced("text-input", "region", `{"colStart": 1, "colSpan": 0}`),
+			wantCode: errors.LAYOUT_PLACEMENT_INVALID,
+			wantPath: "root.children[0]",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := formDoc(tc.layout, vars, tc.children)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+
+			if tc.wantCode == "" {
+				if err != nil {
+					t.Fatalf("resolveBytes: unexpected error: %v", err)
+				}
+				if tree.Root.Layout == nil {
+					t.Errorf("resolved grid-mode form has no layout block")
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("expected error %s, got nil", tc.wantCode)
+			}
+			if !errors.HasCode(err, tc.wantCode) {
+				t.Fatalf("error = %v, want code %s", err, tc.wantCode)
+			}
+			var ce *errors.CodedError
+			if !asCoded(err, &ce) {
+				t.Fatalf("error is not a CodedError: %v", err)
+			}
+			if got, _ := ce.Details["path"].(string); got != tc.wantPath {
+				t.Errorf("error path = %q, want %q", got, tc.wantPath)
+			}
+		})
+	}
+}
+
+// TestResolveFormModeSwitching asserts the `layout.mode` discriminator picks the
+// representation per instance: flow mode (default or explicit) yields a
+// layout.Flow and no Block; grid mode yields a layout.Block and no Flow. The two
+// are MODES of the one `form` type.
+func TestResolveFormModeSwitching(t *testing.T) {
+	const vars = `{"name": "region", "type": "string", "default": "us"}`
+	child := widgetChild("text-input", "region")
+
+	tests := []struct {
+		name     string
+		layout   string
+		wantFlow bool
+		wantGrid bool
+	}{
+		{name: "default (no layout) is flow", layout: "", wantFlow: true},
+		{name: "explicit flow mode", layout: `{"mode": "flow", "columns": 2}`, wantFlow: true},
+		{name: "explicit grid mode", layout: `{"mode": "grid", "columns": [1, 1]}`, wantGrid: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := formDoc(tc.layout, vars, child)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+			if err != nil {
+				t.Fatalf("resolveBytes: unexpected error: %v", err)
+			}
+			form := tree.Root
+			if tc.wantFlow {
+				if form.Flow == nil {
+					t.Errorf("expected flow layout, got none")
+				}
+				if form.Layout != nil {
+					t.Errorf("flow-mode form unexpectedly carries a Block: %+v", form.Layout)
+				}
+			}
+			if tc.wantGrid {
+				if form.Layout == nil {
+					t.Errorf("expected grid layout block, got none")
+				}
+				if form.Flow != nil {
+					t.Errorf("grid-mode form unexpectedly carries a Flow: %+v", form.Flow)
+				}
+			}
+		})
+	}
+}
+
+// floatsNear reports whether two float slices match within a small epsilon,
+// tolerating normalization rounding.
+func floatsNear(got, want []float64) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		d := got[i] - want[i]
+		if d < -1e-9 || d > 1e-9 {
+			return false
+		}
+	}
+	return true
 }

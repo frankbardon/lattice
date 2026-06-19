@@ -73,7 +73,17 @@ func parseGrid(config map[string]any, path string) (layout.Grid, error) {
 	if !ok {
 		return g, gridTypeError(path, "grid", raw)
 	}
+	return parseGridFrom(gm, path)
+}
 
+// parseGridFrom extracts the relative-weight grid (columns/rows/gap) from an
+// already-unwrapped grid map. It is shared by the container grid pass (which
+// reads the map from config.grid) and the grid-mode form pass (which reads the
+// same shape from config.layout, alongside the mode discriminator). Absent track
+// lists yield a single implicit track per axis, matching layout.Normalize's
+// defaults.
+func parseGridFrom(gm map[string]any, path string) (layout.Grid, error) {
+	var g layout.Grid
 	cols, err := parseWeights(gm["columns"], path, "columns")
 	if err != nil {
 		return g, err
