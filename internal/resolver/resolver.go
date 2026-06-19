@@ -105,6 +105,16 @@ func (r *Resolver) ResolveWithValues(docPath string, overrides variables.Overrid
 	return r.resolveBytes(data, docPath, overrides)
 }
 
+// ResolveBytesWithValues is ResolveWithValues against in-memory document bytes
+// rather than a filesystem path. It runs the identical two-pass pipeline — there
+// is no second copy of the logic; both entry points funnel into resolveBytes —
+// and is the seam a backend-addressed load uses (storage.Store.Load(id) yields
+// the bytes, which are resolved here). source is the document's origin used only
+// in error Details (e.g. the manifest id or path); it is not read from disk.
+func (r *Resolver) ResolveBytesWithValues(docBytes []byte, source string, overrides variables.OverrideSet) (*ResolvedTree, error) {
+	return r.resolveBytes(docBytes, source, overrides)
+}
+
 // resolveBytes runs the full pipeline against raw document bytes. Split out so
 // tests can drive resolution without touching the filesystem for the document.
 func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.OverrideSet) (*ResolvedTree, error) {

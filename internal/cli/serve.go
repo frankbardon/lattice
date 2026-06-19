@@ -12,6 +12,7 @@ import (
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/server"
+	"github.com/frankbardon/lattice/internal/storage"
 )
 
 // defaultServePort is the listen port used when --port is not supplied.
@@ -45,18 +46,23 @@ func ServeCommand() *cli.Command {
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			asJSON := cmd.Bool("json")
 
-			docPath := cmd.Args().First()
-			if docPath == "" {
+			arg := cmd.Args().First()
+			if arg == "" {
 				return reportError(cmd, asJSON, errors.NewCodedError(errors.SERVE_INVALID,
-					"serve requires a dashboard document path argument"))
+					"serve requires a dashboard document path or manifest id argument"))
 			}
 
-			// Construct the selected backend so an unknown --store fails fast
-			// with a coded error before binding the listener. The backend is not
-			// yet on the load path (E3-S2 reroutes loading); existing per-request
-			// resolution is unchanged below.
-			if _, err := newStore(cmd); err != nil {
-				return reportError(cmd, asJSON, err)
+			// When the user selected a backend (--store/--root), the argument is a
+			// manifest.id served through the store; otherwise it is a filesystem
+			// path served directly (the pre-existing default). The store is
+			// constructed once here, lazily and only in backend mode, so a plain
+			// path-mode serve never incurs a backend side-effect (e.g. git init).
+			var store storage.Store
+			if backendConfigured(cmd) {
+				var err error
+				if store, err = newStore(cmd); err != nil {
+					return reportError(cmd, asJSON, err)
+				}
 			}
 
 			port := cmd.Int("port")
@@ -71,11 +77,17 @@ func ServeCommand() *cli.Command {
 			// per-request override map is the UNIFIED override set (E4): a bare
 			// key names a variable (widget selection / URL query param), a
 			// "<node-id>.<field>" key names a node config field. Both kinds flow
-			// straight into the addressable OverrideSet inside
-			// runResolveWithValues, so serve routes both to ResolveWithValues
-			// without distinguishing them.
+			// straight into the addressable OverrideSet, so serve routes both to
+			// the resolver without distinguishing them.
+			//
+			// In backend mode the store is re-read per request too (Load(arg) then
+			// resolve the bytes), so editing the stored document is reflected on
+			// reload exactly as a path-mode edit is; the render stays read-only.
 			resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
-				return runResolveWithValues(schemasDir, docPath, overrides)
+				if store != nil {
+					return resolveBytesByID(store, schemasDir, arg, overrides)
+				}
+				return runResolveWithValues(schemasDir, arg, overrides)
 			}
 
 			srv, err := server.New(resolve)
@@ -90,7 +102,7 @@ func ServeCommand() *cli.Command {
 					"failed to listen on "+addr))
 			}
 
-			fmt.Fprintf(cmd.Writer, "lattice serving %s on http://localhost:%d (Ctrl-C to stop)\n", docPath, port)
+			fmt.Fprintf(cmd.Writer, "lattice serving %s on http://localhost:%d (Ctrl-C to stop)\n", arg, port)
 
 			httpSrv := &http.Server{Handler: srv.Handler()}
 			// Shut down gracefully when the CLI context is cancelled (e.g. SIGINT
