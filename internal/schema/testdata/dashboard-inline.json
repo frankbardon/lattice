@@ -1,0 +1,18 @@
+{
+  "manifest": { "formatVersion": "1.0.0", "id": "inline", "title": "Inline Refs" },
+  "$defs": {
+    "badge": {
+      "$id": "https://lattice.dev/schemas/items/badge/2.1.0",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "label": { "type": "string" } }
+    }
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "children": [
+      { "$ref": "#/$defs/badge", "id": "b1" }
+    ]
+  }
+}

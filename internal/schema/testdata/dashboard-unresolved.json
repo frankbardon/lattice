@@ -1,0 +1,7 @@
+{
+  "manifest": { "formatVersion": "1.0.0", "id": "unres", "title": "Unresolved Ref" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/nonexistent/1.0.0",
+    "id": "root"
+  }
+}

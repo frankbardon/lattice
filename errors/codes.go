@@ -21,6 +21,10 @@ const (
 	// SCHEMA_NOT_FOUND indicates a referenced schema could not be located.
 	SCHEMA_NOT_FOUND Code = "SCHEMA_NOT_FOUND"
 
+	// SCHEMA_IO indicates an I/O failure while reading schemas or the dashboard
+	// document from the filesystem.
+	SCHEMA_IO Code = "SCHEMA_IO"
+
 	// SCHEMA_INVALID indicates a schema failed to parse or is malformed.
 	SCHEMA_INVALID Code = "SCHEMA_INVALID"
 
@@ -29,6 +33,15 @@ const (
 
 	// SCHEMA_VALIDATION indicates a document failed JSON Schema validation.
 	SCHEMA_VALIDATION Code = "SCHEMA_VALIDATION"
+
+	// SCHEMA_REF_UNRESOLVED indicates an instance $ref could not be resolved to
+	// any catalog schema, relative file, or inline $defs fragment.
+	SCHEMA_REF_UNRESOLVED Code = "SCHEMA_REF_UNRESOLVED"
+
+	// SCHEMA_VERSION_MISMATCH indicates an instance referenced a schema by name
+	// but the pinned semver version is missing from or mismatched against the
+	// catalog.
+	SCHEMA_VERSION_MISMATCH Code = "SCHEMA_VERSION_MISMATCH"
 )
 
 // VAR domain - Variable declaration, scoping, and interpolation.

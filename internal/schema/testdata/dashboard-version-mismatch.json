@@ -1,0 +1,7 @@
+{
+  "manifest": { "formatVersion": "1.0.0", "id": "vmm", "title": "Version Mismatch" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/table/9.9.9",
+    "id": "root"
+  }
+}

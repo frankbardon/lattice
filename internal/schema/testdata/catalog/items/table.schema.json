@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/table/1.0.0",
+  "title": "Table Item",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string" }
+  }
+}
