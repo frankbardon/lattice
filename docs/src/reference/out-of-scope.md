@@ -31,6 +31,14 @@ promise.
   this spec. Pinning a normative grammar (which operators, functions, and forms
   are guaranteed) is deferred future work; treat the expression examples as
   illustrative, not as a stable contract.
+- **The JSON Patch apply→save storage pipeline.** The
+  [storage backends](storage.md) are a dumb blob store — they save and load
+  whole documents and have **no JSON Patch awareness**. Applying a
+  [changeset](../format/changesets.md) to a stored document and persisting the
+  result is a separate, later effort; `serve` has no write path today.
+- **A database storage adapter.** Storage ships a filesystem backend and a git
+  backend. A database-backed `Store` is future work — the `Store` contract is
+  designed to admit one, but none ships.
 
 ## What downstream consumers can rely on
 

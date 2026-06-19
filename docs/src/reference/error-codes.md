@@ -117,3 +117,16 @@ See [Configurators](../format/configurator.md).
 | `SERVE_INVALID` | Invalid `serve` invocation (missing document, out-of-range port). |
 | `SERVE_RESOLVE` | The served document failed to resolve (wraps the underlying resolver error; rendered on the HTML error page). |
 | `SERVE_INTERNAL` | Unexpected error in the web layer. |
+
+## `STORAGE_*` — whole-document persistence
+
+See [Storage Backends](storage.md).
+
+| Code | Meaning |
+| --- | --- |
+| `STORAGE_ID_INVALID` | A document's `manifest.id` is not usable as a filename-safe addressing key: absent, empty/whitespace-only, containing a path separator, or a relative path element (`.`, `..`). |
+| `STORAGE_NOT_FOUND` | A `Load`/`Delete`/`History`/`LoadAt` addressed an id (or revision) that no stored document/commit matches. |
+| `STORAGE_IO` | An I/O failure reading or writing a document (open, write, rename, stat, remove), or a git operation failure (including the empty/no-op commit rejected when re-saving byte-identical content). |
+| `STORAGE_INVALID` | A document could not be parsed far enough during `Save` to extract its `manifest.id` (malformed JSON or a missing manifest object). |
+| `STORAGE_INTERNAL` | An unexpected error in a storage backend. |
+| `STORAGE_BACKEND_UNKNOWN` | The `--store` value names no known backend (the recognized kinds are `fs` and `git`). |
