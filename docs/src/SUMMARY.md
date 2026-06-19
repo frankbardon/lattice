@@ -11,6 +11,7 @@
 # The Dashboard Format
 
 - [Document Structure](format/document-structure.md)
+- [Blocks & the Tree Grammar](format/blocks-and-grammar.md)
 - [Typed Schemas & Instances](format/typed-schemas.md)
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)

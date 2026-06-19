@@ -40,6 +40,18 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
     presentation). It declares a single layout-only `arrangement`
     (`stacked`|`inline`) surface — the analogue of a container's grid. The
     container/variable-box-children grammar is enforced by the resolver (E3-S2).
+  - `block.schema.json` (`.../items/block/1.0.0`) — the mandatory **wrapper**,
+    DISTINCT from `container`: it wraps EXACTLY ONE inner content item (held in
+    `config.content`, not the document `children` array) and carries the
+    cross-cutting per-block concerns applied uniformly to whatever it wraps — a
+    required stable `id` (the patch/configurator anchor), an optional `theme`
+    override (`$ref`s the theme schema; validated against the token vocabulary,
+    attached verbatim with NO merge), a human `title`, and a `visibility` flag.
+    It groups no grid and arranges nothing. `title`/`visibility` are a configurable
+    surface. The resolver emits the wrapper and its single inner content as
+    SEPARATE nodes (inner = the wrapper's one child); the wrapper invariants
+    (required `id`, exactly-one content) and the no-wrapper-in-wrapper rule are
+    enforced by the resolver (E1-S2 / E3-S2), not structurally here.
   - `table.schema.json` (`.../items/table/1.0.0`) — a tabular leaf type. It may
     render static columns/rows or bind to a connection by `connectionId` (E4-S2).
     It declares an `expectedResult` keyword — the result-shape contract (E4-S3):

@@ -22,10 +22,14 @@ address shape selects what the value targets:
 | --- | --- | --- |
 | `name` (bare) | a **variable** named `name` | `region` → `"eu"` |
 | `<node-id>.<field>` | a node's **config field** | `summary.title` → `"Pinned"` |
+| `$scope.<field>` | a **document scope** field | `$theme.density` → `"compact"` |
 
 A key with no `.` is a **variable override**; a key of the form
 `<node-id>.<field>` is a **config override**. The two kinds share one map and are
-routed by address — neither the CLI nor the server has to separate them.
+routed by address — neither the CLI nor the server has to separate them. A
+[document-scope configurator](configurator.md#reserved-document-scope-targets)
+posts the same shape with a reserved `$`-keyword as the node half
+(`$theme.<token>`, `$manifest.<field>`).
 
 ### Variable overrides
 

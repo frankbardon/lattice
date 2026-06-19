@@ -10,6 +10,7 @@ members and two optional ones:
   "manifest": { ... },
   "root": { ... },
   "variables": [ ... ],
+  "theme": { ... },
   "connections": [ ... ]
 }
 ```
@@ -55,29 +56,43 @@ an instance node of this shape:
 | `variables` | no | Variable declarations scoped to this node and its descendants (meaningful on containers). |
 | `children` | no | Child instances. |
 
-The root is conventionally a container, but that is not enforced structurally.
+The root is conventionally a `container`, and under the tree grammar (below) it
+must be a **positional region** type.
 
-### The container-only-children rule
+### The tree grammar
 
-`children` is structurally permitted on **any** instance by the schema, but the
-**resolver** rejects children on a non-container item type with
-`RESOLVE_CHILDREN_NOT_ALLOWED`. This rule lives in the resolver, not the schema,
-so the recursive instance shape stays uniform.
+`children` is structurally permitted on **any** instance by the schema, but where
+each kind of node may actually appear is governed by the **tree grammar**, a
+fail-fast resolver pass over the assembled tree. In short: the **root** holds only
+positional regions; a **container** holds nested regions or **block wrappers** (a
+bare content leaf must be wrapped in a block); a **variable-box** holds variable
+widgets directly; a **block** wraps exactly one content leaf and never re-wraps a
+block; and a region carries no theme. The full set of rules, the
+[block wrapper](blocks-and-grammar.md), the `positional` marker, and the grammar
+error codes are documented on the
+[Blocks & the Tree Grammar](blocks-and-grammar.md) page.
 
-The **container** is the only structurally special item type. It arranges its
-children on a relative-weight grid (`config.grid`) — unitless column and row
-track weights plus a gap — and children place themselves with explicit,
-1-indexed `placement` coordinates (`colStart`, `colSpan`, `rowStart`,
-`rowSpan`, each defaulting to 1). The resolver normalizes the tracks to
-fractions summing to 1 per axis and validates each placement against the grid
-bounds (`LAYOUT_PLACEMENT_INVALID`, `LAYOUT_PLACEMENT_OUT_OF_BOUNDS`). No CSS
-keywords or absolute units appear anywhere — the grid is renderer-agnostic.
+The **container** is a positional region: it arranges its children on a
+relative-weight grid (`config.grid`) — unitless column and row track weights plus
+a gap — and children place themselves with explicit, 1-indexed `placement`
+coordinates (`colStart`, `colSpan`, `rowStart`, `rowSpan`, each defaulting to 1).
+The resolver normalizes the tracks to fractions summing to 1 per axis and
+validates each placement against the grid bounds (`LAYOUT_PLACEMENT_INVALID`,
+`LAYOUT_PLACEMENT_OUT_OF_BOUNDS`). No CSS keywords or absolute units appear
+anywhere — the grid is renderer-agnostic.
 
 ## `variables` (optional)
 
 An array of document-scope [variable declarations](variables.md). They are
 visible to every node unless shadowed by a same-named declaration on a
 descendant container.
+
+## `theme` (optional)
+
+The document-scope **default [theme](theme.md)** — the document's base
+presentation choices, drawn from the shared semantic-token vocabulary. It is the
+*default layer*; per-block `theme` overrides are emitted side by side and never
+merged into it. See [Theme](theme.md#no-merge-side-by-side-layers).
 
 ## `connections` (optional)
 
@@ -88,15 +103,20 @@ they are never dialed.
 ## The resolved tree
 
 `lattice resolve` emits a **resolved tree** whose shape is a stable,
-JSON-tagged contract (additive changes only). It has three top-level members:
+JSON-tagged contract (additive changes only). Its top-level members are:
 
 ```json
 {
   "manifest": { ... },
   "root": { ... resolved instance ... },
+  "defaultTheme": { ... },
   "connections": [ ... resolved connections ... ]
 }
 ```
+
+`defaultTheme` is the document's [default theme](theme.md) (the default layer
+only — per-block overrides ride on their own block nodes, never merged here);
+omitted when the document declares no theme.
 
 A **resolved instance** records more than the source node, because resolution
 has already validated and computed several things:

@@ -9,8 +9,12 @@ resolver loads and keys by `$id`. It lives under `schemas/` and is described by
 ```
 schemas/
 ├── dashboard.schema.json        # top-level document schema
+├── theme/
+│   └── theme.schema.json        # the semantic-token theme vocabulary
 ├── items/                       # item-type schemas (instance $ref targets)
-│   ├── container.schema.json
+│   ├── container.schema.json    # positional region (grid)
+│   ├── variable-box.schema.json # positional region (variable widgets)
+│   ├── block.schema.json        # mandatory single-leaf wrapper
 │   ├── table.schema.json
 │   ├── text-input.schema.json   # string-family widget
 │   ├── slider.schema.json       # number-family widget
@@ -43,12 +47,29 @@ Each item type is referenced by an instance `$ref`.
 
 ### `container` (`.../items/container/1.0.0`)
 
-The only structurally special type: it groups children and arranges them on a
-relative-weight grid. `config.grid` holds unitless `columns` and `rows` track
-weight lists (normalized by the resolver to fractions summing to 1 per axis) and
-a relative `gap`. An axis with no track list is a single implicit full-size
-track. Children place themselves with explicit 1-indexed `placement`
-coordinates. No CSS units or keywords appear.
+A **positional region** (see the [`positional` marker](#schema-level-keywords)):
+it groups children and arranges them on a relative-weight grid. `config.grid`
+holds unitless `columns` and `rows` track weight lists (normalized by the
+resolver to fractions summing to 1 per axis) and a relative `gap`. An axis with
+no track list is a single implicit full-size track. Children place themselves
+with explicit 1-indexed `placement` coordinates. No CSS units or keywords appear.
+
+### `variable-box` (`.../items/variable-box/1.0.0`)
+
+A **positional region** dedicated to holding the **variable widgets**. Like
+`container` it is layout-only and carries no chrome/theme; it holds its widget
+children **directly** (they are not block-wrapped). Its only surface is a
+layout-only `arrangement` (`stacked` | `inline`). See
+[Blocks & the Tree Grammar](blocks-and-grammar.md#positional-regions-and-the-positional-marker).
+
+### `block` (`.../items/block/1.0.0`)
+
+The mandatory **wrapper** — *distinct from `container`* — that wraps **exactly
+one** inner content item (held in `config.content`) and carries the cross-cutting
+per-block concerns: a required stable `id`, an optional [theme](theme.md)
+override, a `title`, and a `visibility` flag. The resolver emits the wrapper and
+its inner content as separate nodes. See
+[Blocks & the Tree Grammar](blocks-and-grammar.md#the-block-wrapper).
 
 ### `form` (`.../items/form/1.0.0`)
 
@@ -119,6 +140,30 @@ An inline data source: `rows` are embedded directly in `config` (objects mapping
 column name to a JSON-scalar cell, nulls allowed), with an optional explicit
 `columns` ordering. It exists so the result-shape contract can be exercised
 without a real backend.
+
+## `theme/` — the theme vocabulary
+
+`theme.schema.json` (`.../theme/1.0.0`) defines the renderer-agnostic
+[theme](theme.md): presentation choices expressed purely as closed,
+enum-constrained **semantic tokens** (`emphasis`, `spacing`, `density`, `tone`,
+`radius`, `border`) — no px, no hex, nothing medium-specific. It is referenced by
+the document default theme and a block wrapper's `theme` override.
+
+## Schema-level keywords
+
+Item-type schemas may carry top-level keywords that are **not** instance config
+and **not** standard JSON Schema validation — they are read by the
+resolver/catalog. Examples: `configurable` (the
+[configurable surface](configurable.md)), `expectedResult` (the
+[result-shape contract](connections.md#result-shape-contract)), and:
+
+- **`positional`** (boolean) — designates a type as a **layout-only positional
+  region**: a node that only positions children and carries no chrome/theme.
+  `container` and `variable-box` set `positional: true`. The marker is the
+  **single source of truth** for which types are legal root/region children — the
+  [tree grammar](blocks-and-grammar.md#the-grammar-rules) reads it via the catalog
+  rather than a hardcoded type list, so a new type with the marker becomes a legal
+  region child with no validation-code change.
 
 ## Examples are fixtures
 
