@@ -133,11 +133,15 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
-	// Binding pass (E4-S2): attach each item's direct data binding (connectionId +
-	// variable-filled query) and validate that every referenced connection exists.
-	// Runs after both the instance walk (item configs are interpolated) and the
-	// connection pass (the set of valid connection ids is known). See binding.go.
-	if err := resolveBindings(root, conns); err != nil {
+	// Binding pass (E4-S2) + result-shape contract (E4-S3): attach each item's
+	// direct data binding (connectionId + variable-filled query), validate that
+	// every referenced connection exists, and validate/attach the item↔connection
+	// result-shape contract (well-formed expectedResult; static inline data
+	// conforms). Runs after both the instance walk (item configs are interpolated)
+	// and the connection pass (the set of valid connections is known). The graph
+	// supplies the item-type schemas carrying each expectedResult. See binding.go
+	// and contract.go.
+	if err := resolveBindings(g, root, conns); err != nil {
 		return nil, err
 	}
 

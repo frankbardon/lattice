@@ -110,6 +110,38 @@ type ResolvedBinding struct {
 	// interpolation. Its structure is opaque to the resolver (the connection type
 	// interprets it). Nil when the item declared a connection but no query.
 	Query map[string]any `json:"query,omitempty"`
+
+	// Contract is this item's result-shape contract (E4-S3): the item type, the
+	// connection it draws from, and the JSON Schema fragment describing the result
+	// rows/fields the item expects. Non-nil for every bound item whose item type
+	// declares an expectedResult; the resolver has already verified the fragment
+	// is well-formed (and, for static connections, that the inline data conforms).
+	// Nil only when the item type declares no expectedResult.
+	Contract *ResolvedContract `json:"contract,omitempty"`
+}
+
+// ResolvedContract is the result-shape contract between a bound item and its
+// connection (E4-S3): the declared, well-formed JSON Schema fragment describing
+// the rows/fields the item expects from its connection, recorded alongside the
+// item type and connection id it ties together. It is model-only — the resolver
+// validates the declared shape, not live fetched data. The one place a real data
+// check happens is a static connection, whose inline rows the resolver validates
+// against ExpectedResult before resolution succeeds; this struct still records
+// only the declared contract, never the fetched data.
+type ResolvedContract struct {
+	// ItemType is the resolved item-type name that declared the contract (e.g.
+	// "table"). Records WHICH item type's expectedResult shapes this binding.
+	ItemType string `json:"itemType"`
+
+	// ConnectionID is the id of the connection the contract applies to. Mirrors
+	// the enclosing binding's ConnectionID; surfaced here so the contract is
+	// self-describing.
+	ConnectionID string `json:"connectionId"`
+
+	// ExpectedResult is the item type's declared result-shape JSON Schema
+	// fragment, passed through verbatim. The resolver has compiled it to confirm
+	// it is well-formed; consumers may treat it as a valid draft 2020-12 schema.
+	ExpectedResult map[string]any `json:"expectedResult"`
 }
 
 // ResolvedTypeRef is the resolved identity of an item type as referenced by an

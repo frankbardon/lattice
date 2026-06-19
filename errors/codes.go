@@ -129,6 +129,25 @@ const (
 	// instance path and connectionId are reported in
 	// Details["path"]/["connectionId"].
 	BINDING_CONNECTION_NOT_FOUND Code = "BINDING_CONNECTION_NOT_FOUND"
+
+	// CONTRACT_MISSING indicates a bound item (one declaring a connectionId)
+	// belongs to an item type that declares no expectedResult result-shape
+	// contract, so the item↔connection wiring has no shape to validate against.
+	// The offending instance path and item type are reported in
+	// Details["path"]/["type"].
+	CONTRACT_MISSING Code = "CONTRACT_MISSING"
+
+	// CONTRACT_INVALID indicates a bound item's item-type expectedResult is not a
+	// well-formed JSON Schema fragment (it fails to parse or compile). The
+	// offending instance path and item type are reported in
+	// Details["path"]/["type"].
+	CONTRACT_INVALID Code = "CONTRACT_INVALID"
+
+	// RESULT_SHAPE_INVALID indicates a static connection's inline data does not
+	// conform to the consuming item's expectedResult contract — the one place a
+	// real shape check is possible without a live fetch. The offending instance
+	// path and connectionId are reported in Details["path"]/["connectionId"].
+	RESULT_SHAPE_INVALID Code = "RESULT_SHAPE_INVALID"
 )
 
 // SERVE domain - The HTTP reference-renderer web layer (serve subcommand).

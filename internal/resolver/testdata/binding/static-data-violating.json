@@ -1,0 +1,33 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-violating-contract",
+    "title": "Result-Shape Contract: Static Data Violates",
+    "description": "E4-S3 fixture: a table bound to a static connection whose inline row has a null cell. The static connection schema permits null cells, so the connection pass accepts it, but the table's stricter expectedResult forbids null cells, so the contract pass fails fast with RESULT_SHAPE_INVALID."
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "fruit-table",
+        "config": {
+          "connectionId": "inline-fruits"
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "rows": [
+          { "name": "apple", "qty": null }
+        ]
+      }
+    }
+  ]
+}

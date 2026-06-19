@@ -1,0 +1,36 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-valid-contract",
+    "title": "Result-Shape Contract: Static Data Conforms",
+    "description": "E4-S3 fixture: a table bound to a static connection whose inline rows conform to the table's expectedResult contract. Resolution succeeds and the binding carries the resolved contract."
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "fruit-table",
+        "config": {
+          "title": "Fruit",
+          "connectionId": "inline-fruits"
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "inline-fruits",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": {
+        "columns": ["name", "qty"],
+        "rows": [
+          { "name": "apple", "qty": 3 },
+          { "name": "pear", "qty": 7 }
+        ]
+      }
+    }
+  ]
+}

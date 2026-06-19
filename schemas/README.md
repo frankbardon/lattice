@@ -30,8 +30,15 @@ https://lattice.dev/schemas/<name>/<major>.<minor>.<patch>
   - `container.schema.json` (`.../items/container/1.0.0`) — the only
     structurally-special type; groups children on a (stubbed) grid. E2-S1
     formalizes relative-weight tracks + placement.
-  - `table.schema.json` (`.../items/table/1.0.0`) — a static leaf type with
-    opaque config; no data binding.
+  - `table.schema.json` (`.../items/table/1.0.0`) — a tabular leaf type. It may
+    render static columns/rows or bind to a connection by `connectionId` (E4-S2).
+    It declares an `expectedResult` keyword — the result-shape contract (E4-S3):
+    a JSON Schema fragment describing the rows a bound connection is expected to
+    return (here, an array of non-empty row objects whose cells are non-null
+    scalars). `expectedResult` is a schema-level keyword, NOT instance config; it
+    is ignored by config validation and read by the resolver, which requires a
+    well-formed contract on any bound item and validates inline `static`
+    connection data against it.
   - `dropdown.schema.json` (`.../items/dropdown/1.0.0`) — a runtime-input leaf
     type (E3-S4) binding a variable name to a fixed option set. The reference
     renderer draws it as an Alpine `<select>` and re-resolves the document on
