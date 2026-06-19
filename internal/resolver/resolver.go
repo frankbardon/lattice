@@ -217,7 +217,18 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// resolved type + interpolated config. Auto-generating the editor form from the
 	// target's configurable surface is E5-S2. Fail-fast, same machinery as the
 	// other passes. See configurator.go.
-	if err := resolveConfigurators(root); err != nil {
+	//
+	// E4-S2: resolve the configurable SURFACE of each reserved document scope from
+	// the document schema's `documentScopes` keyword (validated with the same
+	// machinery as item surfaces), then hand the scope surfaces to the configurator
+	// pass so a configurator targeting a reserved `$`-scope generates a document-level
+	// editor form from that scope's surface (reusing the item form-generation path).
+	// The resolver applies no change — generation only. See document_scope.go.
+	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat))
+	if err != nil {
+		return nil, err
+	}
+	if err := resolveConfigurators(root, scopeSurfaces); err != nil {
 		return nil, err
 	}
 

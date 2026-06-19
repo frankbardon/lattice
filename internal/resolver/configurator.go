@@ -131,9 +131,9 @@ const (
 // tree resolving each configurator's target against it. It is fail-fast: the first
 // configurator with a missing/empty target stops the walk and is returned as a
 // CodedError naming the offending configurator path.
-func resolveConfigurators(root *ResolvedInstance) error {
+func resolveConfigurators(root *ResolvedInstance, scopeSurfaces map[string][]ConfigurableField) error {
 	index := buildIDIndex(root)
-	return checkConfigurators(root, "root", index)
+	return checkConfigurators(root, "root", index, scopeSurfaces)
 }
 
 // buildIDIndex collects every id-carrying node of the tree into a single id ->
@@ -158,15 +158,15 @@ func buildIDIndex(root *ResolvedInstance) map[string]*ResolvedInstance {
 
 // checkConfigurators validates one node's target (when it is a configurator) and
 // recurses into children.
-func checkConfigurators(inst *ResolvedInstance, path string, index map[string]*ResolvedInstance) error {
+func checkConfigurators(inst *ResolvedInstance, path string, index map[string]*ResolvedInstance, scopeSurfaces map[string][]ConfigurableField) error {
 	if inst.Type.Name == configuratorTypeName {
-		if err := resolveTarget(inst, path, index); err != nil {
+		if err := resolveTarget(inst, path, index, scopeSurfaces); err != nil {
 			return err
 		}
 	}
 	for i, child := range inst.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		if err := checkConfigurators(child, childPath, index); err != nil {
+		if err := checkConfigurators(child, childPath, index, scopeSurfaces); err != nil {
 			return err
 		}
 	}
@@ -180,7 +180,7 @@ func checkConfigurators(inst *ResolvedInstance, path string, index map[string]*R
 // a well-formed target that no item declares fails fast with
 // CONFIGURATOR_TARGET_NOT_FOUND. A resolved target's surface is generated into a
 // GeneratedForm attached to the configurator node.
-func resolveTarget(inst *ResolvedInstance, path string, index map[string]*ResolvedInstance) error {
+func resolveTarget(inst *ResolvedInstance, path string, index map[string]*ResolvedInstance, scopeSurfaces map[string][]ConfigurableField) error {
 	// The configurator item-type schema requires `target` (a non-empty string), so
 	// a structurally-valid configurator always reaches here with a string target.
 	// We still read defensively: the schema's minLength does not reject a
@@ -198,7 +198,7 @@ func resolveTarget(inst *ResolvedInstance, path string, index map[string]*Resolv
 	// item-id path below is reached only for non-reserved targets. An unknown
 	// `$`-scope fails fast rather than falling through to an item lookup.
 	if strings.HasPrefix(target, reservedTargetPrefix) {
-		return resolveReservedTarget(inst, path, target)
+		return resolveReservedTarget(inst, path, target, scopeSurfaces)
 	}
 
 	targetNode, found := index[target]
@@ -227,27 +227,31 @@ func resolveTarget(inst *ResolvedInstance, path string, index map[string]*Resolv
 // an item id — the `$` sigil is decisive). On a recognized scope the configurator
 // is resolved against that document scope rather than the tree-wide id index.
 //
-// E4-S1 SCOPE: this story does RESOLUTION/ROUTING ONLY — it recognizes the scope
-// and marks the configurator as resolved against it. The document-scope SURFACES
-// and per-scope FORM GENERATION are E4-S2; until then a recognized reserved target
-// attaches a present-but-empty GeneratedForm whose Target is the reserved keyword.
-// That mirrors the surface-less-item behavior (a present, empty form lets a
-// renderer distinguish a resolved configurator from an unresolved one) and leaves
-// a clear seam E4-S2 fills by populating the form from the scope's surface.
-func resolveReservedTarget(inst *ResolvedInstance, path, target string) error {
+// E4-S2: a recognized reserved target generates a document-LEVEL editor form from
+// the scope's configurable surface, REUSING the same generateForm path an
+// item-targeting configurator uses — the scope is treated as the "target" and its
+// surface (declared on the document schema, E4-S2) supplies the widgets. A scope
+// with no surface (absent from scopeSurfaces, or declaring an empty surface) yields
+// a present-but-EMPTY form, mirroring a surface-less item. The reserved keyword is
+// the form's Target and the node-id half of each widget's `<scope>.<field>`
+// override address. The resolver applies NO change here — this is generation only.
+func resolveReservedTarget(inst *ResolvedInstance, path, target string, scopeSurfaces map[string][]ConfigurableField) error {
 	if _, ok := reservedTargets[target]; !ok {
 		return errors.NewCodedErrorWithDetails(errors.CONFIGURATOR_TARGET_SCOPE_UNKNOWN,
 			"configurator target is an unknown reserved document scope",
 			map[string]any{"path": path, configuratorTargetKey: target})
 	}
 
-	// E4-S2 seam: emit a present-but-empty generated form keyed by the reserved
-	// scope keyword. The scope's configurable surface and the widgets generated from
-	// it are E4-S2; this story only confirms the configurator routes to the scope.
-	inst.Generated = &GeneratedForm{
-		Target:  target,
-		Widgets: []GeneratedWidget{},
+	// Build a synthetic "target node" carrying the scope's surface so the shared
+	// item form-generation path (generateForm) produces the scope editor unchanged.
+	// scopeSurfaces[target] is nil for a scope with no declared surface, which
+	// generateForm turns into a present-but-empty form.
+	scopeNode := &ResolvedInstance{Surface: scopeSurfaces[target]}
+	form, err := generateForm(target, scopeNode, path)
+	if err != nil {
+		return err
 	}
+	inst.Generated = form
 	return nil
 }
 

@@ -74,10 +74,35 @@ item id (one without the `$` sigil) is unaffected: an item literally named
   offending configurator's `path` and the unknown scope keyword are in the error
   details.
 
-> The reserved-target *editor* — the surface each document scope exposes and the
-> form generated from it — is a follow-on story. Today a reserved target
-> **resolves and routes** to its scope (the configurator carries a present, empty
-> `generated` form keyed by the scope keyword); the per-scope controls land next.
+#### Document-scope surfaces
+
+Each reserved scope exposes its own **configurable surface** — declared on the
+**document schema** under a top-level `documentScopes` keyword, mapping each
+`$`-keyword to the same `field → descriptor` shape an item type's
+[`configurable`](configurable.md) keyword uses. A configurator pointed at a
+reserved scope generates its editor from that surface through the **same
+form-generation path** an item-targeting configurator uses (one control per
+surface field, bound to the `$scope.<field>` override address). A scope with no
+surface yields a present-but-**empty** form, exactly like a surface-less item.
+
+The surface is the honest, machine-readable list of a scope's runtime-tunable
+fields, and it **doubles as the guardrail**: it enumerates the legal target
+paths within the scope. Field names are validated against the scope's real schema
+properties — `$manifest` against the manifest's properties, `$theme` against the
+[theme vocabulary](theme.md)'s tokens — so a scope surface can never drift out of
+sync with what the scope accepts. The shipped scopes surface:
+
+| Scope         | Fields                                                            |
+| ------------- | ---------------------------------------------------------------- |
+| `$manifest`   | `title`, `description`                                            |
+| `$theme`      | the six theme tokens (`emphasis`, `spacing`, `density`, `tone`, `radius`, `border`) |
+| `$variables`  | *(empty for now — no top-level scalar is runtime-tunable yet)*    |
+| `$connections`| *(empty for now)*                                                |
+| `$root`       | *(empty for now)*                                                 |
+
+Generation is **read-only**: the resolver reads a scope surface and emits the
+editor but applies **no** change to the document — the authored manifest, theme,
+variables, connections, and root are passed through verbatim.
 
 ## The auto-generated form
 

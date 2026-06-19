@@ -52,7 +52,7 @@ func TestResolveConfiguratorValid(t *testing.T) {
 		tableNode("revenue"),
 		configuratorNode("cfg", "revenue"),
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 }
@@ -65,7 +65,7 @@ func TestResolveConfiguratorNotFound(t *testing.T) {
 		tableNode("revenue"),
 		configuratorNode("cfg", "ghost"),
 	)
-	err := resolveConfigurators(root)
+	err := resolveConfigurators(root, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -94,7 +94,7 @@ func TestResolveConfiguratorMissingID(t *testing.T) {
 			tableNode("revenue"),
 			configuratorNode("cfg", target),
 		)
-		err := resolveConfigurators(root)
+		err := resolveConfigurators(root, nil)
 		if err == nil {
 			t.Fatalf("target %q: expected error, got nil", target)
 		}
@@ -121,7 +121,7 @@ func TestResolveConfiguratorTargetsContainer(t *testing.T) {
 		target,
 		configuratorNode("cfg", "panel"),
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 }
@@ -307,7 +307,7 @@ func TestConfiguratorGeneratesForm(t *testing.T) {
 		surfacedTableNode("revenue"),
 		cfg,
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 
@@ -389,7 +389,7 @@ func TestConfiguratorTargetsSurfacelessItem(t *testing.T) {
 		tableNode("plain"), // no Surface set
 		cfg,
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 	if cfg.Generated == nil {
@@ -401,19 +401,32 @@ func TestConfiguratorTargetsSurfacelessItem(t *testing.T) {
 }
 
 // TestResolveConfiguratorReservedTargets asserts every RESERVED document-scope
-// keyword (E4-S1) routes to its scope: a `$`-prefixed target resolves cleanly
-// without any matching item id, and the configurator is marked resolved (carries a
-// present GeneratedForm keyed by the reserved keyword). The id index here holds
-// only ordinary items, so a clean resolve proves the reserved targets bypass the
-// item lookup entirely.
+// keyword (E4-S1) routes to its scope and (E4-S2) generates a document-level form
+// from that scope's SURFACE: a `$`-prefixed target resolves cleanly without any
+// matching item id, the configurator carries a present GeneratedForm keyed by the
+// reserved keyword, and the form's widgets are derived from the scope surface
+// supplied to the pass. A scope absent from the surface map yields a present-but-
+// empty form (mirroring a surface-less item). The id index here holds only
+// ordinary items, so a clean resolve proves the reserved targets bypass the item
+// lookup entirely.
 func TestResolveConfiguratorReservedTargets(t *testing.T) {
+	// A representative scope-surface map: $theme carries two enum tokens, the other
+	// scopes are surface-less (absent) -> present-but-empty forms.
+	scopeSurfaces := map[string][]ConfigurableField{
+		"$theme": {
+			{Field: "emphasis", Type: variables.VarTypeEnum, Label: "Emphasis", Rendering: "select",
+				Constraints: map[string]any{"enum": []any{"none", "low", "high"}}},
+			{Field: "spacing", Type: variables.VarTypeEnum, Label: "Spacing", Rendering: "select",
+				Constraints: map[string]any{"enum": []any{"compact", "cosy", "roomy"}}},
+		},
+	}
 	for _, target := range []string{"$manifest", "$variables", "$connections", "$theme", "$root"} {
 		cfg := configuratorNode("cfg", target)
 		root := containerNode(
 			tableNode("revenue"),
 			cfg,
 		)
-		if err := resolveConfigurators(root); err != nil {
+		if err := resolveConfigurators(root, scopeSurfaces); err != nil {
 			t.Fatalf("target %q: resolveConfigurators: %v", target, err)
 		}
 		if cfg.Generated == nil {
@@ -422,10 +435,90 @@ func TestResolveConfiguratorReservedTargets(t *testing.T) {
 		if cfg.Generated.Target != target {
 			t.Errorf("target %q: Generated.Target = %q, want the reserved keyword", target, cfg.Generated.Target)
 		}
-		// E4-S1 routes only; the scope form is E4-S2, so the form is present but empty.
-		if len(cfg.Generated.Widgets) != 0 {
-			t.Errorf("target %q: Generated.Widgets = %d, want 0 (form generation is E4-S2)", target, len(cfg.Generated.Widgets))
+		wantWidgets := len(scopeSurfaces[target])
+		if len(cfg.Generated.Widgets) != wantWidgets {
+			t.Errorf("target %q: Generated.Widgets = %d, want %d (one per scope surface field)", target, len(cfg.Generated.Widgets), wantWidgets)
 		}
+	}
+}
+
+// TestResolveConfiguratorThemeScopeForm asserts the `$theme` scope generates an
+// editor whose widgets are derived 1:1 from the theme scope surface (E4-S2): one
+// widget per token, each using the surface's preferred rendering, carrying the
+// `$theme.<token>` override binding and the token's constraint (option set), laid
+// out via the shared form flow layout — the same generation path an item-targeting
+// configurator uses.
+func TestResolveConfiguratorThemeScopeForm(t *testing.T) {
+	scopeSurfaces := map[string][]ConfigurableField{
+		"$theme": {
+			{Field: "emphasis", Type: variables.VarTypeEnum, Label: "Emphasis", Rendering: "select",
+				Constraints: map[string]any{"enum": []any{"none", "low", "high"}}},
+			{Field: "tone", Type: variables.VarTypeEnum, Label: "Tone", Rendering: "select",
+				Constraints: map[string]any{"enum": []any{"neutral", "accent"}}},
+		},
+	}
+	cfg := configuratorNode("cfg", "$theme")
+	root := containerNode(tableNode("revenue"), cfg)
+	if err := resolveConfigurators(root, scopeSurfaces); err != nil {
+		t.Fatalf("resolveConfigurators: %v", err)
+	}
+	gen := cfg.Generated
+	if gen == nil {
+		t.Fatal("Generated is nil, want the $theme scope form")
+	}
+	if gen.Target != "$theme" {
+		t.Errorf("Generated.Target = %q, want $theme", gen.Target)
+	}
+	if len(gen.Widgets) != 2 {
+		t.Fatalf("generated %d widgets, want 2 (one per theme token)", len(gen.Widgets))
+	}
+	for i, want := range []string{"emphasis", "tone"} {
+		w := gen.Widgets[i]
+		if w.Field != want {
+			t.Errorf("widget[%d].Field = %q, want %q", i, w.Field, want)
+		}
+		if w.Widget != "select" {
+			t.Errorf("widget[%d].Widget = %q, want select (token enum rendering)", i, w.Widget)
+		}
+		if w.Target != "$theme" {
+			t.Errorf("widget[%d].Target = %q, want $theme", i, w.Target)
+		}
+		if w.Constraints == nil {
+			t.Errorf("widget[%d].Constraints is nil, want the token's option set", i)
+		}
+		// The override address a renderer posts is "$theme.<token>".
+		addr := variables.OverrideTarget{Kind: variables.OverrideKindNodeField, Name: w.Target, Field: w.Field}.String()
+		if want := "$theme." + w.Field; addr != want {
+			t.Errorf("widget[%d] override address = %q, want %q", i, addr, want)
+		}
+	}
+	if gen.Flow == nil {
+		t.Fatal("Generated.Flow is nil, want the form flow layout")
+	}
+	if len(gen.Flow.Cells) != len(gen.Widgets) {
+		t.Errorf("Flow has %d cells, want %d (one per widget)", len(gen.Flow.Cells), len(gen.Widgets))
+	}
+}
+
+// TestResolveConfiguratorEmptyScopeForm asserts a scope with NO surface (absent
+// from the scope-surface map) yields a present-but-EMPTY form (E4-S2) — a renderer
+// can still distinguish a resolved configurator from an unresolved one, exactly as
+// for a surface-less item target.
+func TestResolveConfiguratorEmptyScopeForm(t *testing.T) {
+	cfg := configuratorNode("cfg", "$root")
+	root := containerNode(tableNode("revenue"), cfg)
+	// $root is absent from the map -> surface-less scope.
+	if err := resolveConfigurators(root, map[string][]ConfigurableField{}); err != nil {
+		t.Fatalf("resolveConfigurators: %v", err)
+	}
+	if cfg.Generated == nil {
+		t.Fatal("Generated is nil, want a present (empty) scope form")
+	}
+	if cfg.Generated.Target != "$root" {
+		t.Errorf("Generated.Target = %q, want $root", cfg.Generated.Target)
+	}
+	if len(cfg.Generated.Widgets) != 0 {
+		t.Errorf("Generated.Widgets = %d, want 0 for a surface-less scope", len(cfg.Generated.Widgets))
 	}
 }
 
@@ -439,7 +532,7 @@ func TestResolveConfiguratorReservedTargetUnknown(t *testing.T) {
 		tableNode("revenue"),
 		cfg,
 	)
-	err := resolveConfigurators(root)
+	err := resolveConfigurators(root, nil)
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -473,7 +566,7 @@ func TestResolveConfiguratorReservedDoesNotMatchItem(t *testing.T) {
 		collider,
 		cfg,
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 	if cfg.Generated == nil {
@@ -498,7 +591,7 @@ func TestResolveConfiguratorItemNamedLikeKeywordNoSigil(t *testing.T) {
 		item,
 		cfg,
 	)
-	if err := resolveConfigurators(root); err != nil {
+	if err := resolveConfigurators(root, nil); err != nil {
 		t.Fatalf("resolveConfigurators: %v", err)
 	}
 	if cfg.Generated == nil {
@@ -665,5 +758,138 @@ func TestConfiguratorGeneratedOverrideReResolves(t *testing.T) {
 	}
 	if string(on) != configuratorTableDoc {
 		t.Errorf("on-disk document changed after override; want it untouched")
+	}
+}
+
+// configuratorThemeScopeDoc is a dashboard whose body block wraps a configurator
+// targeting the reserved `$theme` document scope (E4-S2). The configurator's
+// generated form must be derived from the `$theme` scope surface declared on the
+// document schema (the six theme tokens), end to end through the real catalog.
+const configuratorThemeScopeDoc = `{
+  "manifest": { "formatVersion": "1.0.0", "id": "theme-configurator", "title": "Theme Configurator" },
+  "theme": { "emphasis": "high", "spacing": "cosy" },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "theme-cfg-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "theme-cfg",
+                "config": { "target": "$theme", "title": "Edit theme" }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}`
+
+// TestConfiguratorThemeScopeThroughCatalog resolves configuratorThemeScopeDoc
+// against the real schema catalog and asserts the configurator's generated form is
+// derived from the `$theme` document-scope surface declared on the dashboard
+// schema: one widget per theme token, in surface (sorted) order, each binding the
+// "$theme.<token>" override address and rendered with the token's preferred widget.
+// This is the E4-S2 acceptance criterion "form generation for $theme — widgets
+// derived from the theme surface".
+func TestConfiguratorThemeScopeThroughCatalog(t *testing.T) {
+	res := newRepoResolver(t)
+	path := filepath.Join(t.TempDir(), "theme-configurator.json")
+	if err := os.WriteFile(path, []byte(configuratorThemeScopeDoc), 0o644); err != nil {
+		t.Fatalf("write doc: %v", err)
+	}
+
+	tree, err := res.Resolve(path)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	// root -> body region -> block[0] -> configurator.
+	cfg := tree.Root.Children[0].Children[0].Children[0]
+	if cfg.Type.Name != "configurator" {
+		t.Fatalf("configurator type = %q, want configurator", cfg.Type.Name)
+	}
+	gen := cfg.Generated
+	if gen == nil {
+		t.Fatal("configurator.Generated is nil, want the $theme scope form")
+	}
+	if gen.Target != "$theme" {
+		t.Errorf("Generated.Target = %q, want $theme", gen.Target)
+	}
+
+	// The six base theme tokens come back sorted.
+	wantTokens := []string{"border", "density", "emphasis", "radius", "spacing", "tone"}
+	if len(gen.Widgets) != len(wantTokens) {
+		t.Fatalf("generated %d widgets, want %d (theme tokens)", len(gen.Widgets), len(wantTokens))
+	}
+	for i, want := range wantTokens {
+		w := gen.Widgets[i]
+		if w.Field != want {
+			t.Errorf("widget[%d].Field = %q, want %q", i, w.Field, want)
+		}
+		if w.Type != variables.VarTypeEnum {
+			t.Errorf("widget[%d].Type = %q, want enum", i, w.Type)
+		}
+		if w.Target != "$theme" {
+			t.Errorf("widget[%d].Target = %q, want $theme", i, w.Target)
+		}
+		if _, ok := widgetFamilies[w.Widget]; !ok {
+			t.Errorf("widget[%d].Widget = %q is not a registered widget family", i, w.Widget)
+		}
+		// Each token carries its option set in constraints (the guardrail enumerating
+		// the legal values for that scope field).
+		if w.Constraints == nil {
+			t.Errorf("widget[%d].Constraints is nil, want the token option set", i)
+		}
+	}
+}
+
+// TestConfiguratorScopeNoChangeApplied asserts the document-scope configurator is
+// GENERATION ONLY: resolving a document with a `$theme`-targeting configurator
+// leaves the document's own scopes untouched — the resolved default theme still
+// reflects the authored tokens and the on-disk document is unchanged. The
+// resolver applies no change from a scope surface or its generated form.
+func TestConfiguratorScopeNoChangeApplied(t *testing.T) {
+	res := newRepoResolver(t)
+	path := filepath.Join(t.TempDir(), "theme-configurator.json")
+	if err := os.WriteFile(path, []byte(configuratorThemeScopeDoc), 0o644); err != nil {
+		t.Fatalf("write doc: %v", err)
+	}
+
+	tree, err := res.Resolve(path)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	// The default theme is passed through verbatim — generating the scope editor
+	// did NOT mutate the document's authored theme.
+	if got, _ := tree.DefaultTheme["emphasis"].(string); got != "high" {
+		t.Errorf("DefaultTheme.emphasis = %q, want high (untouched by scope generation)", got)
+	}
+	if got, _ := tree.DefaultTheme["spacing"].(string); got != "cosy" {
+		t.Errorf("DefaultTheme.spacing = %q, want cosy (untouched by scope generation)", got)
+	}
+	// The manifest is passed through verbatim too.
+	if got, _ := tree.Manifest["title"].(string); got != "Theme Configurator" {
+		t.Errorf("Manifest.title = %q, want unchanged", got)
+	}
+
+	// The on-disk document is untouched.
+	on, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read doc: %v", err)
+	}
+	if string(on) != configuratorThemeScopeDoc {
+		t.Errorf("on-disk document changed after scope generation; want it untouched")
 	}
 }
