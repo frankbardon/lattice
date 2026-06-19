@@ -1,0 +1,48 @@
+.PHONY: build clean test cover fmt vet lint bench
+
+BINARY_NAME=dashspec
+BUILD_DIR=bin
+GO=go
+LDFLAGS=-s -w
+BUILD_FLAGS=-trimpath -ldflags="$(LDFLAGS)"
+
+# Lattice is pure Go — no CGO dependency in the build graph. Disabling CGO
+# globally makes that a contract: any future import that pulls in a C
+# toolchain fails the build instead of silently re-introducing the
+# dependency. Override on the command line if a downstream consumer
+# really needs CGO (e.g. `make build CGO_ENABLED=1`).
+export CGO_ENABLED=0
+
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+build:
+	$(GO) build $(BUILD_FLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/dashspec
+
+clean:
+	rm -rf $(BUILD_DIR) coverage.out
+
+test:
+	$(GO) test ./...
+
+cover:
+	$(GO) test -coverprofile=coverage.out ./...
+	$(GO) tool cover -func=coverage.out
+
+fmt:
+	$(GO) fmt ./...
+
+vet:
+	$(GO) vet ./...
+
+lint: vet
+	$(GO) run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
+# bench runs the in-tree benchmark suite. Manual target — not wired into
+# `make test`. New bench packages should be added here.
+bench:
+	$(GO) test -bench=. -benchmem -run='^$$' -count=1 ./...
+
+.DEFAULT_GOAL := build
