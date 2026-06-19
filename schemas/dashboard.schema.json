@@ -32,7 +32,7 @@
   "$defs": {
     "varDeclaration": {
       "title": "Variable Declaration",
-      "description": "A typed variable declaration { name, type, default?, options? }. Declarable at document scope and on container instances; resolution walks the tree with inner-shadows-outer semantics (E3-S1).",
+      "description": "A typed variable declaration { name, type, default?|expr?, options? }. Declarable at document scope and on container instances; resolution walks the tree with inner-shadows-outer semantics (E3-S1). A variable's value is either a literal default or a computed expr (E3-S3), never both.",
       "type": "object",
       "required": ["name", "type"],
       "additionalProperties": false,
@@ -48,7 +48,12 @@
           "enum": ["string", "number", "integer", "boolean", "enum", "array"]
         },
         "default": {
-          "description": "Optional default value; validated against type by the resolver (E3-S1)."
+          "description": "Optional default value; validated against type by the resolver (E3-S1). Mutually exclusive with expr."
+        },
+        "expr": {
+          "description": "Optional computed-variable expression (github.com/expr-lang/expr) evaluated against the in-scope variables; its result is coerced/validated to type by the resolver (E3-S3). Mutually exclusive with default.",
+          "type": "string",
+          "minLength": 1
         },
         "options": {
           "description": "Permitted values for enum-typed variables. Required for enum, forbidden otherwise; enforced by the resolver (E3-S1).",

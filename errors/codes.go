@@ -79,6 +79,12 @@ const (
 	// is not one of the declared options. The offending path is in
 	// Details["path"].
 	VAR_OPTIONS_INVALID Code = "VAR_OPTIONS_INVALID"
+
+	// VAR_CYCLE indicates a computed variable's expression participates in a
+	// dependency cycle (an expression that, directly or transitively, depends on
+	// its own value), so no evaluation order exists. The offending path and the
+	// participating names are reported in Details.
+	VAR_CYCLE Code = "VAR_CYCLE"
 )
 
 // CONNECTION domain - Connection (data source) declaration and binding.

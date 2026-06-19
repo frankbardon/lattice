@@ -45,6 +45,11 @@ func (e Environment) Lookup(name string) (ResolvedVar, bool) {
 // Declarations are validated before they enter the environment; the first
 // invalid declaration is returned as a CodedError (fail-fast). A duplicate name
 // WITHIN a single node's declarations is rejected as a declaration error.
+//
+// Computed declarations (those carrying an expr, E3-S3) are layered LAST, after
+// every literal in this scope is in place, and resolved in dependency order so
+// an expression may reference inherited variables, sibling literals, and other
+// computed variables (resolveComputed; a cycle fails fast with VAR_CYCLE).
 func (e Environment) Extend(decls []Declaration, path string) (Environment, error) {
 	if len(decls) == 0 {
 		// No local declarations: the node sees exactly its parent's scope. Return
@@ -69,13 +74,23 @@ func (e Environment) Extend(decls []Declaration, path string) (Environment, erro
 		}
 		seen[d.Name] = true
 
+		// Computed values are filled in by resolveComputed below; placing the
+		// declaration with a nil value first keeps the name in scope (so its
+		// shadowing of an inherited var is correct) without a premature value.
 		next[d.Name] = ResolvedVar{
 			Name:       d.Name,
 			Type:       d.Type,
 			Default:    d.Default,
+			Expr:       d.Expr,
 			Options:    d.Options,
 			DeclaredAt: path,
 		}
+	}
+
+	// E3-S3: evaluate computed declarations in dependency order, overwriting
+	// their placeholder entries with the coerced expression results.
+	if err := resolveComputed(decls, next, path); err != nil {
+		return nil, err
 	}
 	return next, nil
 }

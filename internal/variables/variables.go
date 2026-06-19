@@ -1,8 +1,8 @@
 // Package variables defines the dashboard variable model and computes a
 // tree-scoped variable environment for the resolved tree.
 //
-// A variable DECLARATION is { name, type, default?, options? } and may appear
-// at document scope or on any container instance. Resolution walks the
+// A variable DECLARATION is { name, type, default?|expr?, options? } and may
+// appear at document scope or on any container instance. Resolution walks the
 // item/grid tree and, for every node, computes the set of variables VISIBLE at
 // that node by layering declarations from the document root down to the node
 // itself: an inner declaration SHADOWS an outer one of the same name
@@ -15,8 +15,14 @@
 // This package owns the model, scoping, and interpolation. Interpolation
 // ($var typed bindings / ${...} string templates) is E3-S2, exposed as the
 // reusable Interpolate function (see interpolate.go) which the resolver applies
-// to instance configs and E4-S2 reuses for query params. Computed `expr` values
-// are E3-S3 and not implemented here.
+// to instance configs and E4-S2 reuses for query params.
+//
+// A declaration may instead carry an `expr` (E3-S3): a string expression
+// evaluated with github.com/expr-lang/expr against the in-scope variables. The
+// computed value is coerced/validated to the declared type and then flows into
+// the SAME value slot a default would, so interpolation and dependency tracking
+// treat computed and literal variables identically. Cross-variable references
+// are resolved in dependency order with cycle detection (see computed.go).
 package variables
 
 import (
@@ -56,7 +62,8 @@ var validTypes = map[VarType]bool{
 }
 
 // Declaration is a single variable declaration as authored on the document or a
-// container instance. It mirrors the JSON shape { name, type, default?, options? }.
+// container instance. It mirrors the JSON shape
+// { name, type, default?|expr?, options? }.
 type Declaration struct {
 	// Name is the variable's identifier, unique within its declaring scope.
 	Name string `json:"name"`
@@ -65,13 +72,24 @@ type Declaration struct {
 	Type VarType `json:"type"`
 
 	// Default is the optional default value. When present it is validated
-	// against Type. Nil means no default was declared.
+	// against Type. Nil means no default was declared. Mutually exclusive with
+	// Expr.
 	Default any `json:"default,omitempty"`
+
+	// Expr is an optional string expression (github.com/expr-lang/expr) whose
+	// evaluation against the in-scope variables produces the variable's value.
+	// Mutually exclusive with Default; the computed result is coerced/validated
+	// to Type just like a default would be.
+	Expr string `json:"expr,omitempty"`
 
 	// Options is the permitted value set for enum-typed variables. Required for
 	// enum, forbidden for every other type.
 	Options []any `json:"options,omitempty"`
 }
+
+// isComputed reports whether the declaration's value comes from an expression
+// rather than a literal default.
+func (d Declaration) isComputed() bool { return d.Expr != "" }
 
 // ResolvedVar is one variable as VISIBLE at a node: its declaration plus the
 // path of the node that declared it. DeclaredAt powers var->node visibility:
@@ -84,8 +102,15 @@ type ResolvedVar struct {
 	// Type is the declared type.
 	Type VarType `json:"type"`
 
-	// Default is the declared default value, if any.
+	// Default is the variable's value: the declared literal default, or, for a
+	// computed variable, the evaluated-and-coerced expression result. Consumers
+	// (interpolation, dependency tracking) read this slot uniformly regardless of
+	// how the value was produced.
 	Default any `json:"default,omitempty"`
+
+	// Expr is the source expression for a computed variable, retained for
+	// provenance/diagnostics. Empty for literal variables.
+	Expr string `json:"expr,omitempty"`
 
 	// Options is the enum option set, if any.
 	Options []any `json:"options,omitempty"`
@@ -111,6 +136,15 @@ func validateDeclaration(d Declaration, path string, index int) error {
 		return errors.NewCodedErrorWithDetails(errors.VAR_DECLARATION_INVALID,
 			"variable declaration has an unknown type",
 			map[string]any{"path": loc, "name": d.Name, "type": string(d.Type)})
+	}
+
+	// A declaration's value is either a literal default OR a computed expr, never
+	// both. (Either may be absent: a bare {name,type} is a valid, value-less
+	// declaration.)
+	if d.Default != nil && d.isComputed() {
+		return errors.NewCodedErrorWithDetails(errors.VAR_DECLARATION_INVALID,
+			"variable declaration may not set both default and expr",
+			map[string]any{"path": loc, "name": d.Name})
 	}
 
 	// Enum requires options; every other type forbids them.
@@ -148,7 +182,7 @@ func validateDeclaration(d Declaration, path string, index int) error {
 func validateValue(v any, d Declaration, loc string) error {
 	typeErr := func() error {
 		return errors.NewCodedErrorWithDetails(errors.VAR_TYPE,
-			"variable default value does not match its declared type",
+			"variable value does not match its declared type",
 			map[string]any{"path": loc, "name": d.Name, "type": string(d.Type)})
 	}
 
@@ -188,7 +222,7 @@ func validateValue(v any, d Declaration, loc string) error {
 		}
 		if !found {
 			return errors.NewCodedErrorWithDetails(errors.VAR_OPTIONS_INVALID,
-				"variable default value is not one of the declared enum options",
+				"variable value is not one of the declared enum options",
 				map[string]any{"path": loc, "name": d.Name, "value": s})
 		}
 	}
