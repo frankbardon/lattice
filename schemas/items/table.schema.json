@@ -2,13 +2,22 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lattice.dev/schemas/items/table/1.0.0",
   "title": "Table Item",
-  "description": "A static leaf item type that renders tabular data. Its config is opaque to the resolver (no data binding yet; data binding arrives in later epics). A table never has children.",
+  "description": "A leaf item type that renders tabular data. It may render static columns/rows or bind to a document-scoped connection via connectionId and carry its own query (E4-S2). A table never has children.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
     "title": {
       "description": "Optional heading rendered above the table.",
       "type": "string"
+    },
+    "connectionId": {
+      "description": "Optional id of a document-scoped connection this table draws its rows from (E4-S2). Must match a declared connection; validated by the resolver.",
+      "type": "string",
+      "minLength": 1
+    },
+    "query": {
+      "description": "Optional query passed to the bound connection. Parameter values may reference variables ($var typed bindings / ${} string templates), filled by the resolver's interpolation pass before binding. Requires connectionId.",
+      "type": "object"
     },
     "columns": {
       "description": "Static column definitions.",

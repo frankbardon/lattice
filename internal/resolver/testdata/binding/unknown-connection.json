@@ -1,0 +1,28 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-unknown-connection",
+    "title": "Unknown Connection Binding"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "metrics-table",
+        "config": {
+          "connectionId": "does-not-exist"
+        }
+      }
+    ]
+  },
+  "connections": [
+    {
+      "id": "metrics-api",
+      "$ref": "https://lattice.dev/schemas/connections/static/1.0.0",
+      "config": { "rows": [] }
+    }
+  ]
+}

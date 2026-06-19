@@ -13,11 +13,21 @@ package resolver
 
 import (
 	"encoding/json"
+	"os"
+	"sort"
 	"strconv"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/schema"
 )
+
+// secretRefKey is the single reserved key that marks a secret-reference node in
+// a connection's config. An object of the exact shape { "$secret": "name" } is
+// resolved from the process environment (os.Getenv) at resolution time. The
+// resolved secret VALUE is used only to validate the connection's config and is
+// then discarded — it is NEVER stored on the resolved tree, so the serialized
+// dump carries the reference object, not the value.
+const secretRefKey = "$secret"
 
 // ResolvedConnection is one document-scoped data connection after resolution: a
 // connection instance with its connection-type $ref fully resolved to a
@@ -43,6 +53,15 @@ type ResolvedConnection struct {
 	// passed through unchanged. Secret values are never inlined; this maps a
 	// logical name to an opaque reference token. Nil when none were declared.
 	SecretRefs map[string]string `json:"secretRefs,omitempty"`
+
+	// Secrets lists, in sorted order, the names of every { "$secret": "name" }
+	// reference that appeared in this connection's config and was successfully
+	// resolved from the environment at resolution time. It records WHICH secrets a
+	// connection consumes WITHOUT ever exposing their values: the Config field
+	// above retains the { "$secret": "name" } reference objects (not the resolved
+	// values), so the serialized resolved tree is secret-value-free by
+	// construction. Nil when the connection referenced no secrets.
+	Secrets []string `json:"secrets,omitempty"`
 }
 
 // connectionInstance is the raw decoded form of a document-scoped connection.
@@ -117,17 +136,28 @@ func (r *Resolver) resolveConnection(g *schema.ResolvedGraph, conn connectionIns
 			map[string]any{"path": path, "id": conn.ID, "ref": conn.Ref})
 	}
 
-	// Validate the connection's config against its connection-type schema. An
-	// absent config validates as an empty object so required-field constraints
-	// in the connection-type schema still apply.
+	// Resolve { "$secret": "name" } references in the config from the environment
+	// (os.Getenv) BEFORE validation: a connection-type schema expects the concrete
+	// value (e.g. a string header), not a reference object, so the resolved value
+	// must be substituted in for the schema to see a valid config. The resolved
+	// VALUES are used only for validation and then discarded — only the names are
+	// kept (Secrets) and the original reference-bearing config is what we store.
+	resolvedCfg, secretNames, err := resolveSecrets(conn.Config, path)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate the (secret-substituted) connection config against its
+	// connection-type schema. An absent config validates as an empty object so
+	// required-field constraints in the connection-type schema still apply.
 	resolved, err := rt.Schema.Resolve(nil)
 	if err != nil {
 		return nil, errors.WrapCodedErrorWithDetails(err, errors.RESOLVE_INTERNAL,
 			"failed compiling connection-type schema for validation",
 			map[string]any{"path": path, "type": rt.ID})
 	}
-	var cfg any = conn.Config
-	if conn.Config == nil {
+	var cfg any = resolvedCfg
+	if resolvedCfg == nil {
 		cfg = map[string]any{}
 	}
 	if err := resolved.Validate(cfg); err != nil {
@@ -144,7 +174,102 @@ func (r *Resolver) resolveConnection(g *schema.ResolvedGraph, conn connectionIns
 			Name:    rt.Name,
 			Version: rt.Version,
 		},
+		// Store the ORIGINAL config (with { "$secret": "name" } reference objects
+		// intact), NOT resolvedCfg: this guarantees no resolved secret value can be
+		// serialized into the dump. The reference object names the secret without
+		// exposing it.
 		Config:     conn.Config,
 		SecretRefs: conn.SecretRefs,
+		Secrets:    secretNames,
 	}, nil
+}
+
+// resolveSecrets walks an arbitrary decoded-JSON config and replaces every
+// { "$secret": "name" } node with the value of the named environment variable,
+// returning a NEW value (the input is never mutated) plus the sorted, de-duped
+// names of every secret that was resolved. A malformed reference fails fast as
+// SECRET_INVALID; a name absent from the environment fails fast as
+// SECRET_MISSING. The returned value is used only for schema validation; the
+// resolved secret values are discarded by the caller.
+func resolveSecrets(cfg map[string]any, path string) (map[string]any, []string, error) {
+	if cfg == nil {
+		return nil, nil, nil
+	}
+	seen := make(map[string]struct{})
+	out, err := resolveSecretsValue(cfg, path, seen)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolved, _ := out.(map[string]any)
+	if len(seen) == 0 {
+		return resolved, nil, nil
+	}
+	names := make([]string, 0, len(seen))
+	for n := range seen {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return resolved, names, nil
+}
+
+// resolveSecretsValue is the recursive worker for resolveSecrets. It records
+// every resolved secret name in seen.
+func resolveSecretsValue(value any, path string, seen map[string]struct{}) (any, error) {
+	switch v := value.(type) {
+	case map[string]any:
+		if name, ok := asSecretRef(v); ok {
+			if name == "" {
+				return nil, errors.NewCodedErrorWithDetails(errors.SECRET_INVALID,
+					"secret reference has an empty or non-string name",
+					map[string]any{"path": path})
+			}
+			val, present := os.LookupEnv(name)
+			if !present {
+				return nil, errors.NewCodedErrorWithDetails(errors.SECRET_MISSING,
+					"referenced secret is not set in the environment",
+					map[string]any{"path": path, "name": name})
+			}
+			seen[name] = struct{}{}
+			return val, nil
+		}
+		out := make(map[string]any, len(v))
+		for k, elem := range v {
+			res, err := resolveSecretsValue(elem, path, seen)
+			if err != nil {
+				return nil, err
+			}
+			out[k] = res
+		}
+		return out, nil
+
+	case []any:
+		out := make([]any, len(v))
+		for i, elem := range v {
+			res, err := resolveSecretsValue(elem, path, seen)
+			if err != nil {
+				return nil, err
+			}
+			out[i] = res
+		}
+		return out, nil
+
+	default:
+		return value, nil
+	}
+}
+
+// asSecretRef reports whether m is exactly a secret-reference node
+// { "$secret": "name" } and, if so, returns the referenced name. A reference
+// must have exactly one key ("$secret"); a non-string value yields ("", true)
+// so the caller fails it as SECRET_INVALID rather than treating it as data.
+func asSecretRef(m map[string]any) (string, bool) {
+	if len(m) != 1 {
+		return "", false
+	}
+	raw, ok := m[secretRefKey]
+	if !ok {
+		return "", false
+	}
+	name, _ := raw.(string)
+	return name, true
 }

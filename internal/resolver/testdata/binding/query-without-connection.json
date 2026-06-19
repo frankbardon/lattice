@@ -1,0 +1,21 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-query-without-connection",
+    "title": "Query Without Connection"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+        "id": "metrics-table",
+        "config": {
+          "query": { "region": "us-east" }
+        }
+      }
+    ]
+  }
+}

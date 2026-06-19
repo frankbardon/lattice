@@ -107,6 +107,28 @@ const (
 	// against its resolved connection-type schema. The offending connection path
 	// is reported in Details["path"].
 	CONNECTION_CONFIG_INVALID Code = "CONNECTION_CONFIG_INVALID"
+
+	// SECRET_INVALID indicates a malformed { "$secret": "name" } reference in a
+	// connection's config: the node has the reserved key but an empty or
+	// non-string name. The offending connection path is reported in
+	// Details["path"].
+	SECRET_INVALID Code = "SECRET_INVALID"
+
+	// SECRET_MISSING indicates a { "$secret": "name" } reference named a secret
+	// that is not present in the process environment at resolution time. The
+	// secret name and connection path are reported in Details["name"]/["path"].
+	SECRET_MISSING Code = "SECRET_MISSING"
+
+	// BINDING_INVALID indicates an item's data binding is malformed: a query was
+	// declared without a connectionId. The offending instance path is reported in
+	// Details["path"].
+	BINDING_INVALID Code = "BINDING_INVALID"
+
+	// BINDING_CONNECTION_NOT_FOUND indicates an item's connectionId did not match
+	// any document-scoped connection declared in the dashboard. The offending
+	// instance path and connectionId are reported in
+	// Details["path"]/["connectionId"].
+	BINDING_CONNECTION_NOT_FOUND Code = "BINDING_CONNECTION_NOT_FOUND"
 )
 
 // SERVE domain - The HTTP reference-renderer web layer (serve subcommand).

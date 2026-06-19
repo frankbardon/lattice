@@ -86,6 +86,30 @@ type ResolvedInstance struct {
 	// scope. Each entry's DeclaredAt exposes var->node visibility so downstream
 	// consumers and a future dependency tracker can scope re-resolution.
 	VarEnv variables.Environment `json:"varEnv,omitempty"`
+
+	// Binding is this item's resolved data binding (E4-S2): the document-scoped
+	// connection it draws from plus its own variable-filled query. Non-nil only
+	// for items that declared a connectionId; nil for unbound items. Computed by a
+	// dedicated pass after the tree is assembled and connections are resolved (see
+	// binding.go).
+	Binding *ResolvedBinding `json:"binding,omitempty"`
+}
+
+// ResolvedBinding is an item's direct data-flow binding (E4-S2): a reference to a
+// document-scoped connection (already validated to exist) plus the item's own
+// query whose parameters have been filled from the variables in scope at the
+// item (the E3-S2 interpolation pass runs on the item config before binding, so
+// Query carries concrete, typed values rather than $var/${} references). The
+// binding is declared and resolved only; no live fetch happens this effort.
+type ResolvedBinding struct {
+	// ConnectionID is the id of the document-scoped connection this item binds to.
+	// Guaranteed to match a ResolvedTree.Connections entry after resolution.
+	ConnectionID string `json:"connectionId"`
+
+	// Query is the item's variable-filled query object, passed through after
+	// interpolation. Its structure is opaque to the resolver (the connection type
+	// interprets it). Nil when the item declared a connection but no query.
+	Query map[string]any `json:"query,omitempty"`
 }
 
 // ResolvedTypeRef is the resolved identity of an item type as referenced by an

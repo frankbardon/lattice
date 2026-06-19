@@ -121,6 +121,14 @@ func (r *Resolver) resolveBytes(data []byte, source string) (*ResolvedTree, erro
 		return nil, err
 	}
 
+	// Binding pass (E4-S2): attach each item's direct data binding (connectionId +
+	// variable-filled query) and validate that every referenced connection exists.
+	// Runs after both the instance walk (item configs are interpolated) and the
+	// connection pass (the set of valid connection ids is known). See binding.go.
+	if err := resolveBindings(root, conns); err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
 		Manifest:    g.Document.Manifest,
 		Root:        root,
