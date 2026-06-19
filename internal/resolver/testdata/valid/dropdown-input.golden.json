@@ -17,11 +17,6 @@
       "grid": {
         "columns": [
           1
-        ],
-        "gap": 1,
-        "rows": [
-          1,
-          2
         ]
       }
     },
@@ -30,135 +25,312 @@
         1
       ],
       "rows": [
-        0.3333333333333333,
-        0.6666666666666666
+        1
       ],
-      "gap": 1,
+      "gap": 0,
       "placements": [
         {
           "colStart": 1,
           "colSpan": 1,
           "rowStart": 1,
           "rowSpan": 1
-        },
-        {
-          "colStart": 1,
-          "colSpan": 1,
-          "rowStart": 2,
-          "rowSpan": 1
         }
       ]
     },
     "children": [
       {
-        "id": "region-picker",
+        "id": "body",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/select/1.0.0",
-          "id": "https://lattice.dev/schemas/items/select/1.0.0",
-          "name": "select",
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
           "version": "1.0.0"
         },
-        "container": false,
+        "container": true,
         "config": {
-          "label": "Region",
-          "options": [
-            {
-              "label": "United States",
-              "value": "us"
-            },
-            {
-              "label": "Europe",
-              "value": "eu"
-            },
-            {
-              "label": "Asia-Pacific",
-              "value": "apac"
-            }
-          ],
-          "variable": "region"
-        },
-        "placement": {
-          "colStart": 1,
-          "rowStart": 1
-        },
-        "varEnv": {
-          "region": {
-            "name": "region",
-            "type": "enum",
-            "default": "us",
-            "options": [
-              "us",
-              "eu",
-              "apac"
+          "grid": {
+            "columns": [
+              1
             ],
-            "declaredAt": "doc"
+            "gap": 1,
+            "rows": [
+              1,
+              2
+            ]
           }
         },
-        "surface": [
-          {
-            "field": "disabled",
-            "type": "boolean",
-            "label": "Disabled",
-            "constraints": {
-              "description": "When true the control is rendered read-only — editable at runtime to gate the input."
-            },
-            "rendering": "toggle"
-          },
-          {
-            "field": "label",
-            "type": "string",
-            "label": "Label",
-            "constraints": {
-              "description": "The human label rendered beside the control — editable at runtime."
-            },
-            "rendering": "text-input"
-          },
-          {
-            "field": "sort",
-            "type": "enum",
-            "label": "Option sort",
-            "constraints": {
-              "description": "How the option set is ordered for display — editable at runtime.",
-              "enum": [
-                "declared",
-                "label",
-                "value"
-              ]
-            },
-            "rendering": "select"
-          }
-        ]
-      },
-      {
-        "id": "region-metrics",
-        "type": {
-          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-          "id": "https://lattice.dev/schemas/items/table/1.0.0",
-          "name": "table",
-          "version": "1.0.0"
-        },
-        "container": false,
-        "config": {
+        "layout": {
           "columns": [
-            {
-              "header": "Region"
-            },
-            {
-              "header": "Value"
-            }
+            1
           ],
           "rows": [
-            [
-              "us",
-              "live"
-            ]
+            0.3333333333333333,
+            0.6666666666666666
           ],
-          "title": "Metrics for us"
+          "gap": 1,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 2,
+              "rowSpan": 1
+            }
+          ]
         },
-        "placement": {
-          "colStart": 1,
-          "rowStart": 2
-        },
+        "children": [
+          {
+            "id": "controls",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+              "id": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+              "name": "variable-box",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "placement": {
+              "colStart": 1,
+              "rowStart": 1
+            },
+            "children": [
+              {
+                "id": "region-picker",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/select/1.0.0",
+                  "name": "select",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "label": "Region",
+                  "options": [
+                    {
+                      "label": "United States",
+                      "value": "us"
+                    },
+                    {
+                      "label": "Europe",
+                      "value": "eu"
+                    },
+                    {
+                      "label": "Asia-Pacific",
+                      "value": "apac"
+                    }
+                  ],
+                  "variable": "region"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "enum",
+                    "default": "us",
+                    "options": [
+                      "us",
+                      "eu",
+                      "apac"
+                    ],
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "disabled",
+                    "type": "boolean",
+                    "label": "Disabled",
+                    "constraints": {
+                      "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                    },
+                    "rendering": "toggle"
+                  },
+                  {
+                    "field": "label",
+                    "type": "string",
+                    "label": "Label",
+                    "constraints": {
+                      "description": "The human label rendered beside the control — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "sort",
+                    "type": "enum",
+                    "label": "Option sort",
+                    "constraints": {
+                      "description": "How the option set is ordered for display — editable at runtime.",
+                      "enum": [
+                        "declared",
+                        "label",
+                        "value"
+                      ]
+                    },
+                    "rendering": "select"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "arrangement",
+                "type": "enum",
+                "label": "Arrangement",
+                "constraints": {
+                  "description": "How the box arranges its variable widgets — editable at runtime. `stacked` lays them out one per row; `inline` flows them along a single row. Semantic and renderer-agnostic: NO CSS units or keywords."
+                },
+                "rendering": "segmented"
+              }
+            ]
+          },
+          {
+            "id": "region-metrics-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "region-metrics-block"
+            },
+            "placement": {
+              "colStart": 1,
+              "rowStart": 2
+            },
+            "children": [
+              {
+                "id": "region-metrics",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "name": "table",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "columns": [
+                    {
+                      "header": "Region"
+                    },
+                    {
+                      "header": "Value"
+                    }
+                  ],
+                  "rows": [
+                    [
+                      "us",
+                      "live"
+                    ]
+                  ],
+                  "title": "Metrics for us"
+                },
+                "varEnv": {
+                  "region": {
+                    "name": "region",
+                    "type": "enum",
+                    "default": "us",
+                    "options": [
+                      "us",
+                      "eu",
+                      "apac"
+                    ],
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "columns",
+                    "type": "array",
+                    "label": "Columns",
+                    "constraints": {
+                      "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                      "items": {
+                        "properties": {
+                          "header": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "header"
+                        ],
+                        "type": "object"
+                      }
+                    }
+                  },
+                  {
+                    "field": "query",
+                    "type": "array",
+                    "label": "Query parameters",
+                    "constraints": {
+                      "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                    }
+                  },
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the table — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
         "varEnv": {
           "region": {
             "name": "region",
@@ -174,41 +346,34 @@
         },
         "surface": [
           {
-            "field": "columns",
+            "field": "grid",
             "type": "array",
-            "label": "Columns",
+            "label": "Grid tracks",
             "constraints": {
-              "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-              "items": {
-                "properties": {
-                  "header": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
                 },
-                "required": [
-                  "header"
-                ],
-                "type": "object"
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
               }
             }
-          },
-          {
-            "field": "query",
-            "type": "array",
-            "label": "Query parameters",
-            "constraints": {
-              "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-            }
-          },
-          {
-            "field": "title",
-            "type": "string",
-            "label": "Title",
-            "constraints": {
-              "description": "The heading rendered above the table — editable at runtime."
-            },
-            "rendering": "text-input"
           }
         ]
       }

@@ -34,6 +34,16 @@ type ResolvedTree struct {
 	// declared and validated only, never dialed (no live fetch). Empty/omitted
 	// when the document declares no connections.
 	Connections []*ResolvedConnection `json:"connections,omitempty"`
+
+	// DefaultTheme is the document-scope DEFAULT THEME (E2-S2): the document's base
+	// presentation choices, drawn from the shared theme vocabulary and passed
+	// through verbatim. Its tokens have already been constrained to the vocabulary
+	// by the structural pass, so consumers may treat every present token as valid.
+	// It is the DEFAULT LAYER ONLY — per-block theme overrides (E2-S3) are emitted
+	// on their own block nodes and are NOT merged into it here; a downstream
+	// consumer composes the cascade. Nil/omitted when the document declares no
+	// default theme.
+	DefaultTheme map[string]any `json:"defaultTheme,omitempty"`
 }
 
 // ResolvedInstance is one node of the resolved tree: a single item instance with

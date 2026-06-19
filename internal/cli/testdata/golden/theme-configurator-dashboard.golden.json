@@ -1,0 +1,335 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Exercises a DOCUMENT-SCOPE configurator (E4-S2): a `configurator` whose `target` is the reserved `$theme` keyword routes to the document THEME scope rather than an item id. The resolver reads the `$theme` configurable surface declared on the dashboard schema (the six base theme tokens) and auto-generates a document-level editor form from it — one `select` control per token, each bound to the `$theme.\u003ctoken\u003e` config-override address. The configurator is wrapped in a block inside a body region (a content leaf must be block-wrapped). Generation only: the document's authored default theme is passed through verbatim, never mutated. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-theme-configurator",
+    "title": "Theme Configurator Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "body",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
+          "version": "1.0.0"
+        },
+        "container": true,
+        "config": {
+          "grid": {
+            "columns": [
+              1
+            ]
+          }
+        },
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 0,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "theme-configurator-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "theme-configurator-block"
+            },
+            "children": [
+              {
+                "id": "theme-configurator",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                  "name": "configurator",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "target": "$theme",
+                  "title": "Edit the document theme"
+                },
+                "generated": {
+                  "target": "$theme",
+                  "widgets": [
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "border",
+                      "type": "enum",
+                      "label": "Border Weight",
+                      "constraints": {
+                        "description": "How present a separating edge is around the styled surface.",
+                        "enum": [
+                          "none",
+                          "hairline",
+                          "standard"
+                        ]
+                      }
+                    },
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "density",
+                      "type": "enum",
+                      "label": "Density",
+                      "constraints": {
+                        "description": "How tightly repeated/listed content is packed.",
+                        "enum": [
+                          "comfortable",
+                          "compact"
+                        ]
+                      }
+                    },
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "emphasis",
+                      "type": "enum",
+                      "label": "Emphasis",
+                      "constraints": {
+                        "description": "How prominent the styled element appears.",
+                        "enum": [
+                          "none",
+                          "low",
+                          "high"
+                        ]
+                      }
+                    },
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "radius",
+                      "type": "enum",
+                      "label": "Corner Radius",
+                      "constraints": {
+                        "description": "How softened the corners of the styled surface are.",
+                        "enum": [
+                          "none",
+                          "subtle",
+                          "rounded"
+                        ]
+                      }
+                    },
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "spacing",
+                      "type": "enum",
+                      "label": "Spacing",
+                      "constraints": {
+                        "description": "The relative amount of internal/outer breathing room.",
+                        "enum": [
+                          "compact",
+                          "cosy",
+                          "roomy"
+                        ]
+                      }
+                    },
+                    {
+                      "widget": "select",
+                      "target": "$theme",
+                      "field": "tone",
+                      "type": "enum",
+                      "label": "Tone",
+                      "constraints": {
+                        "description": "The semantic colour intent, expressed by meaning.",
+                        "enum": [
+                          "neutral",
+                          "accent",
+                          "positive",
+                          "caution",
+                          "critical"
+                        ]
+                      }
+                    }
+                  ],
+                  "flow": {
+                    "mode": "flow",
+                    "columns": 1,
+                    "cells": [
+                      {
+                        "column": 1,
+                        "row": 1
+                      },
+                      {
+                        "column": 1,
+                        "row": 2
+                      },
+                      {
+                        "column": 1,
+                        "row": 3
+                      },
+                      {
+                        "column": 1,
+                        "row": 4
+                      },
+                      {
+                        "column": 1,
+                        "row": 5
+                      },
+                      {
+                        "column": 1,
+                        "row": 6
+                      }
+                    ]
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the configurator's generated editor — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "defaultTheme": {
+    "emphasis": "high",
+    "spacing": "cosy"
+  }
+}

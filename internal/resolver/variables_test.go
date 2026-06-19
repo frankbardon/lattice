@@ -27,9 +27,22 @@ const docWithVars = `{
     ],
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "leaf",
-        "config": {"title": "T", "columns": [{"header": "H"}], "rows": [["v"]]}
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": {"grid": {"columns": [1]}},
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "leaf-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "leaf",
+                "config": {"title": "T", "columns": [{"header": "H"}], "rows": [["v"]]}
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -114,9 +127,23 @@ const docInterpolated = `{
     "variables": [{"name": "region", "type": "string", "default": "eu"}],
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "leaf",
-        "config": {"title": "Report for ${region}", "columns": [{"header": "H"}], "rows": [["${region}"]]}
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": {"grid": {"columns": [1]}},
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "leaf-block",
+            "config": {
+              "id": "leaf-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "leaf",
+                "config": {"title": "Report for ${region}", "columns": [{"header": "H"}], "rows": [["${region}"]]}
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -133,7 +160,8 @@ func TestResolveInterpolatesConfig(t *testing.T) {
 		t.Fatalf("resolve: %v", err)
 	}
 
-	leaf := tree.Root.Children[0]
+	// root container -> body region -> block wrapper -> table content leaf
+	leaf := tree.Root.Children[0].Children[0].Children[0]
 	if got := leaf.Config["title"]; got != "Report for eu" {
 		t.Errorf("title = %v, want %q", got, "Report for eu")
 	}
@@ -222,7 +250,8 @@ func TestResolveExternalOverride(t *testing.T) {
 	// The override applies wherever the name is declared. docInterpolated shadows
 	// "region" at root with default "eu"; the override replaces that effective
 	// value too, so the leaf interpolates "apac".
-	leaf := tree.Root.Children[0]
+	// root container -> body region -> block wrapper -> table content leaf
+	leaf := tree.Root.Children[0].Children[0].Children[0]
 	if got := leaf.Config["title"]; got != "Report for apac" {
 		t.Errorf("title = %v, want %q", got, "Report for apac")
 	}

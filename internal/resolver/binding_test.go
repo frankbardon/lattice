@@ -31,10 +31,12 @@ func TestResolveBindingValid(t *testing.T) {
 	}
 
 	// --- connection-id resolution: the item binds to a declared connection. ---
+	// Under the E3-S2 grammar the table is block-wrapped inside a body region:
+	// root -> body region -> block -> table.
 	if len(tree.Root.Children) != 1 {
 		t.Fatalf("len(root.children) = %d, want 1", len(tree.Root.Children))
 	}
-	table := tree.Root.Children[0]
+	table := tree.Root.Children[0].Children[0].Children[0]
 	if table.Binding == nil {
 		t.Fatalf("table.Binding is nil, want a resolved binding")
 	}
@@ -117,14 +119,14 @@ func TestResolveBindingErrors(t *testing.T) {
 			name:     "binding to an unknown connection id",
 			doc:      "testdata/binding/unknown-connection.json",
 			wantCode: errors.BINDING_CONNECTION_NOT_FOUND,
-			wantPath: "root.children[0]",
+			wantPath: "root.children[0].children[0].children[0]",
 			wantKV:   [2]string{"connectionId", "does-not-exist"},
 		},
 		{
 			name:     "query declared without a connectionId",
 			doc:      "testdata/binding/query-without-connection.json",
 			wantCode: errors.BINDING_INVALID,
-			wantPath: "root.children[0]",
+			wantPath: "root.children[0].children[0].children[0]",
 		},
 	}
 

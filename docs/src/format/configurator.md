@@ -50,6 +50,60 @@ validates each configurator's `target` against it, fail-fast:
 
 Both errors name the offending configurator's `path` in their details.
 
+### Reserved document-scope targets
+
+A `target` may instead be a **reserved, `$`-prefixed keyword** that points the
+configurator at a **document-level scope** rather than an item:
+
+| Target         | Scope                          |
+| -------------- | ------------------------------ |
+| `$manifest`    | the document manifest          |
+| `$variables`   | the document variable set      |
+| `$connections` | the document connections       |
+| `$theme`       | the document default theme     |
+| `$root`        | the resolved root region       |
+
+A `$`-prefixed target is **always** routed to a document scope and is **never**
+looked up as an item id, so a reserved keyword can never collide with — nor be
+shadowed by — an item that happens to share the name. Conversely, an ordinary
+item id (one without the `$` sigil) is unaffected: an item literally named
+`theme` is still targeted as an item by `"target": "theme"`.
+
+- `CONFIGURATOR_TARGET_SCOPE_UNKNOWN` — the `target` is `$`-prefixed but names no
+  recognized scope; it fails fast (it is not reinterpreted as an item id). The
+  offending configurator's `path` and the unknown scope keyword are in the error
+  details.
+
+#### Document-scope surfaces
+
+Each reserved scope exposes its own **configurable surface** — declared on the
+**document schema** under a top-level `documentScopes` keyword, mapping each
+`$`-keyword to the same `field → descriptor` shape an item type's
+[`configurable`](configurable.md) keyword uses. A configurator pointed at a
+reserved scope generates its editor from that surface through the **same
+form-generation path** an item-targeting configurator uses (one control per
+surface field, bound to the `$scope.<field>` override address). A scope with no
+surface yields a present-but-**empty** form, exactly like a surface-less item.
+
+The surface is the honest, machine-readable list of a scope's runtime-tunable
+fields, and it **doubles as the guardrail**: it enumerates the legal target
+paths within the scope. Field names are validated against the scope's real schema
+properties — `$manifest` against the manifest's properties, `$theme` against the
+[theme vocabulary](theme.md)'s tokens — so a scope surface can never drift out of
+sync with what the scope accepts. The shipped scopes surface:
+
+| Scope         | Fields                                                            |
+| ------------- | ---------------------------------------------------------------- |
+| `$manifest`   | `title`, `description`                                            |
+| `$theme`      | the six theme tokens (`emphasis`, `spacing`, `density`, `tone`, `radius`, `border`) |
+| `$variables`  | *(empty for now — no top-level scalar is runtime-tunable yet)*    |
+| `$connections`| *(empty for now)*                                                |
+| `$root`       | *(empty for now)*                                                 |
+
+Generation is **read-only**: the resolver reads a scope surface and emits the
+editor but applies **no** change to the document — the authored manifest, theme,
+variables, connections, and root are passed through verbatim.
+
 ## The auto-generated form
 
 When the target resolves, the configurator pass reads the target's validated
@@ -103,6 +157,11 @@ configurator *renders the editor* for them, and a
 [config override](overrides.md#config-overrides) is *what a change posts*. The
 served page wires this loop end to end — see
 [Supplying overrides through `serve`](overrides.md#supplying-overrides-through-serve).
+
+The override above is **ephemeral** — it adjusts only one resolution. The
+**durable** counterpart of the same edit is a
+[JSON Patch changeset](changesets.md), gated by the same configurable surface;
+its application and persistence are future work.
 
 ## Worked example
 

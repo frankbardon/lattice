@@ -6,7 +6,7 @@ feature of the spec. Paths below are relative to the repository root.
 
 | File | Demonstrates |
 | --- | --- |
-| [`examples/minimal-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/minimal-dashboard.json) | The smallest real document: a root container with two static tables. |
+| [`examples/minimal-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/minimal-dashboard.json) | The smallest real document: a root container holding a body region whose grid places two **block-wrapped** static tables. |
 | [`examples/grids-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/grids-dashboard.json) | Nested grids / subgrids with explicit `placement` and fractional track sizing. |
 | [`examples/variables-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/variables-dashboard.json) | All three variable kinds — static, runtime-settable, computed `expr` — feeding `$var` and `${}` references. |
 | [`examples/binding-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/binding-dashboard.json) | An item bound to an `http` connection by id with a variable-filled query, plus a `$secret` reference. |
@@ -16,6 +16,8 @@ feature of the spec. Paths below are relative to the repository root.
 | [`examples/connections-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/connections-dashboard.json) | Both connection kinds declared at document scope — `static` (inline) and `http` (query) — with `secretRefs`. |
 | [`examples/contract-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/contract-dashboard.json) | A table bound to a `static` connection whose inline rows conform to the table's `expectedResult` contract. |
 | [`examples/configurator-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/configurator-dashboard.json) | A `configurator` targeting a `table` by id, auto-generating an editor from the table's configurable surface that drives ephemeral config overrides. |
+| [`examples/themed-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/themed-dashboard.json) | The theme + grammar constructs side by side: a document default theme, a per-block `theme` override (attached verbatim, no merge), and a `variable-box` holding a widget directly. |
+| [`examples/theme-configurator-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/theme-configurator-dashboard.json) | A document-scope configurator: a `configurator` whose `target` is the reserved `$theme` keyword, generating a document-level editor for the six theme tokens. |
 | [`examples/kitchen-sink-dashboard.json`](https://github.com/frankbardon/lattice/blob/main/examples/kitchen-sink-dashboard.json) | Every feature in one document (see below). |
 
 ## Resolving an example

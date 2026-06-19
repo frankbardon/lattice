@@ -1,0 +1,17 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-bad-theme-value",
+    "title": "Bad Theme Value Dashboard"
+  },
+  "theme": {
+    "emphasis": "loud"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": {
+      "grid": { "columns": [1], "rows": [1], "gap": 1 }
+    }
+  }
+}

@@ -11,12 +11,26 @@
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "fruit-table",
-        "config": {
-          "title": "Fruit",
-          "connectionId": "inline-fruits"
-        }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "fruit-block",
+            "config": {
+              "id": "fruit-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "fruit-table",
+                "config": {
+                  "title": "Fruit",
+                  "connectionId": "inline-fruits"
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   },

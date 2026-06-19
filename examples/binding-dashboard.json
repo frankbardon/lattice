@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "binding-example",
     "title": "Direct Binding + Secret Refs Example",
-    "description": "An item bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz lattice resolve examples/binding-dashboard.json — the resolved token value never appears in the output."
+    "description": "A block-wrapped table bound to an http connection by id, carrying a variable-filled query, plus a $secret reference in the connection config. Run: METRICS_API_TOKEN=xyz lattice resolve examples/binding-dashboard.json — the resolved token value never appears in the output. Structured under the E3-S2 grammar (root -> body region -> block -> table)."
   },
   "variables": [
     { "name": "region", "type": "string", "default": "us-east" },
@@ -15,17 +15,31 @@
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "metrics-table",
-        "config": {
-          "title": "Metrics for ${region}",
-          "connectionId": "metrics-api",
-          "query": {
-            "region": { "$var": "region" },
-            "hours": { "$var": "window" },
-            "label": "last ${window}h"
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "metrics-block",
+            "config": {
+              "id": "metrics-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "metrics-table",
+                "config": {
+                  "title": "Metrics for ${region}",
+                  "connectionId": "metrics-api",
+                  "query": {
+                    "region": { "$var": "region" },
+                    "hours": { "$var": "window" },
+                    "label": "last ${window}h"
+                  }
+                }
+              }
+            }
           }
-        }
+        ]
       }
     ]
   },

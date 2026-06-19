@@ -11,14 +11,17 @@
 # The Dashboard Format
 
 - [Document Structure](format/document-structure.md)
+- [Blocks & the Tree Grammar](format/blocks-and-grammar.md)
 - [Typed Schemas & Instances](format/typed-schemas.md)
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)
 - [Widgets](format/widgets.md)
 - [Forms & Widget Placement](format/forms.md)
 - [Configurable Surfaces](format/configurable.md)
+- [Theme & Semantic Tokens](format/theme.md)
 - [Runtime Overrides](format/overrides.md)
 - [Configurators](format/configurator.md)
+- [Changesets (JSON Patch)](format/changesets.md)
 - [Connections](format/connections.md)
 
 # Reference

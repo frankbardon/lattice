@@ -74,6 +74,18 @@ offending `path`, `type`, and `field` in the error details) when:
 A type that declares no `configurable` keyword simply has an empty surface — it
 is not an error.
 
+## Document-scope surfaces
+
+The same descriptor shape is reused **beyond item types**. The reserved
+**document scopes** (`$manifest`, `$theme`, `$variables`, `$connections`,
+`$root`) declare their own configurable surfaces on the **document schema**, under
+a top-level `documentScopes` keyword that maps each `$`-keyword to the identical
+`field → descriptor` shape. A [configurator](configurator.md#document-scope-surfaces)
+pointed at a reserved scope generates its editor from that surface through the
+same machinery — there is no parallel system. Field names are validated against
+the scope's real schema (the manifest's properties for `$manifest`, the
+[theme vocabulary](theme.md)'s tokens for `$theme`).
+
 ## Constraints: top-level fields only
 
 The mechanism validates field names against the item type's **top-level**
@@ -118,8 +130,14 @@ Every shipped item type that has runtime-tunable presentation declares one:
   families).
 - The **[`form`](forms.md)** container surfaces its `layout`.
 - The **[`container`](catalog.md#container-itemscontainer100)** surfaces its
-  `grid`, and the **[`table`](catalog.md#table-itemstable100)** surfaces its
-  `title`, `columns`, and `query`.
+  `grid`, the **[`variable-box`](blocks-and-grammar.md#positional-regions-and-the-positional-marker)**
+  surfaces its `arrangement`, and the
+  **[`table`](catalog.md#table-itemstable100)** surfaces its `title`, `columns`,
+  and `query`.
+- The **[`block`](blocks-and-grammar.md#the-block-wrapper)** wrapper surfaces its
+  `title` and `visibility`, so those per-block concerns are tunable at runtime
+  through the same mechanism (its `id`, `content`, and `theme` are *not*
+  surfaced).
 
 ## What reads a surface
 
@@ -129,6 +147,8 @@ sorted field order, so downstream layers read it directly:
 - A **[configurator](configurator.md)** auto-generates an editor from the
   surface — one control per field, picked by the `rendering` hint.
 - The **override system** knows exactly which fields it may set at runtime.
+- A **[JSON Patch changeset](changesets.md)** uses the surface as its
+  **guardrail** — it enumerates the only paths a patch may legally touch.
 
 Because the surface is derived from the schema and validated on every resolve, a
 declared surface can never drift out of sync with the properties the item type

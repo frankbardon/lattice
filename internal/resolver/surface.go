@@ -101,31 +101,42 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 	}
 
 	props := configProperties(g, inst.Type.ID)
+	return buildSurface(decl, sortedFields(decl), props, inst.Type.Name, path)
+}
 
-	// Iterate fields in a stable (sorted) order so the resolved surface and any
-	// error are deterministic regardless of map iteration order.
-	fields := make([]string, 0, len(decl))
-	for field := range decl {
-		fields = append(fields, field)
-	}
-	sort.Strings(fields)
-
+// buildSurface validates a `configurable`-shaped declaration (field -> descriptor)
+// against a known set of legal property names and returns the resolved surface in
+// the given field order. It is the SHARED validator behind both the item-type
+// surface pass (resolveSurface) and the document-scope surfaces (E4-S2,
+// resolveScopeSurface): both express their knobs with the identical descriptor
+// shape, so they reuse one validation path rather than diverging. typeName is the
+// surface owner reported in errors (the item-type name, or the reserved scope
+// keyword for a document scope).
+//
+// Validation rules (identical to the item-type surface):
+//   - every declared field must be a real property of the surface owner (present
+//     in props — its config properties for an item type, or its scope's settable
+//     fields for a document scope), so a surface can never offer an editor for a
+//     field the owner cannot accept;
+//   - each field's `type` must be one of the variable type set;
+//   - any `rendering` hint must name a registered widget family.
+func buildSurface(decl map[string]any, fields []string, props map[string]struct{}, typeName, path string) ([]ConfigurableField, error) {
 	out := make([]ConfigurableField, 0, len(decl))
 	for _, field := range fields {
 		entry, ok := decl[field].(map[string]any)
 		if !ok {
 			return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 				"configurable surface entry is not an object",
-				map[string]any{"path": path, "type": inst.Type.Name, "field": field})
+				map[string]any{"path": path, "type": typeName, "field": field})
 		}
 
-		// The field must be a real config property of the item type. An unknown
-		// field would let a configurator offer an editor for a property the item
-		// type cannot accept.
+		// The field must be a real property of the surface owner. An unknown field
+		// would let a configurator offer an editor for a property the owner cannot
+		// accept.
 		if _, isProp := props[field]; !isProp {
 			return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 				"configurable surface names a field the item type does not declare",
-				map[string]any{"path": path, "type": inst.Type.Name, "field": field})
+				map[string]any{"path": path, "type": typeName, "field": field})
 		}
 
 		// The declared value type must be one of the variable type set.
@@ -134,7 +145,7 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 		if !variables.IsValidType(vt) {
 			return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 				"configurable surface field has an unknown value type",
-				map[string]any{"path": path, "type": inst.Type.Name, "field": field, "fieldType": typeStr})
+				map[string]any{"path": path, "type": typeName, "field": field, "fieldType": typeStr})
 		}
 
 		// An optional rendering hint must name a widget the catalog knows.
@@ -143,7 +154,7 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 			if _, isWidget := widgetFamilies[rendering]; !isWidget {
 				return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 					"configurable surface rendering hint names an unknown widget item-type",
-					map[string]any{"path": path, "type": inst.Type.Name, "field": field, surfaceRenderingKey: rendering})
+					map[string]any{"path": path, "type": typeName, "field": field, surfaceRenderingKey: rendering})
 			}
 		}
 
@@ -159,6 +170,18 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 		})
 	}
 	return out, nil
+}
+
+// sortedFields returns the keys of a `configurable`-shaped declaration in a
+// stable (sorted) order so a resolved surface and any error are deterministic
+// regardless of map iteration order.
+func sortedFields(decl map[string]any) []string {
+	fields := make([]string, 0, len(decl))
+	for field := range decl {
+		fields = append(fields, field)
+	}
+	sort.Strings(fields)
+	return fields
 }
 
 // configurableFor returns the verbatim `configurable` mapping declared by the

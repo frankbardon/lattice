@@ -17,7 +17,7 @@
   },
   "properties": {
     "target": {
-      "description": "The stable instance `id` of the item this configurator generates an editor for. Must reference an item declared in the same document that carries an `id`; validated by the resolver (E5-S1).",
+      "description": "The target this configurator generates an editor for. Either the stable instance `id` of an item declared in the same document that carries an `id` (validated by the resolver, E5-S1), OR a reserved `$`-prefixed document-scope keyword — `$manifest`, `$variables`, `$connections`, `$theme`, `$root` — that routes to a document-level scope (E4-S1). A `$`-prefixed value is always a reserved scope, never an item id; an unknown reserved scope fails resolution with CONFIGURATOR_TARGET_SCOPE_UNKNOWN.",
       "type": "string",
       "minLength": 1
     },

@@ -1,6 +1,6 @@
 {
   "manifest": {
-    "description": "A table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result).",
+    "description": "A block-wrapped table bound to a static connection whose inline rows conform to the table's expectedResult result-shape contract (E4-S3). Run: lattice resolve examples/contract-dashboard.json — resolution succeeds and the binding carries the resolved contract (item type, connection id, expected result). Structured under the E3-S2 grammar (root -\u003e body region -\u003e block -\u003e table).",
     "formatVersion": "1.0.0",
     "id": "contract-example",
     "title": "Result-Shape Contract Example"
@@ -40,77 +40,180 @@
     },
     "children": [
       {
-        "id": "fruit-table",
+        "id": "body",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-          "id": "https://lattice.dev/schemas/items/table/1.0.0",
-          "name": "table",
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
           "version": "1.0.0"
         },
-        "container": false,
+        "container": true,
         "config": {
-          "connectionId": "inline-fruits",
-          "title": "Fruit Inventory"
-        },
-        "binding": {
-          "connectionId": "inline-fruits",
-          "contract": {
-            "itemType": "table",
-            "connectionId": "inline-fruits",
-            "expectedResult": {
-              "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
-              "items": {
-                "additionalProperties": {
-                  "type": [
-                    "string",
-                    "number",
-                    "boolean"
-                  ]
-                },
-                "minProperties": 1,
-                "type": "object"
-              },
-              "type": "array"
-            }
+          "grid": {
+            "columns": [
+              1
+            ]
           }
         },
-        "surface": [
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 0,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
           {
-            "field": "columns",
-            "type": "array",
-            "label": "Columns",
-            "constraints": {
-              "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-              "items": {
-                "properties": {
-                  "header": {
-                    "minLength": 1,
-                    "type": "string"
+            "id": "fruit-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "fruit-block"
+            },
+            "children": [
+              {
+                "id": "fruit-table",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "name": "table",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "connectionId": "inline-fruits",
+                  "title": "Fruit Inventory"
+                },
+                "binding": {
+                  "connectionId": "inline-fruits",
+                  "contract": {
+                    "itemType": "table",
+                    "connectionId": "inline-fruits",
+                    "expectedResult": {
+                      "description": "Result-shape contract (E4-S3): a JSON Schema fragment describing the rows a bound connection is expected to return. The resolver validates that this fragment is well-formed when the table declares a connectionId, and validates inline static-connection data against it. It is a schema-level keyword (not per-instance config) and is ignored by JSON Schema config validation. A table's result is an array of non-empty row objects whose cells are non-null scalars (a stricter shape than the static connection's own config schema, which also permits null cells).",
+                      "items": {
+                        "additionalProperties": {
+                          "type": [
+                            "string",
+                            "number",
+                            "boolean"
+                          ]
+                        },
+                        "minProperties": 1,
+                        "type": "object"
+                      },
+                      "type": "array"
+                    }
                   }
                 },
-                "required": [
-                  "header"
-                ],
-                "type": "object"
+                "surface": [
+                  {
+                    "field": "columns",
+                    "type": "array",
+                    "label": "Columns",
+                    "constraints": {
+                      "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                      "items": {
+                        "properties": {
+                          "header": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "header"
+                        ],
+                        "type": "object"
+                      }
+                    }
+                  },
+                  {
+                    "field": "query",
+                    "type": "array",
+                    "label": "Query parameters",
+                    "constraints": {
+                      "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                    }
+                  },
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the table — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
               }
             }
-          },
-          {
-            "field": "query",
-            "type": "array",
-            "label": "Query parameters",
-            "constraints": {
-              "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-            }
-          },
-          {
-            "field": "title",
-            "type": "string",
-            "label": "Title",
-            "constraints": {
-              "description": "The heading rendered above the table — editable at runtime."
-            },
-            "rendering": "text-input"
           }
         ]
       }

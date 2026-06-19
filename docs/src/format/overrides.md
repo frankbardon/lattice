@@ -8,7 +8,10 @@ model is identical whether you re-resolve from the CLI or from the served page.
 
 Overrides are **ephemeral**: they apply only to that single resolution. The
 document on disk is never mutated, and an empty override set yields exactly the
-same resolved tree as a plain `resolve`.
+same resolved tree as a plain `resolve`. The **durable** counterpart — a
+recorded edit to the document itself — is a
+[JSON Patch changeset](changesets.md), gated by the same
+[configurable surface](configurable.md); its application is future work.
 
 ## Two override kinds, one addressable map
 
@@ -19,10 +22,14 @@ address shape selects what the value targets:
 | --- | --- | --- |
 | `name` (bare) | a **variable** named `name` | `region` → `"eu"` |
 | `<node-id>.<field>` | a node's **config field** | `summary.title` → `"Pinned"` |
+| `$scope.<field>` | a **document scope** field | `$theme.density` → `"compact"` |
 
 A key with no `.` is a **variable override**; a key of the form
 `<node-id>.<field>` is a **config override**. The two kinds share one map and are
-routed by address — neither the CLI nor the server has to separate them.
+routed by address — neither the CLI nor the server has to separate them. A
+[document-scope configurator](configurator.md#reserved-document-scope-targets)
+posts the same shape with a reserved `$`-keyword as the node half
+(`$theme.<token>`, `$manifest.<field>`).
 
 ### Variable overrides
 

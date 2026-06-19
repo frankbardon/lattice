@@ -23,7 +23,9 @@ func TestResolveContractValid(t *testing.T) {
 	if len(tree.Root.Children) != 1 {
 		t.Fatalf("len(root.children) = %d, want 1", len(tree.Root.Children))
 	}
-	table := tree.Root.Children[0]
+	// Under the E3-S2 grammar the table is block-wrapped inside a body region:
+	// root -> body region -> block -> table.
+	table := tree.Root.Children[0].Children[0].Children[0]
 	if table.Binding == nil {
 		t.Fatalf("table.Binding is nil, want a resolved binding")
 	}
@@ -64,8 +66,8 @@ func TestResolveContractStaticViolating(t *testing.T) {
 	if !asCoded(err, &ce) {
 		t.Fatalf("error is not a CodedError: %v", err)
 	}
-	if got, _ := ce.Details["path"].(string); got != "root.children[0]" {
-		t.Errorf("error path = %q, want %q", got, "root.children[0]")
+	if got, _ := ce.Details["path"].(string); got != "root.children[0].children[0].children[0]" {
+		t.Errorf("error path = %q, want %q", got, "root.children[0].children[0].children[0]")
 	}
 	if got, _ := ce.Details["connectionId"].(string); got != "inline-fruits" {
 		t.Errorf("error connectionId = %q, want %q", got, "inline-fruits")
@@ -123,11 +125,11 @@ func TestResolveContractUnit(t *testing.T) {
 			wantCode:   errors.RESULT_SHAPE_INVALID,
 		},
 		{
-			name:     "malformed expectedResult fails fast",
-			expected: malformed,
-			connType: "static",
+			name:       "malformed expectedResult fails fast",
+			expected:   malformed,
+			connType:   "static",
 			connConfig: map[string]any{"rows": conformingRows},
-			wantCode: errors.CONTRACT_INVALID,
+			wantCode:   errors.CONTRACT_INVALID,
 		},
 		{
 			name:     "bound item type declares no expectedResult",

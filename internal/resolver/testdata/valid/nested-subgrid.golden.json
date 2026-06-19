@@ -1,6 +1,6 @@
 {
   "manifest": {
-    "description": "A root container whose grid holds a child container; the child container declares its own (sub)grid and places its own children. Exercises arbitrary grid nesting (E2-S1).",
+    "description": "A root container holding a body region whose grid holds a block-wrapped sidebar table and a nested panel container; the panel container declares its own (sub)grid and places its own block-wrapped children. Exercises arbitrary grid nesting (E2-S1) under the E3-S2 grammar.",
     "formatVersion": "1.0.0",
     "id": "nested-subgrid",
     "title": "Nested Subgrid Dashboard"
@@ -17,33 +17,21 @@
     "config": {
       "grid": {
         "columns": [
-          1,
-          2
-        ],
-        "gap": 1,
-        "rows": [
           1
         ]
       }
     },
     "layout": {
       "columns": [
-        0.3333333333333333,
-        0.6666666666666666
+        1
       ],
       "rows": [
         1
       ],
-      "gap": 1,
+      "gap": 0,
       "placements": [
         {
           "colStart": 1,
-          "colSpan": 1,
-          "rowStart": 1,
-          "rowSpan": 1
-        },
-        {
-          "colStart": 2,
           "colSpan": 1,
           "rowStart": 1,
           "rowSpan": 1
@@ -52,78 +40,7 @@
     },
     "children": [
       {
-        "id": "sidebar",
-        "type": {
-          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-          "id": "https://lattice.dev/schemas/items/table/1.0.0",
-          "name": "table",
-          "version": "1.0.0"
-        },
-        "container": false,
-        "config": {
-          "columns": [
-            {
-              "header": "Link"
-            }
-          ],
-          "rows": [
-            [
-              "Home"
-            ],
-            [
-              "About"
-            ]
-          ],
-          "title": "Sidebar"
-        },
-        "placement": {
-          "colSpan": 1,
-          "colStart": 1,
-          "rowSpan": 1,
-          "rowStart": 1
-        },
-        "surface": [
-          {
-            "field": "columns",
-            "type": "array",
-            "label": "Columns",
-            "constraints": {
-              "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-              "items": {
-                "properties": {
-                  "header": {
-                    "minLength": 1,
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "header"
-                ],
-                "type": "object"
-              }
-            }
-          },
-          {
-            "field": "query",
-            "type": "array",
-            "label": "Query parameters",
-            "constraints": {
-              "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-            }
-          },
-          {
-            "field": "title",
-            "type": "string",
-            "label": "Title",
-            "constraints": {
-              "description": "The heading rendered above the table — editable at runtime."
-            },
-            "rendering": "text-input"
-          }
-        ]
-      },
-      {
-        "id": "panel",
+        "id": "body",
         "type": {
           "ref": "https://lattice.dev/schemas/items/container/1.0.0",
           "id": "https://lattice.dev/schemas/items/container/1.0.0",
@@ -134,29 +51,24 @@
         "config": {
           "grid": {
             "columns": [
-              1
+              1,
+              2
             ],
+            "gap": 1,
             "rows": [
-              3,
               1
             ]
           }
         },
-        "placement": {
-          "colSpan": 1,
-          "colStart": 2,
-          "rowSpan": 1,
-          "rowStart": 1
-        },
         "layout": {
           "columns": [
-            1
+            0.3333333333333333,
+            0.6666666666666666
           ],
           "rows": [
-            0.75,
-            0.25
+            1
           ],
-          "gap": 0,
+          "gap": 1,
           "placements": [
             {
               "colStart": 1,
@@ -165,35 +77,25 @@
               "rowSpan": 1
             },
             {
-              "colStart": 1,
+              "colStart": 2,
               "colSpan": 1,
-              "rowStart": 2,
+              "rowStart": 1,
               "rowSpan": 1
             }
           ]
         },
         "children": [
           {
-            "id": "main",
+            "id": "sidebar-block",
             "type": {
-              "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-              "id": "https://lattice.dev/schemas/items/table/1.0.0",
-              "name": "table",
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
               "version": "1.0.0"
             },
             "container": false,
             "config": {
-              "columns": [
-                {
-                  "header": "Item"
-                }
-              ],
-              "rows": [
-                [
-                  "one"
-                ]
-              ],
-              "title": "Main"
+              "id": "sidebar-block"
             },
             "placement": {
               "colSpan": 1,
@@ -201,111 +103,382 @@
               "rowSpan": 1,
               "rowStart": 1
             },
-            "surface": [
+            "children": [
               {
-                "field": "columns",
-                "type": "array",
-                "label": "Columns",
-                "constraints": {
-                  "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-                  "items": {
-                    "properties": {
-                      "header": {
-                        "minLength": 1,
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "header"
+                "id": "sidebar",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "name": "table",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "columns": [
+                    {
+                      "header": "Link"
+                    }
+                  ],
+                  "rows": [
+                    [
+                      "Home"
                     ],
-                    "type": "object"
+                    [
+                      "About"
+                    ]
+                  ],
+                  "title": "Sidebar"
+                },
+                "surface": [
+                  {
+                    "field": "columns",
+                    "type": "array",
+                    "label": "Columns",
+                    "constraints": {
+                      "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                      "items": {
+                        "properties": {
+                          "header": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "header"
+                        ],
+                        "type": "object"
+                      }
+                    }
+                  },
+                  {
+                    "field": "query",
+                    "type": "array",
+                    "label": "Query parameters",
+                    "constraints": {
+                      "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                    }
+                  },
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the table — editable at runtime."
+                    },
+                    "rendering": "text-input"
                   }
-                }
-              },
-              {
-                "field": "query",
-                "type": "array",
-                "label": "Query parameters",
-                "constraints": {
-                  "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-                }
-              },
+                ]
+              }
+            ],
+            "surface": [
               {
                 "field": "title",
                 "type": "string",
                 "label": "Title",
                 "constraints": {
-                  "description": "The heading rendered above the table — editable at runtime."
+                  "description": "The block's human heading/label — editable at runtime."
                 },
                 "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
               }
             ]
           },
           {
-            "id": "footer",
+            "id": "panel",
             "type": {
-              "ref": "https://lattice.dev/schemas/items/table/1.0.0",
-              "id": "https://lattice.dev/schemas/items/table/1.0.0",
-              "name": "table",
+              "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+              "id": "https://lattice.dev/schemas/items/container/1.0.0",
+              "name": "container",
               "version": "1.0.0"
             },
-            "container": false,
+            "container": true,
             "config": {
-              "columns": [
-                {
-                  "header": "Note"
-                }
-              ],
-              "rows": [
-                [
-                  "foot"
+              "grid": {
+                "columns": [
+                  1
+                ],
+                "rows": [
+                  3,
+                  1
                 ]
-              ],
-              "title": "Footer"
+              }
             },
             "placement": {
               "colSpan": 1,
-              "colStart": 1,
+              "colStart": 2,
               "rowSpan": 1,
-              "rowStart": 2
+              "rowStart": 1
             },
+            "layout": {
+              "columns": [
+                1
+              ],
+              "rows": [
+                0.75,
+                0.25
+              ],
+              "gap": 0,
+              "placements": [
+                {
+                  "colStart": 1,
+                  "colSpan": 1,
+                  "rowStart": 1,
+                  "rowSpan": 1
+                },
+                {
+                  "colStart": 1,
+                  "colSpan": 1,
+                  "rowStart": 2,
+                  "rowSpan": 1
+                }
+              ]
+            },
+            "children": [
+              {
+                "id": "main-block",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/block/1.0.0",
+                  "name": "block",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "id": "main-block"
+                },
+                "placement": {
+                  "colSpan": 1,
+                  "colStart": 1,
+                  "rowSpan": 1,
+                  "rowStart": 1
+                },
+                "children": [
+                  {
+                    "id": "main",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                      "name": "table",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "columns": [
+                        {
+                          "header": "Item"
+                        }
+                      ],
+                      "rows": [
+                        [
+                          "one"
+                        ]
+                      ],
+                      "title": "Main"
+                    },
+                    "surface": [
+                      {
+                        "field": "columns",
+                        "type": "array",
+                        "label": "Columns",
+                        "constraints": {
+                          "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                          "items": {
+                            "properties": {
+                              "header": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "header"
+                            ],
+                            "type": "object"
+                          }
+                        }
+                      },
+                      {
+                        "field": "query",
+                        "type": "array",
+                        "label": "Query parameters",
+                        "constraints": {
+                          "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                        }
+                      },
+                      {
+                        "field": "title",
+                        "type": "string",
+                        "label": "Title",
+                        "constraints": {
+                          "description": "The heading rendered above the table — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      }
+                    ]
+                  }
+                ],
+                "surface": [
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The block's human heading/label — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "visibility",
+                    "type": "boolean",
+                    "label": "Visible",
+                    "constraints": {
+                      "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                    },
+                    "rendering": "toggle"
+                  }
+                ]
+              },
+              {
+                "id": "footer-block",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/block/1.0.0",
+                  "name": "block",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "id": "footer-block"
+                },
+                "placement": {
+                  "colSpan": 1,
+                  "colStart": 1,
+                  "rowSpan": 1,
+                  "rowStart": 2
+                },
+                "children": [
+                  {
+                    "id": "footer",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                      "name": "table",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "columns": [
+                        {
+                          "header": "Note"
+                        }
+                      ],
+                      "rows": [
+                        [
+                          "foot"
+                        ]
+                      ],
+                      "title": "Footer"
+                    },
+                    "surface": [
+                      {
+                        "field": "columns",
+                        "type": "array",
+                        "label": "Columns",
+                        "constraints": {
+                          "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                          "items": {
+                            "properties": {
+                              "header": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "header"
+                            ],
+                            "type": "object"
+                          }
+                        }
+                      },
+                      {
+                        "field": "query",
+                        "type": "array",
+                        "label": "Query parameters",
+                        "constraints": {
+                          "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                        }
+                      },
+                      {
+                        "field": "title",
+                        "type": "string",
+                        "label": "Title",
+                        "constraints": {
+                          "description": "The heading rendered above the table — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      }
+                    ]
+                  }
+                ],
+                "surface": [
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The block's human heading/label — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "visibility",
+                    "type": "boolean",
+                    "label": "Visible",
+                    "constraints": {
+                      "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                    },
+                    "rendering": "toggle"
+                  }
+                ]
+              }
+            ],
             "surface": [
               {
-                "field": "columns",
+                "field": "grid",
                 "type": "array",
-                "label": "Columns",
+                "label": "Grid tracks",
                 "constraints": {
-                  "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
-                  "items": {
-                    "properties": {
-                      "header": {
-                        "minLength": 1,
-                        "type": "string"
-                      }
+                  "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+                  "fields": {
+                    "columns": {
+                      "items": {
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                      },
+                      "minItems": 1,
+                      "type": "array"
                     },
-                    "required": [
-                      "header"
-                    ],
-                    "type": "object"
+                    "gap": {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    "rows": {
+                      "items": {
+                        "exclusiveMinimum": 0,
+                        "type": "number"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    }
                   }
                 }
-              },
-              {
-                "field": "query",
-                "type": "array",
-                "label": "Query parameters",
-                "constraints": {
-                  "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
-                }
-              },
-              {
-                "field": "title",
-                "type": "string",
-                "label": "Title",
-                "constraints": {
-                  "description": "The heading rendered above the table — editable at runtime."
-                },
-                "rendering": "text-input"
               }
             ]
           }

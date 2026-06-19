@@ -4,6 +4,7 @@
   "title": "Container Item",
   "type": "object",
   "additionalProperties": false,
+  "positional": true,
   "properties": {
     "grid": { "type": "object" }
   }

@@ -28,9 +28,22 @@ const overrideDoc = `{
     "config": {"grid": {"columns": [1]}},
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "tbl",
-        "config": {"title": "Report for ${region}", "columns": [{"header": "Name"}]}
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": {"grid": {"columns": [1]}},
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "config": {
+              "id": "tbl-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "tbl",
+                "config": {"title": "Report for ${region}", "columns": [{"header": "Name"}]}
+              }
+            }
+          }
+        ]
       }
     ]
   }
@@ -48,7 +61,9 @@ func resolveWithOverrides(t *testing.T, overrides variables.OverrideSet) (*Resol
 	if len(tree.Root.Children) != 1 {
 		t.Fatalf("root children = %d, want 1", len(tree.Root.Children))
 	}
-	return tree.Root.Children[0], nil
+	// Under the E3-S2 grammar the table is block-wrapped inside a body region:
+	// root -> body region -> block -> table.
+	return tree.Root.Children[0].Children[0].Children[0], nil
 }
 
 // TestConfigOverrideValidMutation asserts a valid node+field override mutates the
@@ -179,8 +194,8 @@ func TestConfigOverrideEphemeral(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	// The override applied to the in-memory tree...
-	if got := tree.Root.Children[0].Config["title"]; got != "Overridden" {
+	// The override applied to the in-memory tree (root -> body region -> block -> table)...
+	if got := tree.Root.Children[0].Children[0].Children[0].Config["title"]; got != "Overridden" {
 		t.Fatalf("in-memory title = %v, want override applied", got)
 	}
 

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+  "title": "Variable Box Item",
+  "type": "object",
+  "additionalProperties": false,
+  "positional": true,
+  "properties": {
+    "arrangement": { "type": "string", "enum": ["stacked", "inline"], "default": "stacked" }
+  }
+}

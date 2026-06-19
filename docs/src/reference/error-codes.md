@@ -65,6 +65,50 @@ Codes are grouped by domain.
 | --- | --- |
 | `LAYOUT_PLACEMENT_INVALID` | A child placement carried a non-positive span or start. |
 | `LAYOUT_PLACEMENT_OUT_OF_BOUNDS` | A child placement extends beyond the parent grid bounds. |
+| `LAYOUT_FORM_COLUMNS_INVALID` | A `form`'s flow-layout column count is out of range. |
+| `LAYOUT_FORM_CHILD_INVALID` | A `form` holds a child that is not a variable widget. |
+
+## `CONFIGURABLE_*`, `CONFIG_OVERRIDE_*` — surfaces & overrides
+
+See [Configurable Surfaces](../format/configurable.md) and
+[Runtime Overrides](../format/overrides.md).
+
+| Code | Meaning |
+| --- | --- |
+| `CONFIGURABLE_SURFACE_INVALID` | An item type's `configurable` declaration is malformed: it names a non-existent config field, gives a field an unknown value type, or sets a `rendering` hint naming a widget the catalog does not know. |
+| `CONFIG_OVERRIDE_FIELD_UNKNOWN` | A `<node-id>.<field>` config override addressed a field not on the target's configurable surface (or a dotted sub-path). |
+| `CONFIG_OVERRIDE_VALUE_INVALID` | A config-override value violates the target surface field's declared type or the item type's config-schema constraints. |
+
+## `WRAPPER_*` — the block wrapper
+
+See [Blocks & the Tree Grammar](../format/blocks-and-grammar.md#the-block-wrapper).
+
+| Code | Meaning |
+| --- | --- |
+| `WRAPPER_ID_MISSING` | A block wrapper is missing its required stable `id` (absent or whitespace-only). |
+| `WRAPPER_CHILD_COUNT_INVALID` | A block wrapper does not wrap exactly one inner content item (`content` absent, null, or not a single instance object). |
+
+## `GRAMMAR_*` — the dashboard tree grammar
+
+See [Blocks & the Tree Grammar](../format/blocks-and-grammar.md#the-grammar-rules).
+
+| Code | Meaning |
+| --- | --- |
+| `GRAMMAR_ROOT_CHILD_INVALID` | A node directly under `root` is not a positional region (the only legal root children are `positional`-marked types, e.g. `container`, `variable-box`). |
+| `GRAMMAR_REGION_CHILD_INVALID` | A `container` region holds an illegal child — a bare (unwrapped) content leaf, which must be block-wrapped. |
+| `GRAMMAR_VARIABLE_BOX_CHILD_INVALID` | A `variable-box` holds a child that is not a variable widget held directly. |
+| `GRAMMAR_WRAPPER_NESTED` | A block wrapper's single inner content is itself a block wrapper — wrappers do not recurse. |
+| `GRAMMAR_REGION_THEME_FORBIDDEN` | A positional region carries a `theme` — regions are layout-only; only block wrappers carry chrome. |
+
+## `CONFIGURATOR_*` — configurators
+
+See [Configurators](../format/configurator.md).
+
+| Code | Meaning |
+| --- | --- |
+| `CONFIGURATOR_TARGET_NOT_FOUND` | A configurator's `target` named an item id that no node in the tree declares. |
+| `CONFIGURATOR_TARGET_MISSING_ID` | A configurator's `target` is empty/whitespace-only, so it names no resolvable id. |
+| `CONFIGURATOR_TARGET_SCOPE_UNKNOWN` | A configurator's `target` is a `$`-prefixed keyword naming no known document scope (the recognized scopes are `$manifest`, `$variables`, `$connections`, `$theme`, `$root`). |
 
 ## `SERVE_*` — the HTTP layer
 

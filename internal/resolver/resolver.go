@@ -24,6 +24,7 @@ package resolver
 
 import (
 	"encoding/json"
+	"net/url"
 	"strconv"
 
 	"github.com/google/jsonschema-go/jsonschema"
@@ -52,6 +53,7 @@ const formTypeName = "form"
 // adds the two validation passes plus tree assembly.
 type Resolver struct {
 	fs           afero.Fs
+	cat          *schema.Catalog
 	loader       *schema.Loader
 	dashSch      *jsonschema.Schema
 	dashResolved *jsonschema.Resolved // lazily compiled in Pass 1
@@ -72,6 +74,7 @@ func New(fs afero.Fs, dashboardSchema *jsonschema.Schema, catalogDirs []string, 
 	loader := schema.NewLoader(fs, cat, dashboardSchema, schema.WithRelativeRoots(relRoots...))
 	return &Resolver{
 		fs:      fs,
+		cat:     cat,
 		loader:  loader,
 		dashSch: dashboardSchema,
 	}, nil
@@ -151,6 +154,20 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// Grammar pass (E3-S2): enforce the dashboard tree shape over the assembled
+	// tree — root holds only positional regions; a container holds nested regions
+	// or block wrappers (never a bare leaf); a variable-box holds variable widgets
+	// directly; a wrapper holds exactly one content leaf and never re-wraps; a
+	// positional region carries no theme. Runs right after the instance walk (it
+	// needs the whole tree and each node's resolved type identity) and before the
+	// downstream binding/widget/surface/configurator passes, so a structural
+	// violation fails fast before any of that work. Node kinds are read from the
+	// schema-level `positional` marker via the graph's type table (no second walk to
+	// classify). Fail-fast, same machinery as the other passes. See grammar.go.
+	if err := resolveGrammar(g, root); err != nil {
+		return nil, err
+	}
+
 	// Connection pass (E4-S1): decode document-scoped connections, validate each
 	// against its connection-type schema, and reject duplicate ids. Fail-fast,
 	// same machinery as the item-type passes. See connections.go.
@@ -200,7 +217,18 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// resolved type + interpolated config. Auto-generating the editor form from the
 	// target's configurable surface is E5-S2. Fail-fast, same machinery as the
 	// other passes. See configurator.go.
-	if err := resolveConfigurators(root); err != nil {
+	//
+	// E4-S2: resolve the configurable SURFACE of each reserved document scope from
+	// the document schema's `documentScopes` keyword (validated with the same
+	// machinery as item surfaces), then hand the scope surfaces to the configurator
+	// pass so a configurator targeting a reserved `$`-scope generates a document-level
+	// editor form from that scope's surface (reusing the item form-generation path).
+	// The resolver applies no change — generation only. See document_scope.go.
+	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat))
+	if err != nil {
+		return nil, err
+	}
+	if err := resolveConfigurators(root, scopeSurfaces); err != nil {
 		return nil, err
 	}
 
@@ -217,10 +245,20 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// E2-S2: attach the document-scope default theme to the resolved output as the
+	// default layer. Its tokens were already constrained to the theme vocabulary by
+	// Pass 1 (the dashboard schema $refs the theme schema), so this only lifts the
+	// verbatim object onto the tree — no merge with per-block overrides happens here.
+	defaultTheme, err := documentDefaultTheme(data)
+	if err != nil {
+		return nil, err
+	}
+
 	tree := &ResolvedTree{
-		Manifest:    g.Document.Manifest,
-		Root:        root,
-		Connections: conns,
+		Manifest:     g.Document.Manifest,
+		Root:         root,
+		Connections:  conns,
+		DefaultTheme: defaultTheme,
 	}
 
 	return tree, nil
@@ -235,7 +273,7 @@ func (r *Resolver) validateDocument(data []byte, source string) error {
 			"no dashboard schema configured for structural validation")
 	}
 	if r.dashResolved == nil {
-		resolved, err := r.dashSch.Resolve(nil)
+		resolved, err := r.dashSch.Resolve(r.documentSchemaResolveOptions())
 		if err != nil {
 			return errors.WrapCodedError(err, errors.RESOLVE_INTERNAL,
 				"failed compiling dashboard schema for validation")
@@ -271,11 +309,23 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 
 	isContainer := rt.Name == containerTypeName
 	isForm := rt.Name == formTypeName
+	isBlock := rt.Name == blockTypeName
+
+	// A positional REGION (E3-S1, marker-driven via the schema-level `positional`
+	// keyword — container, variable-box, and any future region type) positions its
+	// children, so it bears a `children` array. Reading the marker rather than a
+	// name list keeps the children-bearing region set extensible without editing
+	// here; the E3-S2 grammar pass then enforces WHICH children each region may
+	// hold. (container is itself positional, so isContainer is a subset of this.)
+	isRegion := rt.IsPositional()
 
 	// Children-allowed rule: children are permitted only on the structurally
-	// special types — the weighted-grid container and the flow-packing form. A
-	// child on any other type fails fast.
-	if len(inst.Children) > 0 && !isContainer && !isForm {
+	// special types — positional regions (the weighted-grid container, the
+	// variable-box, and any future region) and the flow-packing form. A child on
+	// any other type fails fast. A block wraps its single inner item via its
+	// `content` config field, not the `children` array, so authored children on a
+	// block are rejected here like any other leaf.
+	if len(inst.Children) > 0 && !isRegion && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{
@@ -283,6 +333,15 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 				"type": rt.Name,
 				"ref":  inst.Ref,
 			})
+	}
+
+	// E1-S2: a block is a WRAPPER — it carries its own per-block concerns and wraps
+	// exactly one inner content item declared in its `content` config field. Resolve
+	// it on a dedicated path: validate the wrapper's own concerns, then resolve the
+	// inner content as a SEPARATE node (identically to how it would resolve
+	// unwrapped) emitted as the wrapper's single child. See block.go.
+	if isBlock {
+		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides)
 	}
 
 	// E3-S1: layer this node's own variable declarations onto the inherited
@@ -361,11 +420,90 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	return node, nil
 }
 
+// itemSchemaResolveOptions returns the ResolveOptions used when compiling an
+// item-type schema for config validation. Some item types $ref into the dashboard
+// schema's shared $defs — notably the block wrapper, whose `content` references
+// the document's #/$defs/instance (E1-S1) — so the compiler needs a loader that
+// serves the dashboard schema by its $id. The dashboard schema itself now $refs
+// the shared theme vocabulary (its document default theme, E2-S2), so that
+// transitive reference must be served too. The loader returns the in-memory
+// dashboard schema and the catalogued theme schema for their canonical URLs and
+// nothing else; any other remote reference stays unresolved (a malformed schema,
+// surfaced as RESOLVE_INTERNAL).
+func (r *Resolver) itemSchemaResolveOptions() *jsonschema.ResolveOptions {
+	if r.dashSch == nil || r.dashSch.ID == "" {
+		return nil
+	}
+	dashID := r.dashSch.ID
+	var themeSch *jsonschema.Schema
+	if r.cat != nil {
+		if theme := r.cat.Lookup(themeSchemaID); theme != nil {
+			themeSch = theme.Schema
+		}
+	}
+	return &jsonschema.ResolveOptions{
+		Loader: func(uri *url.URL) (*jsonschema.Schema, error) {
+			// Compare on the schema identity (scheme://host/path), ignoring any
+			// fragment, since a $ref like ".../dashboard/1.0.0#/$defs/instance" asks
+			// the loader for the dashboard document, then resolves the fragment within.
+			base := *uri
+			base.Fragment = ""
+			switch base.String() {
+			case dashID:
+				return r.dashSch, nil
+			case themeSchemaID:
+				if themeSch != nil {
+					return themeSch, nil
+				}
+			}
+			return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_INTERNAL,
+				"item-type schema references an unknown remote schema",
+				map[string]any{"ref": uri.String()})
+		},
+	}
+}
+
+// themeSchemaID is the canonical $id of the shared theme vocabulary (E2-S1). The
+// dashboard schema's document-scope default theme (E2-S2) $refs it, so the
+// structural pass must be able to serve this schema to the JSON-Schema compiler.
+const themeSchemaID = "https://lattice.dev/schemas/theme/1.0.0"
+
+// documentSchemaResolveOptions returns the ResolveOptions used when compiling the
+// dashboard schema for the structural (Pass 1) validation. The dashboard schema
+// $refs the shared theme vocabulary by its $id (the document default theme,
+// E2-S2), so the compiler needs a loader that serves that one schema from the
+// catalog. The loader returns the catalogued theme schema for its canonical URL
+// and nothing else; any other remote reference stays unresolved (surfaced as a
+// compile failure -> RESOLVE_INTERNAL). Returns nil when the theme schema is not
+// catalogued, so a catalog without it degrades to the previous nil-loader behavior
+// (and the missing-ref then surfaces as a normal compile error).
+func (r *Resolver) documentSchemaResolveOptions() *jsonschema.ResolveOptions {
+	if r.cat == nil {
+		return nil
+	}
+	theme := r.cat.Lookup(themeSchemaID)
+	if theme == nil {
+		return nil
+	}
+	return &jsonschema.ResolveOptions{
+		Loader: func(uri *url.URL) (*jsonschema.Schema, error) {
+			base := *uri
+			base.Fragment = ""
+			if base.String() == themeSchemaID {
+				return theme.Schema, nil
+			}
+			return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_INTERNAL,
+				"dashboard schema references an unknown remote schema",
+				map[string]any{"ref": uri.String()})
+		},
+	}
+}
+
 // validateConfig validates one instance's config against its resolved item-type
 // schema. An absent config validates as an empty object so that required-field
 // constraints in the item-type schema still apply.
 func (r *Resolver) validateConfig(rt *schema.ResolvedType, config map[string]any, path string) error {
-	resolved, err := rt.Schema.Resolve(nil)
+	resolved, err := rt.Schema.Resolve(r.itemSchemaResolveOptions())
 	if err != nil {
 		return errors.WrapCodedErrorWithDetails(err, errors.RESOLVE_INTERNAL,
 			"failed compiling item-type schema for validation",

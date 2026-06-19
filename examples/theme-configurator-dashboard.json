@@ -1,0 +1,42 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-theme-configurator",
+    "title": "Theme Configurator Example",
+    "description": "Exercises a DOCUMENT-SCOPE configurator (E4-S2): a `configurator` whose `target` is the reserved `$theme` keyword routes to the document THEME scope rather than an item id. The resolver reads the `$theme` configurable surface declared on the dashboard schema (the six base theme tokens) and auto-generates a document-level editor form from it — one `select` control per token, each bound to the `$theme.<token>` config-override address. The configurator is wrapped in a block inside a body region (a content leaf must be block-wrapped). Generation only: the document's authored default theme is passed through verbatim, never mutated. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "author": "Lattice"
+  },
+  "theme": {
+    "emphasis": "high",
+    "spacing": "cosy"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "theme-configurator-block",
+            "config": {
+              "id": "theme-configurator-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/configurator/1.0.0",
+                "id": "theme-configurator",
+                "config": {
+                  "target": "$theme",
+                  "title": "Edit the document theme"
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

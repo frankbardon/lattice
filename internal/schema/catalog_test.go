@@ -37,6 +37,37 @@ func TestNewCatalogIndexesByID(t *testing.T) {
 	}
 }
 
+func TestCatalogReadsPositionalMarker(t *testing.T) {
+	cat, _ := newTestCatalog(t)
+
+	tests := []struct {
+		id   string
+		want bool
+	}{
+		{"https://lattice.dev/schemas/items/container/1.0.0", true},
+		{"https://lattice.dev/schemas/items/variable-box/1.0.0", true},
+		// table carries no marker -> not a positional region.
+		{"https://lattice.dev/schemas/items/table/1.0.0", false},
+		// unknown id -> false, never a panic.
+		{"https://lattice.dev/schemas/items/nonexistent/1.0.0", false},
+	}
+	for _, tc := range tests {
+		if got := cat.IsPositional(tc.id); got != tc.want {
+			t.Errorf("IsPositional(%q) = %v, want %v", tc.id, got, tc.want)
+		}
+	}
+
+	// The marker is also readable directly off the resolved type, which is the
+	// view the grammar pass (E3-S2) consumes via the resolved graph.
+	rt, ok := cat.lookupID("https://lattice.dev/schemas/items/variable-box/1.0.0")
+	if !ok {
+		t.Fatal("catalog missing variable-box")
+	}
+	if !rt.IsPositional() {
+		t.Error("variable-box ResolvedType.IsPositional() = false, want true")
+	}
+}
+
 func TestNewCatalogRejectsInvalidSchema(t *testing.T) {
 	fs := afero.NewMemMapFs()
 	if err := afero.WriteFile(fs, "cat/bad.schema.json", []byte("{not json"), 0o644); err != nil {

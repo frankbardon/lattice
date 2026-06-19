@@ -3,7 +3,7 @@
     "formatVersion": "1.0.0",
     "id": "example-form",
     "title": "Form Container Example",
-    "description": "Exercises the `form` container in BOTH layout modes plus a standalone widget. The first form uses flow mode (compact label+control rows, split into two columns) to gather string, boolean, and enum inputs; its widgets carry no placement. The second form uses grid mode (a weighted column/row grid identical to container's) and places each widget into an explicit 1-indexed cell. Alongside the forms, a single widget stands directly in a container grid cell — no form wrapper — proving widgets are ordinary item instances. A table consumes every variable via $var typed bindings and ${} string templates, so changing any control re-resolves the document and updates the summary live. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Exercises the `form` container in BOTH layout modes plus a standalone widget, under the E3-S2 grammar. Each form is a content leaf wrapped in a block; its widget children stay form-internals (not block-wrapped). The first form uses flow mode (compact label+control rows, split into two columns) to gather string, boolean, and enum inputs. The second form uses grid mode (a weighted column/row grid identical to container's) and places each widget into an explicit 1-indexed cell. Alongside the forms, a single standalone widget stands in a variable-box region — no form wrapper — proving widgets are ordinary item instances. A block-wrapped table consumes every variable via $var typed bindings and ${} string templates, so changing any control re-resolves the document and updates the summary live. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "author": "Lattice"
   },
   "variables": [
@@ -17,128 +17,162 @@
   "root": {
     "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
     "id": "root",
-    "config": {
-      "grid": {
-        "columns": [1, 1],
-        "rows": [1, 1, 2],
-        "gap": 1
-      }
-    },
+    "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
-        "id": "general-form",
-        "placement": { "colStart": 1, "colSpan": 2, "rowStart": 1 },
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
         "config": {
-          "layout": { "mode": "flow", "columns": 2 }
-        },
-        "children": [
-          {
-            "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
-            "id": "title-input",
-            "config": {
-              "label": "Panel title",
-              "description": "Heading shown above the summary.",
-              "variable": "title",
-              "placeholder": "Service Overview"
-            }
-          },
-          {
-            "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
-            "id": "region-select",
-            "config": {
-              "label": "Region",
-              "description": "Data region the panel covers.",
-              "variable": "region",
-              "options": [
-                { "value": "us", "label": "United States" },
-                { "value": "eu", "label": "Europe" },
-                { "value": "apac", "label": "Asia-Pacific" }
-              ]
-            }
-          },
-          {
-            "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
-            "id": "live-toggle",
-            "config": {
-              "label": "Live updates",
-              "description": "Stream new readings as they arrive.",
-              "variable": "live"
-            }
-          }
-        ]
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
-        "id": "thresholds-form",
-        "placement": { "colStart": 1, "colSpan": 2, "rowStart": 2 },
-        "config": {
-          "layout": {
-            "mode": "grid",
+          "grid": {
             "columns": [1, 1],
-            "rows": [1],
+            "rows": [1, 1, 2],
             "gap": 1
           }
         },
         "children": [
           {
-            "$ref": "https://lattice.dev/schemas/items/slider/1.0.0",
-            "id": "threshold-slider",
-            "placement": { "colStart": 1, "rowStart": 1 },
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "general-form-block",
+            "placement": { "colStart": 1, "colSpan": 2, "rowStart": 1 },
             "config": {
-              "label": "Alert threshold",
-              "description": "Flag a metric above this value.",
-              "variable": "threshold",
-              "min": 0,
-              "max": 100,
-              "step": 5
+              "id": "general-form-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                "id": "general-form",
+                "config": {
+                  "layout": { "mode": "flow", "columns": 2 }
+                },
+                "children": [
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                    "id": "title-input",
+                    "config": {
+                      "label": "Panel title",
+                      "description": "Heading shown above the summary.",
+                      "variable": "title",
+                      "placeholder": "Service Overview"
+                    }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                    "id": "region-select",
+                    "config": {
+                      "label": "Region",
+                      "description": "Data region the panel covers.",
+                      "variable": "region",
+                      "options": [
+                        { "value": "us", "label": "United States" },
+                        { "value": "eu", "label": "Europe" },
+                        { "value": "apac", "label": "Asia-Pacific" }
+                      ]
+                    }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                    "id": "live-toggle",
+                    "config": {
+                      "label": "Live updates",
+                      "description": "Stream new readings as they arrive.",
+                      "variable": "live"
+                    }
+                  }
+                ]
+              }
             }
           },
           {
-            "$ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
-            "id": "window-stepper",
-            "placement": { "colStart": 2, "rowStart": 1 },
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "thresholds-form-block",
+            "placement": { "colStart": 1, "colSpan": 2, "rowStart": 2 },
             "config": {
-              "label": "Window (minutes)",
-              "description": "Rolling window for the rollup.",
-              "variable": "window",
-              "min": 5,
-              "max": 60,
-              "step": 5
+              "id": "thresholds-form-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                "id": "thresholds-form",
+                "config": {
+                  "layout": {
+                    "mode": "grid",
+                    "columns": [1, 1],
+                    "rows": [1],
+                    "gap": 1
+                  }
+                },
+                "children": [
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/slider/1.0.0",
+                    "id": "threshold-slider",
+                    "placement": { "colStart": 1, "rowStart": 1 },
+                    "config": {
+                      "label": "Alert threshold",
+                      "description": "Flag a metric above this value.",
+                      "variable": "threshold",
+                      "min": 0,
+                      "max": 100,
+                      "step": 5
+                    }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
+                    "id": "window-stepper",
+                    "placement": { "colStart": 2, "rowStart": 1 },
+                    "config": {
+                      "label": "Window (minutes)",
+                      "description": "Rolling window for the rollup.",
+                      "variable": "window",
+                      "min": 5,
+                      "max": 60,
+                      "step": 5
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+            "id": "note-box",
+            "placement": { "colStart": 1, "rowStart": 3 },
+            "children": [
+              {
+                "$ref": "https://lattice.dev/schemas/items/textarea/1.0.0",
+                "id": "note-input",
+                "config": {
+                  "label": "Note",
+                  "description": "A standalone widget — placed directly in a variable-box region, with no form wrapper.",
+                  "variable": "note",
+                  "placeholder": "optional context"
+                }
+              }
+            ]
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "summary-block",
+            "placement": { "colStart": 2, "rowStart": 3 },
+            "config": {
+              "id": "summary-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "summary",
+                "config": {
+                  "title": "${title} — ${region}",
+                  "columns": [
+                    { "header": "Setting" },
+                    { "header": "Value" }
+                  ],
+                  "rows": [
+                    ["title", { "$var": "title" }],
+                    ["region", { "$var": "region" }],
+                    ["live", "${live}"],
+                    ["threshold", "${threshold}"],
+                    ["window", "${window}"],
+                    ["note", "${note}"]
+                  ]
+                }
+              }
             }
           }
         ]
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/textarea/1.0.0",
-        "id": "note-input",
-        "placement": { "colStart": 1, "rowStart": 3 },
-        "config": {
-          "label": "Note",
-          "description": "A standalone widget — placed directly in a container grid cell, with no form wrapper.",
-          "variable": "note",
-          "placeholder": "optional context"
-        }
-      },
-      {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "summary",
-        "placement": { "colStart": 2, "rowStart": 3 },
-        "config": {
-          "title": "${title} — ${region}",
-          "columns": [
-            { "header": "Setting" },
-            { "header": "Value" }
-          ],
-          "rows": [
-            ["title", { "$var": "title" }],
-            ["region", { "$var": "region" }],
-            ["live", "${live}"],
-            ["threshold", "${threshold}"],
-            ["window", "${window}"],
-            ["note", "${note}"]
-          ]
-        }
       }
     ]
   }

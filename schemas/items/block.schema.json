@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/block/1.0.0",
+  "title": "Block Item",
+  "description": "A wrapper item type — DISTINCT from `container` — that wraps exactly one inner content item and carries the cross-cutting, per-block concerns that apply uniformly to whatever it wraps: a required stable `id` (the patch/target anchor downstream tools address a block by), an optional `theme` override (whose value vocabulary is the theme tokens formalized in E2; opaque/pass-through here), a human `title`/`label`, and a `visibility` flag. Unlike `container`, a block groups NO grid and arranges nothing — it holds a single `content` leaf and applies its concerns to it. The wrapper-in-wrapper prohibition (a block never re-wraps a block) is enforced by the resolver grammar (E3-S2); this schema's single-content-child shape supports that rule. The surface is intentionally minimal and structured to be extended with further per-block concerns later. A block declares a configurable surface (its `title`/`label` and `visibility`) so those concerns are tunable through the existing configurable-surface mechanism.",
+  "type": "object",
+  "required": ["id", "content"],
+  "additionalProperties": false,
+  "configurable": {
+    "title": {
+      "type": "string",
+      "label": "Title",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The block's human heading/label — editable at runtime."
+      }
+    },
+    "visibility": {
+      "type": "boolean",
+      "label": "Visible",
+      "rendering": "toggle",
+      "constraints": {
+        "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+      }
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Block Id",
+      "description": "Stable, machine-readable identifier for this block, unique within the document. Required: it is the anchor a patch or a configurator target addresses this block by. Distinct from an instance's optional layout-local `id`; the block's identity is part of its config so it survives independent of placement.",
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "title": "Block Title",
+      "description": "Optional human-readable heading/label for the block, rendered with the wrapped content. Tunable at runtime via the configurable surface.",
+      "type": "string"
+    },
+    "theme": {
+      "title": "Block Theme Override",
+      "description": "Optional per-block THEME OVERRIDE drawn from the shared theme vocabulary (E2-S1). Its value is constrained to the theme schema's semantic tokens, so an out-of-vocabulary token (or value) is rejected by config validation (E2-S3), naming the wrapper's path. A PARTIAL override is allowed: any subset of tokens may be set, each overriding the corresponding document default choice; an omitted token inherits. The resolver attaches this override verbatim to the resolved wrapper node SIDE-BY-SIDE with the document default theme — it performs NO cascade/merge/effective-theme computation; a downstream consumer composes the layers. Omit to inherit the surrounding theme wholesale.",
+      "$ref": "https://lattice.dev/schemas/theme/1.0.0"
+    },
+    "visibility": {
+      "title": "Block Visibility",
+      "description": "Whether the block is shown. Defaults to true (visible). Tunable at runtime via the configurable surface to hide or reveal the block and the content it wraps.",
+      "type": "boolean",
+      "default": true
+    },
+    "content": {
+      "title": "Block Content",
+      "description": "The single inner content item this block wraps. A block permits EXACTLY ONE content child — one item instance referencing an item-type schema via $ref. The block applies its per-block concerns (theme, visibility, title) to this one content leaf. The resolver enforces the wrapper grammar (no wrapper-in-wrapper) in E3-S2.",
+      "$ref": "https://lattice.dev/schemas/dashboard/1.0.0#/$defs/instance"
+    }
+  }
+}

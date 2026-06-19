@@ -10,11 +10,25 @@
     "config": { "grid": { "columns": [1] } },
     "children": [
       {
-        "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
-        "id": "metrics-table",
-        "config": {
-          "query": { "region": "us-east" }
-        }
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "metrics-block",
+            "config": {
+              "id": "metrics-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "metrics-table",
+                "config": {
+                  "query": { "region": "us-east" }
+                }
+              }
+            }
+          }
+        ]
       }
     ]
   }
