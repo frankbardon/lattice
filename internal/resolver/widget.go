@@ -57,6 +57,14 @@ var widgetFamilies = map[string]map[variables.VarType]bool{
 	// Boolean family (E1-S2): on/off switch and checkbox bind a boolean variable.
 	"toggle":   {variables.VarTypeBoolean: true},
 	"checkbox": {variables.VarTypeBoolean: true},
+
+	// Enum family (E1-S3): single-choice dropdown, radio-button group, and
+	// segmented control bind an enum variable, exposing the option set plus
+	// ordering config. `select` is the canonical replacement for the retired
+	// `dropdown` item.
+	"select":      {variables.VarTypeEnum: true},
+	"radio-group": {variables.VarTypeEnum: true},
+	"segmented":   {variables.VarTypeEnum: true},
 }
 
 // numberWidgets is the subset of widget families that accept the optional

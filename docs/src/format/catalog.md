@@ -12,7 +12,9 @@ schemas/
 ├── items/                       # item-type schemas (instance $ref targets)
 │   ├── container.schema.json
 │   ├── table.schema.json
-│   └── dropdown.schema.json
+│   ├── select.schema.json
+│   ├── radio-group.schema.json
+│   └── segmented.schema.json
 └── connections/                 # connection-type schemas
     ├── http.schema.json
     └── static.schema.json
@@ -50,12 +52,18 @@ connection via `connectionId` and carry a `query`. It declares the
 [result-shape contract](connections.md#result-shape-contract) describing the
 rows a bound connection is expected to return.
 
-### `dropdown` (`.../items/dropdown/1.0.0`)
+### Enum widgets (`select`, `radio-group`, `segmented`)
 
-A runtime-input leaf type. It binds a `variable` name to a fixed set of
-`options`. The reference renderer draws it as an Alpine `<select>` and
-re-resolves the document on change, so the chosen value becomes the variable's
-runtime override. See [Variables — Runtime inputs](variables.md#runtime-inputs).
+The enum family of variable widgets. Each is a runtime-input leaf that binds a
+`variable` of declared type `enum` to a fixed set of `options` (each `{value,
+label?}`), with an optional `sort` (`declared` / `label` / `value`) controlling
+display order. `select` renders as a single-choice `<select>` menu (the
+canonical runtime-input control), `radio-group` as a column of radio buttons,
+and `segmented` as a horizontal button row. Changing the selection sets
+the variable's runtime override and re-resolves the document. The resolver
+enforces widget↔variable type compatibility — an enum widget bound to a
+non-`enum` variable fails `WIDGET_TYPE_MISMATCH`. See
+[Variables — Runtime inputs](variables.md#runtime-inputs).
 
 ## `connections/` — connection types
 

@@ -53,9 +53,9 @@
       {
         "id": "region-picker",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "id": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "name": "dropdown",
+          "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+          "id": "https://lattice.dev/schemas/items/select/1.0.0",
+          "name": "select",
           "version": "1.0.0"
         },
         "container": false,

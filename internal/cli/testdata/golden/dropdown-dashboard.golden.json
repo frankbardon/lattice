@@ -1,10 +1,10 @@
 {
   "manifest": {
     "author": "Lattice",
-    "description": "Demonstrates the E3-S4 live loop: a dropdown sets the document-scoped `region` variable, and a table consumes it via a ${region} string template and a {\"$var\":\"region\"} typed binding. Changing the dropdown re-resolves the document and the consumer updates. Serve with `?region=eu` to set the initial value. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "description": "Demonstrates the live loop: a select widget sets the document-scoped `region` enum variable, and a table consumes it via a ${region} string template and a {\"$var\":\"region\"} typed binding. Changing the selection re-resolves the document and the consumer updates. Serve with `?region=eu` to set the initial value. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
     "formatVersion": "1.0.0",
     "id": "example-dropdown",
-    "title": "Dropdown Runtime Input Example"
+    "title": "Select Runtime Input Example"
   },
   "root": {
     "id": "root",
@@ -55,9 +55,9 @@
       {
         "id": "region-picker",
         "type": {
-          "ref": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "id": "https://lattice.dev/schemas/items/dropdown/1.0.0",
-          "name": "dropdown",
+          "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+          "id": "https://lattice.dev/schemas/items/select/1.0.0",
+          "name": "select",
           "version": "1.0.0"
         },
         "container": false,

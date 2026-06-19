@@ -76,7 +76,7 @@ lattice serve examples/dropdown-dashboard.json
 The server re-resolves on every request, so editing the document and reloading
 the page reflects the change, and a resolution error renders as an HTML error
 page (a rendered coded error) rather than crashing the server. Runtime variable
-overrides — dropdown selections and `?var=value` URL query parameters — are
+overrides — widget selections and `?var=value` URL query parameters — are
 threaded into resolution per request, which is what drives the live re-resolve
 loop. See [Variables — Runtime inputs](../format/variables.md#runtime-inputs).
 

@@ -141,6 +141,143 @@ func TestResolveWidgetBinding(t *testing.T) {
 	}
 }
 
+// enumDoc builds a minimal dashboard with a single enum-family widget instance
+// whose config is supplied verbatim (so the options set can be exercised). The
+// bound variable is declared at document scope as an enum with a fixed option
+// set and a default drawn from it. varType lets a case declare a NON-enum
+// variable to exercise the type-mismatch path; for a non-enum type the options
+// declaration is omitted (the var model forbids options on non-enum vars) and a
+// type-appropriate default is used.
+func enumDoc(widgetType, varName, varType, config string) string {
+	varDecl := fmt.Sprintf(`{"name": %q, "type": %q, "options": ["us", "eu", "apac"], "default": "us"}`, varName, varType)
+	if varType != "enum" {
+		varDecl = fmt.Sprintf(`{"name": %q, "type": %q, "default": %s}`, varName, varType, defaultFor(varType))
+	}
+	return fmt.Sprintf(`{
+  "manifest": {"formatVersion": "1.0.0", "id": "wdoc", "title": "Widget Doc"},
+  "variables": [%s],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/%s/1.0.0",
+        "config": %s
+      }
+    ]
+  }
+}`, varDecl, widgetType, config)
+}
+
+// TestResolveEnumWidgets drives the E1-S3 enum family (select, radio-group,
+// segmented) through the real pipeline: each widget binds a compatible enum
+// variable (resolves, carrying its options set), a mismatched non-enum variable
+// (WIDGET_TYPE_MISMATCH), and an undefined variable (VAR_UNDEFINED). Optional
+// sort/options config is exercised on the compatible binds. Table-driven so
+// every enum widget is covered uniformly.
+func TestResolveEnumWidgets(t *testing.T) {
+	const opts = `[{"value": "us", "label": "United States"}, {"value": "eu", "label": "Europe"}, {"value": "apac"}]`
+	tests := []struct {
+		name     string
+		widget   string
+		varName  string
+		varType  string
+		config   string
+		wantCode errors.Code // "" = resolves successfully
+		wantKV   [2]string   // expected Details key/value; "" key to skip
+	}{
+		// Compatible enum binds, exercising the options set and sort ordering.
+		{
+			name:    "select binds an enum variable with options",
+			widget:  "select",
+			varName: "region",
+			varType: "enum",
+			config:  fmt.Sprintf(`{"variable": "region", "options": %s}`, opts),
+		},
+		{
+			name:    "radio-group binds an enum variable with label sort",
+			widget:  "radio-group",
+			varName: "region",
+			varType: "enum",
+			config:  fmt.Sprintf(`{"variable": "region", "options": %s, "sort": "label"}`, opts),
+		},
+		{
+			name:    "segmented binds an enum variable with value sort",
+			widget:  "segmented",
+			varName: "region",
+			varType: "enum",
+			config:  fmt.Sprintf(`{"variable": "region", "options": %s, "sort": "value"}`, opts),
+		},
+		// Type mismatch: enum widgets reject non-enum variables.
+		{
+			name:     "select bound to a string variable mismatches",
+			widget:   "select",
+			varName:  "label",
+			varType:  "string",
+			config:   `{"variable": "label", "options": [{"value": "a"}]}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"varType", "string"},
+		},
+		{
+			name:     "segmented bound to a boolean variable mismatches",
+			widget:   "segmented",
+			varName:  "active",
+			varType:  "boolean",
+			config:   `{"variable": "active", "options": [{"value": "a"}]}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"widget", "segmented"},
+		},
+		// Undefined variable: reuses VAR_UNDEFINED.
+		{
+			name:     "radio-group bound to an undefined variable",
+			widget:   "radio-group",
+			varName:  "region",
+			varType:  "enum",
+			config:   `{"variable": "missing", "options": [{"value": "a"}]}`,
+			wantCode: errors.VAR_UNDEFINED,
+			wantKV:   [2]string{"variable", "missing"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := enumDoc(tc.widget, tc.varName, tc.varType, tc.config)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+
+			if tc.wantCode == "" {
+				if err != nil {
+					t.Fatalf("resolveBytes: unexpected error: %v", err)
+				}
+				widget := tree.Root.Children[0]
+				if got := widget.Config["variable"]; got != tc.varName {
+					t.Errorf("widget variable = %v, want %q", got, tc.varName)
+				}
+				gotOpts, ok := widget.Config["options"].([]any)
+				if !ok || len(gotOpts) != 3 {
+					t.Errorf("widget options = %v, want 3 options", widget.Config["options"])
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("expected error %s, got nil", tc.wantCode)
+			}
+			if !errors.HasCode(err, tc.wantCode) {
+				t.Fatalf("error = %v, want code %s", err, tc.wantCode)
+			}
+			var ce *errors.CodedError
+			if !asCoded(err, &ce) {
+				t.Fatalf("error is not a CodedError: %v", err)
+			}
+			if tc.wantKV[0] != "" {
+				if got, _ := ce.Details[tc.wantKV[0]].(string); got != tc.wantKV[1] {
+					t.Errorf("error %s = %q, want %q", tc.wantKV[0], got, tc.wantKV[1])
+				}
+			}
+		})
+	}
+}
+
 // numberBooleanDoc builds a minimal dashboard with a single widget instance whose
 // config is supplied verbatim (so number-family range config min/max/step can be
 // exercised). The bound variable is declared at document scope with the given

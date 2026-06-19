@@ -138,12 +138,13 @@ is what lets a runtime input drive a `${var}` consumer through an `expr`.
 
 Overrides come from two sources, both wired by `lattice serve`:
 
-- **Dropdown items.** A `dropdown` item binds a variable to a fixed option set.
-  Changing the selection sets that variable's runtime override and re-resolves
-  the document, so dependent `${var}` / `$var` consumers update live. The
-  dropdown only declares the binding and its options; the variable itself is
-  declared in the document/container `variables` and supplies the effective
-  default (override > default).
+- **Enum widgets.** A `select` (or `radio-group` / `segmented`) item binds an
+  `enum` variable to a fixed option set. Changing the selection sets that
+  variable's runtime override and re-resolves the document, so dependent
+  `${var}` / `$var` consumers update live. The widget only declares the binding,
+  its options, and their ordering; the variable itself is declared in the
+  document/container `variables` and supplies the effective default (override >
+  default).
 - **URL query parameters.** `serve` reads `?name=value` parameters as overrides
   for the initial render. Because query params arrive as text, a value targeting
   a non-string variable is parsed to the declared type before validation; a
