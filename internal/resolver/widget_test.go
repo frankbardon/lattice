@@ -278,6 +278,124 @@ func TestResolveEnumWidgets(t *testing.T) {
 	}
 }
 
+// TestResolveArrayWidgets drives the E1-S4 array family (multiselect,
+// checkbox-group, tag-input) through the real pipeline. Array widgets bind only
+// `array` variables (mismatch → WIDGET_TYPE_MISMATCH). The option-constrained
+// widgets (multiselect, checkbox-group) require a bounded option set: an absent
+// set fails RESOLVE_CONFIG_INVALID via the resolver's config-validation path
+// (consistent with E1-S2's range check), while the freeform tag-input resolves
+// with no options at all. Reuses numberBooleanDoc since its config is supplied
+// verbatim and its variable default is type-appropriate (array → []).
+func TestResolveArrayWidgets(t *testing.T) {
+	const opts = `[{"value": "us", "label": "United States"}, {"value": "eu"}]`
+	tests := []struct {
+		name     string
+		widget   string
+		varName  string
+		varType  string
+		config   string
+		wantCode errors.Code // "" = resolves successfully
+		wantKV   [2]string   // expected Details key/value; "" key to skip
+	}{
+		// Option-constrained array widgets with a declared option set resolve.
+		{
+			name:    "multiselect binds an array variable with options",
+			widget:  "multiselect",
+			varName: "regions",
+			varType: "array",
+			config:  fmt.Sprintf(`{"variable": "regions", "options": %s}`, opts),
+		},
+		{
+			name:    "checkbox-group binds an array variable with options and sort",
+			widget:  "checkbox-group",
+			varName: "regions",
+			varType: "array",
+			config:  fmt.Sprintf(`{"variable": "regions", "options": %s, "sort": "value"}`, opts),
+		},
+		// Option-constrained array widgets without an option set fail.
+		{
+			name:     "multiselect without options fails",
+			widget:   "multiselect",
+			varName:  "regions",
+			varType:  "array",
+			config:   `{"variable": "regions"}`,
+			wantCode: errors.RESOLVE_CONFIG_INVALID,
+			wantKV:   [2]string{"field", "options"},
+		},
+		{
+			name:     "checkbox-group without options fails",
+			widget:   "checkbox-group",
+			varName:  "regions",
+			varType:  "array",
+			config:   `{"variable": "regions"}`,
+			wantCode: errors.RESOLVE_CONFIG_INVALID,
+			wantKV:   [2]string{"widget", "checkbox-group"},
+		},
+		// Freeform tag-input resolves with no options.
+		{
+			name:    "tag-input binds an array variable freeform",
+			widget:  "tag-input",
+			varName: "tags",
+			varType: "array",
+			config:  `{"variable": "tags", "placeholder": "add a tag"}`,
+		},
+		// Type mismatch: array widgets reject non-array variables.
+		{
+			name:     "multiselect bound to a string variable mismatches",
+			widget:   "multiselect",
+			varName:  "label",
+			varType:  "string",
+			config:   `{"variable": "label", "options": [{"value": "a"}]}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"varType", "string"},
+		},
+		{
+			name:     "tag-input bound to a number variable mismatches",
+			widget:   "tag-input",
+			varName:  "count",
+			varType:  "number",
+			config:   `{"variable": "count"}`,
+			wantCode: errors.WIDGET_TYPE_MISMATCH,
+			wantKV:   [2]string{"widget", "tag-input"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			res := newRepoResolver(t)
+			doc := numberBooleanDoc(tc.widget, tc.varName, tc.varType, tc.config)
+			tree, err := res.resolveBytes([]byte(doc), tc.name, nil)
+
+			if tc.wantCode == "" {
+				if err != nil {
+					t.Fatalf("resolveBytes: unexpected error: %v", err)
+				}
+				widget := tree.Root.Children[0]
+				if got := widget.Config["variable"]; got != tc.varName {
+					t.Errorf("widget variable = %v, want %q", got, tc.varName)
+				}
+				return
+			}
+
+			if err == nil {
+				t.Fatalf("expected error %s, got nil", tc.wantCode)
+			}
+			if !errors.HasCode(err, tc.wantCode) {
+				t.Fatalf("error = %v, want code %s", err, tc.wantCode)
+			}
+			var ce *errors.CodedError
+			if !asCoded(err, &ce) {
+				t.Fatalf("error is not a CodedError: %v", err)
+			}
+			if tc.wantKV[0] != "" {
+				if got, _ := ce.Details[tc.wantKV[0]].(string); got != tc.wantKV[1] {
+					t.Errorf("error %s = %q, want %q", tc.wantKV[0], got, tc.wantKV[1])
+				}
+			}
+		})
+	}
+}
+
 // numberBooleanDoc builds a minimal dashboard with a single widget instance whose
 // config is supplied verbatim (so number-family range config min/max/step can be
 // exercised). The bound variable is declared at document scope with the given

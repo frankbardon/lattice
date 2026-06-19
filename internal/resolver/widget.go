@@ -65,6 +65,14 @@ var widgetFamilies = map[string]map[variables.VarType]bool{
 	"select":      {variables.VarTypeEnum: true},
 	"radio-group": {variables.VarTypeEnum: true},
 	"segmented":   {variables.VarTypeEnum: true},
+
+	// Array family (E1-S4): multi-choice menu, checkbox group, and freeform tag
+	// entry bind an array variable. `multiselect` and `checkbox-group` are
+	// option-constrained (they require a bounded option set, checked below);
+	// `tag-input` is freeform and declares no options.
+	"multiselect":    {variables.VarTypeArray: true},
+	"checkbox-group": {variables.VarTypeArray: true},
+	"tag-input":      {variables.VarTypeArray: true},
 }
 
 // numberWidgets is the subset of widget families that accept the optional
@@ -75,6 +83,16 @@ var numberWidgets = map[string]bool{
 	"number-field": true,
 	"slider":       true,
 	"stepper":      true,
+}
+
+// optionConstrainedArrayWidgets is the subset of the array family that requires a
+// bounded option set. Membership gates the options-presence check
+// (validateWidgetOptions): a multiselect/checkbox-group with no declared options
+// has nothing for a viewer to choose from and fails RESOLVE_CONFIG_INVALID. The
+// freeform `tag-input` is deliberately absent — it resolves without options.
+var optionConstrainedArrayWidgets = map[string]bool{
+	"multiselect":    true,
+	"checkbox-group": true,
 }
 
 // resolveWidgets walks the assembled resolved tree and validates every variable
@@ -147,6 +165,34 @@ func validateWidgetBinding(inst *ResolvedInstance, path string) error {
 		if err := validateWidgetRange(inst, path); err != nil {
 			return err
 		}
+	}
+
+	if optionConstrainedArrayWidgets[inst.Type.Name] {
+		if err := validateWidgetOptions(inst, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateWidgetOptions enforces the option-constrained array widgets' bounded
+// option-set rule: a multiselect/checkbox-group must declare a non-empty
+// `options` set for a viewer to choose from. The schema deliberately leaves
+// `options` optional so this rule is the single coded-error surface (consistent
+// with E1-S2's range check), distinguishing the option-constrained array widgets
+// from the freeform `tag-input`. An absent or empty set is reported as
+// RESOLVE_CONFIG_INVALID, naming the offending field. The `{value,label}` shape
+// of each option, when present, is already enforced by the item-type schema.
+func validateWidgetOptions(inst *ResolvedInstance, path string) error {
+	opts, _ := inst.Config["options"].([]any)
+	if len(opts) == 0 {
+		return errors.NewCodedErrorWithDetails(errors.RESOLVE_CONFIG_INVALID,
+			"option-constrained array widget requires a non-empty options set",
+			map[string]any{
+				"path":   path,
+				"widget": inst.Type.Name,
+				"field":  "options",
+			})
 	}
 	return nil
 }
