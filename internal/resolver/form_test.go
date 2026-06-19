@@ -434,6 +434,70 @@ func TestResolveFormModeSwitching(t *testing.T) {
 	}
 }
 
+// TestResolveStandaloneWidgetPlacement proves a variable widget placed DIRECTLY
+// in a normal `container` grid cell resolves (not only inside a `form`): the
+// widget binds its variable through the same widget pass, and its explicit
+// 1-indexed placement is normalized into the container's shared layout.Block via
+// the same grid path container uses for any child. This is the standalone-
+// placement guarantee of E2-S3 — widgets are ordinary item instances, so they
+// occupy a grid cell exactly like a table does, with no form wrapper.
+func TestResolveStandaloneWidgetPlacement(t *testing.T) {
+	doc := `{
+  "manifest": {"formatVersion": "1.0.0", "id": "standalone", "title": "Standalone Widget"},
+  "variables": [{"name": "region", "type": "string", "default": "us"}],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "config": {"grid": {"columns": [1, 1], "rows": [1]}},
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+        "id": "region-input",
+        "placement": {"colStart": 2, "rowStart": 1},
+        "config": {"label": "Region", "variable": "region"}
+      }
+    ]
+  }
+}`
+
+	res := newRepoResolver(t)
+	tree, err := res.resolveBytes([]byte(doc), "standalone", nil)
+	if err != nil {
+		t.Fatalf("resolveBytes: unexpected error: %v", err)
+	}
+
+	root := tree.Root
+	if !root.Container {
+		t.Fatalf("root should be a container")
+	}
+	if root.Layout == nil {
+		t.Fatalf("container has no normalized layout block")
+	}
+	// The standalone widget's explicit placement is normalized into the
+	// container's shared block, exactly as a table's would be.
+	want := layout.Placement{ColStart: 2, ColSpan: 1, RowStart: 1, RowSpan: 1}
+	if len(root.Layout.Placements) != 1 {
+		t.Fatalf("placements = %+v, want 1", root.Layout.Placements)
+	}
+	if root.Layout.Placements[0] != want {
+		t.Errorf("placement[0] = %+v, want %+v", root.Layout.Placements[0], want)
+	}
+
+	widget := root.Children[0]
+	if widget.Type.Name != "text-input" {
+		t.Errorf("child type = %q, want text-input", widget.Type.Name)
+	}
+	if got := widget.Config["variable"]; got != "region" {
+		t.Errorf("widget variable = %v, want region", got)
+	}
+	// A standalone widget is a leaf; it carries no nested layout of its own.
+	if widget.Flow != nil {
+		t.Errorf("standalone widget unexpectedly carries a flow: %+v", widget.Flow)
+	}
+	if widget.Layout != nil {
+		t.Errorf("standalone widget unexpectedly carries a layout block: %+v", widget.Layout)
+	}
+}
+
 // floatsNear reports whether two float slices match within a small epsilon,
 // tolerating normalization rounding.
 func floatsNear(got, want []float64) bool {

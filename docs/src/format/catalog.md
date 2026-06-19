@@ -50,6 +50,13 @@ a relative `gap`. An axis with no track list is a single implicit full-size
 track. Children place themselves with explicit 1-indexed `placement`
 coordinates. No CSS units or keywords appear.
 
+### `form` (`.../items/form/1.0.0`)
+
+The other structurally special type: like `container` it may carry `children`,
+but it may only contain variable widgets. A form groups widgets compactly via one
+of two layout modes (`flow` or `grid`) selected by `layout.mode`. See
+[Forms & Widget Placement](forms.md).
+
 ### `table` (`.../items/table/1.0.0`)
 
 A tabular leaf type. It can render static `columns`/`rows`, or bind to a

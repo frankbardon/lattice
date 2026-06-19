@@ -1,0 +1,773 @@
+{
+  "manifest": {
+    "author": "Lattice",
+    "description": "Exercises the `form` container in BOTH layout modes plus a standalone widget. The first form uses flow mode (compact label+control rows, split into two columns) to gather string, boolean, and enum inputs; its widgets carry no placement. The second form uses grid mode (a weighted column/row grid identical to container's) and places each widget into an explicit 1-indexed cell. Alongside the forms, a single widget stands directly in a container grid cell — no form wrapper — proving widgets are ordinary item instances. A table consumes every variable via $var typed bindings and ${} string templates, so changing any control re-resolves the document and updates the summary live. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "example-form",
+    "title": "Form Container Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1,
+          1
+        ],
+        "gap": 1,
+        "rows": [
+          1,
+          1,
+          2
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        0.5,
+        0.5
+      ],
+      "rows": [
+        0.25,
+        0.25,
+        0.5
+      ],
+      "gap": 1,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 2,
+          "rowStart": 1,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 1,
+          "colSpan": 2,
+          "rowStart": 2,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 3,
+          "rowSpan": 1
+        },
+        {
+          "colStart": 2,
+          "colSpan": 1,
+          "rowStart": 3,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "general-form",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/form/1.0.0",
+          "id": "https://lattice.dev/schemas/items/form/1.0.0",
+          "name": "form",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "layout": {
+            "columns": 2,
+            "mode": "flow"
+          }
+        },
+        "placement": {
+          "colSpan": 2,
+          "colStart": 1,
+          "rowStart": 1
+        },
+        "flow": {
+          "mode": "flow",
+          "columns": 2,
+          "cells": [
+            {
+              "column": 1,
+              "row": 1
+            },
+            {
+              "column": 2,
+              "row": 1
+            },
+            {
+              "column": 1,
+              "row": 2
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "title-input",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+              "id": "https://lattice.dev/schemas/items/text-input/1.0.0",
+              "name": "text-input",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "description": "Heading shown above the summary.",
+              "label": "Panel title",
+              "placeholder": "Service Overview",
+              "variable": "title"
+            },
+            "varEnv": {
+              "live": {
+                "name": "live",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "note": {
+                "name": "note",
+                "type": "string",
+                "default": "",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "threshold": {
+                "name": "threshold",
+                "type": "number",
+                "default": 80,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Service Overview",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "number",
+                "default": 15,
+                "declaredAt": "doc"
+              }
+            }
+          },
+          {
+            "id": "region-select",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+              "id": "https://lattice.dev/schemas/items/select/1.0.0",
+              "name": "select",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "description": "Data region the panel covers.",
+              "label": "Region",
+              "options": [
+                {
+                  "label": "United States",
+                  "value": "us"
+                },
+                {
+                  "label": "Europe",
+                  "value": "eu"
+                },
+                {
+                  "label": "Asia-Pacific",
+                  "value": "apac"
+                }
+              ],
+              "variable": "region"
+            },
+            "varEnv": {
+              "live": {
+                "name": "live",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "note": {
+                "name": "note",
+                "type": "string",
+                "default": "",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "threshold": {
+                "name": "threshold",
+                "type": "number",
+                "default": 80,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Service Overview",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "number",
+                "default": 15,
+                "declaredAt": "doc"
+              }
+            }
+          },
+          {
+            "id": "live-toggle",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+              "id": "https://lattice.dev/schemas/items/toggle/1.0.0",
+              "name": "toggle",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "description": "Stream new readings as they arrive.",
+              "label": "Live updates",
+              "variable": "live"
+            },
+            "varEnv": {
+              "live": {
+                "name": "live",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "note": {
+                "name": "note",
+                "type": "string",
+                "default": "",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "threshold": {
+                "name": "threshold",
+                "type": "number",
+                "default": 80,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Service Overview",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "number",
+                "default": 15,
+                "declaredAt": "doc"
+              }
+            }
+          }
+        ],
+        "varEnv": {
+          "live": {
+            "name": "live",
+            "type": "boolean",
+            "default": true,
+            "declaredAt": "doc"
+          },
+          "note": {
+            "name": "note",
+            "type": "string",
+            "default": "",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "threshold": {
+            "name": "threshold",
+            "type": "number",
+            "default": 80,
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Service Overview",
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "number",
+            "default": 15,
+            "declaredAt": "doc"
+          }
+        }
+      },
+      {
+        "id": "thresholds-form",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/form/1.0.0",
+          "id": "https://lattice.dev/schemas/items/form/1.0.0",
+          "name": "form",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "layout": {
+            "columns": [
+              1,
+              1
+            ],
+            "gap": 1,
+            "mode": "grid",
+            "rows": [
+              1
+            ]
+          }
+        },
+        "placement": {
+          "colSpan": 2,
+          "colStart": 1,
+          "rowStart": 2
+        },
+        "layout": {
+          "columns": [
+            0.5,
+            0.5
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 1,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 2,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "threshold-slider",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/slider/1.0.0",
+              "id": "https://lattice.dev/schemas/items/slider/1.0.0",
+              "name": "slider",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "description": "Flag a metric above this value.",
+              "label": "Alert threshold",
+              "max": 100,
+              "min": 0,
+              "step": 5,
+              "variable": "threshold"
+            },
+            "placement": {
+              "colStart": 1,
+              "rowStart": 1
+            },
+            "varEnv": {
+              "live": {
+                "name": "live",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "note": {
+                "name": "note",
+                "type": "string",
+                "default": "",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "threshold": {
+                "name": "threshold",
+                "type": "number",
+                "default": 80,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Service Overview",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "number",
+                "default": 15,
+                "declaredAt": "doc"
+              }
+            }
+          },
+          {
+            "id": "window-stepper",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
+              "id": "https://lattice.dev/schemas/items/stepper/1.0.0",
+              "name": "stepper",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "description": "Rolling window for the rollup.",
+              "label": "Window (minutes)",
+              "max": 60,
+              "min": 5,
+              "step": 5,
+              "variable": "window"
+            },
+            "placement": {
+              "colStart": 2,
+              "rowStart": 1
+            },
+            "varEnv": {
+              "live": {
+                "name": "live",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "note": {
+                "name": "note",
+                "type": "string",
+                "default": "",
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "threshold": {
+                "name": "threshold",
+                "type": "number",
+                "default": 80,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Service Overview",
+                "declaredAt": "doc"
+              },
+              "window": {
+                "name": "window",
+                "type": "number",
+                "default": 15,
+                "declaredAt": "doc"
+              }
+            }
+          }
+        ],
+        "varEnv": {
+          "live": {
+            "name": "live",
+            "type": "boolean",
+            "default": true,
+            "declaredAt": "doc"
+          },
+          "note": {
+            "name": "note",
+            "type": "string",
+            "default": "",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "threshold": {
+            "name": "threshold",
+            "type": "number",
+            "default": 80,
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Service Overview",
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "number",
+            "default": 15,
+            "declaredAt": "doc"
+          }
+        }
+      },
+      {
+        "id": "note-input",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/textarea/1.0.0",
+          "id": "https://lattice.dev/schemas/items/textarea/1.0.0",
+          "name": "textarea",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "description": "A standalone widget — placed directly in a container grid cell, with no form wrapper.",
+          "label": "Note",
+          "placeholder": "optional context",
+          "variable": "note"
+        },
+        "placement": {
+          "colStart": 1,
+          "rowStart": 3
+        },
+        "varEnv": {
+          "live": {
+            "name": "live",
+            "type": "boolean",
+            "default": true,
+            "declaredAt": "doc"
+          },
+          "note": {
+            "name": "note",
+            "type": "string",
+            "default": "",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "threshold": {
+            "name": "threshold",
+            "type": "number",
+            "default": 80,
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Service Overview",
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "number",
+            "default": 15,
+            "declaredAt": "doc"
+          }
+        }
+      },
+      {
+        "id": "summary",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+          "id": "https://lattice.dev/schemas/items/table/1.0.0",
+          "name": "table",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "columns": [
+            {
+              "header": "Setting"
+            },
+            {
+              "header": "Value"
+            }
+          ],
+          "rows": [
+            [
+              "title",
+              "Service Overview"
+            ],
+            [
+              "region",
+              "us"
+            ],
+            [
+              "live",
+              "true"
+            ],
+            [
+              "threshold",
+              "80"
+            ],
+            [
+              "window",
+              "15"
+            ],
+            [
+              "note",
+              ""
+            ]
+          ],
+          "title": "Service Overview — us"
+        },
+        "placement": {
+          "colStart": 2,
+          "rowStart": 3
+        },
+        "varEnv": {
+          "live": {
+            "name": "live",
+            "type": "boolean",
+            "default": true,
+            "declaredAt": "doc"
+          },
+          "note": {
+            "name": "note",
+            "type": "string",
+            "default": "",
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "threshold": {
+            "name": "threshold",
+            "type": "number",
+            "default": 80,
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Service Overview",
+            "declaredAt": "doc"
+          },
+          "window": {
+            "name": "window",
+            "type": "number",
+            "default": 15,
+            "declaredAt": "doc"
+          }
+        }
+      }
+    ],
+    "varEnv": {
+      "live": {
+        "name": "live",
+        "type": "boolean",
+        "default": true,
+        "declaredAt": "doc"
+      },
+      "note": {
+        "name": "note",
+        "type": "string",
+        "default": "",
+        "declaredAt": "doc"
+      },
+      "region": {
+        "name": "region",
+        "type": "enum",
+        "default": "us",
+        "options": [
+          "us",
+          "eu",
+          "apac"
+        ],
+        "declaredAt": "doc"
+      },
+      "threshold": {
+        "name": "threshold",
+        "type": "number",
+        "default": 80,
+        "declaredAt": "doc"
+      },
+      "title": {
+        "name": "title",
+        "type": "string",
+        "default": "Service Overview",
+        "declaredAt": "doc"
+      },
+      "window": {
+        "name": "window",
+        "type": "number",
+        "default": 15,
+        "declaredAt": "doc"
+      }
+    }
+  }
+}

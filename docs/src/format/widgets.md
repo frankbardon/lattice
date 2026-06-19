@@ -10,7 +10,12 @@ Widgets are grouped into **families** by the variable type they bind. The
 resolver enforces **widget↔variable type compatibility**: a widget may only bind
 a variable whose declared `type` its family permits. A mismatch fails fast with
 `WIDGET_TYPE_MISMATCH`. A widget never has children — only the
-[`container`](catalog.md#container-itemscontainer100) item type may.
+[`container`](catalog.md#container-itemscontainer100) and
+[`form`](forms.md#the-form-container) item types may.
+
+A widget is an ordinary item instance: place one directly in a `container` grid
+cell, or group several inside a [`form`](forms.md). See
+[Forms & Widget Placement](forms.md) for both arrangements.
 
 ## Families at a glance
 

@@ -15,6 +15,7 @@
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)
 - [Widgets](format/widgets.md)
+- [Forms & Widget Placement](format/forms.md)
 - [Connections](format/connections.md)
 
 # Reference
