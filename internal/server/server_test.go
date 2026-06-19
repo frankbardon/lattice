@@ -53,6 +53,43 @@ func TestPageServedOnSuccess(t *testing.T) {
 	}
 }
 
+func TestPageRendersSketchAndInspector(t *testing.T) {
+	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	body := rec.Body.String()
+
+	// Sketch view: recursive node renderer + grid translation must be present.
+	for _, want := range []string{
+		`class="sketch"`,
+		"renderNode(",
+		"gridStyle(",
+		"placementStyle(",
+		"grid-template-columns:",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing sketch markup %q", want)
+		}
+	}
+
+	// Inspector panel: collapsible JSON view.
+	for _, want := range []string{
+		`class="inspector"`,
+		"inspectorOpen",
+		"treeJSON",
+		`class="inspector-json"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("page missing inspector markup %q", want)
+		}
+	}
+}
+
 func TestTreeEndpointReturnsJSON(t *testing.T) {
 	h := newTestServer(t, func() (*resolver.ResolvedTree, error) { return okTree(), nil })
 

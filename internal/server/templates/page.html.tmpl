@@ -14,24 +14,37 @@
       <span class="subtitle" x-text="title || 'loading…'"></span>
     </header>
 
-    <!-- E2-S2 delivers the plumbing only. The real structural sketch view
-         (walking the resolved tree) lands in E2-S3. This is a placeholder
-         that confirms the JSON endpoint is wired and Alpine is mounted. -->
-    <section class="sketch-placeholder">
+    <!-- Structural sketch (E2-S3): the resolved tree is walked client-side and
+         rendered as nested CSS-Grid boxes. The relative-weight -> CSS-Grid
+         translation lives here; the resolved tree stays CSS-agnostic. -->
+    <section class="sketch">
       <template x-if="error">
         <p class="error" x-text="error"></p>
       </template>
-      <template x-if="!error && tree">
-        <div>
-          <p>Resolved tree loaded. Root type:
-            <code x-text="tree.root && tree.root.type ? tree.root.type.name : '(none)'"></code>
-          </p>
-          <p class="hint">Structural sketch view arrives in E2-S3.</p>
-        </div>
-      </template>
+
       <template x-if="!error && !tree">
         <p class="hint">Loading resolved tree…</p>
       </template>
+
+      <!-- Recursive node renderer. A container draws its own grid and recurses
+           into its children; a leaf draws a single labeled placeholder box. -->
+      <template x-if="!error && tree && tree.root">
+        <div class="sketch-root">
+          <template x-data x-for="(node, i) in [tree.root]" :key="i">
+            <div class="node-slot" x-html="renderNode(node)"></div>
+          </template>
+        </div>
+      </template>
+    </section>
+
+    <!-- Tree inspector: collapsible panel showing the full resolved-tree JSON. -->
+    <section class="inspector" x-show="!error && tree" x-cloak>
+      <button type="button" class="inspector-toggle" @click="inspectorOpen = !inspectorOpen"
+              :aria-expanded="inspectorOpen.toString()">
+        <span x-text="inspectorOpen ? '▾' : '▸'"></span>
+        Resolved tree inspector
+      </button>
+      <pre class="inspector-json" x-show="inspectorOpen" x-text="treeJSON"></pre>
     </section>
   </main>
 
@@ -40,7 +53,10 @@
       return {
         title: '',
         tree: null,
+        treeJSON: '',
         error: '',
+        inspectorOpen: false,
+
         async load() {
           try {
             const res = await fetch('/api/tree');
@@ -50,10 +66,109 @@
               return;
             }
             this.tree = await res.json();
+            this.treeJSON = JSON.stringify(this.tree, null, 2);
             this.title = (this.tree.manifest && this.tree.manifest.title) || '';
           } catch (e) {
             this.error = String(e);
           }
+        },
+
+        // escapeHTML guards text injected via x-html (config values, types).
+        escapeHTML(s) {
+          return String(s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+          });
+        },
+
+        // typeLabel is the human-facing node type name.
+        typeLabel(node) {
+          const t = node.type || {};
+          let label = t.name || t.id || t.ref || 'item';
+          if (t.version) { label += ' v' + t.version; }
+          return label;
+        },
+
+        // configSummary renders a concise one-line summary of a node's config:
+        // up to three key=value pairs, scalars only, objects/arrays abbreviated.
+        configSummary(node) {
+          const cfg = node.config;
+          if (!cfg || typeof cfg !== 'object') { return ''; }
+          const parts = [];
+          for (const k of Object.keys(cfg)) {
+            if (parts.length >= 3) { break; }
+            let v = cfg[k];
+            if (v === null) { v = 'null'; }
+            else if (Array.isArray(v)) { v = '[' + v.length + ']'; }
+            else if (typeof v === 'object') { v = '{…}'; }
+            else { v = String(v); }
+            if (v.length > 24) { v = v.slice(0, 23) + '…'; }
+            parts.push(k + '=' + v);
+          }
+          let summary = parts.join(', ');
+          if (Object.keys(cfg).length > 3) { summary += ', …'; }
+          return summary;
+        },
+
+        // gridStyle translates a container's normalized fractional tracks
+        // (sum to 1.0, renderer-agnostic) into a CSS Grid template. Each
+        // fraction becomes an `fr` unit; the relative gap becomes a rem gap.
+        gridStyle(layout) {
+          const cols = (layout.columns && layout.columns.length ? layout.columns : [1]);
+          const rows = (layout.rows && layout.rows.length ? layout.rows : [1]);
+          const toFr = (tracks) => tracks.map((f) => (f.toFixed(4) + 'fr')).join(' ');
+          const gap = (layout.gap || 0) * 0.5;
+          return 'display:grid;'
+            + 'grid-template-columns:' + toFr(cols) + ';'
+            + 'grid-template-rows:' + toFr(rows) + ';'
+            + 'gap:' + gap.toFixed(3) + 'rem;';
+        },
+
+        // placementStyle maps a child's 1-indexed grid placement onto CSS Grid
+        // line numbers (grid-column / grid-row: start / span N).
+        placementStyle(p) {
+          if (!p) { return ''; }
+          const cs = p.colStart || 1, cspan = p.colSpan || 1;
+          const rs = p.rowStart || 1, rspan = p.rowSpan || 1;
+          return 'grid-column:' + cs + ' / span ' + cspan + ';'
+            + 'grid-row:' + rs + ' / span ' + rspan + ';';
+        },
+
+        // renderNode recursively renders a resolved instance. Containers draw a
+        // grid and recurse into children (positioned by the parent's Layout
+        // placements); leaves draw a single labeled box.
+        renderNode(node, placementStyle) {
+          const label = this.escapeHTML(this.typeLabel(node));
+          const summary = this.configSummary(node);
+          const summaryHTML = summary
+            ? '<div class="node-summary">' + this.escapeHTML(summary) + '</div>'
+            : '';
+          const idHTML = node.id
+            ? '<span class="node-id">#' + this.escapeHTML(node.id) + '</span>'
+            : '';
+          const slotStyle = placementStyle ? (' style="' + placementStyle + '"') : '';
+
+          if (node.container) {
+            const layout = node.layout || { columns: [1], rows: [1], placements: [] };
+            const children = node.children || [];
+            const placements = layout.placements || [];
+            let inner = '';
+            for (let i = 0; i < children.length; i++) {
+              const ps = this.placementStyle(placements[i]);
+              inner += this.renderNode(children[i], ps);
+            }
+            return '<div class="node node-container"' + slotStyle + '>'
+              + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML
+              + '<span class="node-kind">container</span></div>'
+              + summaryHTML
+              + '<div class="node-grid" style="' + this.gridStyle(layout) + '">'
+              + (inner || '<div class="node-empty">(no children)</div>')
+              + '</div></div>';
+          }
+
+          return '<div class="node node-leaf"' + slotStyle + '>'
+            + '<div class="node-head"><span class="node-type">' + label + '</span>' + idHTML + '</div>'
+            + summaryHTML
+            + '</div>';
         }
       };
     }
