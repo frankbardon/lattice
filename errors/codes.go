@@ -233,3 +233,23 @@ const (
 	// and resolved item-type name are reported in Details["path"]/["type"].
 	LAYOUT_FORM_CHILD_INVALID Code = "LAYOUT_FORM_CHILD_INVALID"
 )
+
+// CONFIGURATOR domain - The configurator item type (E5): an item that renders an
+// editor for another item in the same document, referenced by its stable id.
+const (
+	// CONFIGURATOR_TARGET_NOT_FOUND indicates a configurator's `target` named an
+	// instance id that NO item in the resolved tree declares — the tree-wide id
+	// index has no entry for it, so there is nothing to configure. The offending
+	// configurator's instance path and the unresolved target id are reported in
+	// Details["path"]/["target"].
+	CONFIGURATOR_TARGET_NOT_FOUND Code = "CONFIGURATOR_TARGET_NOT_FOUND"
+
+	// CONFIGURATOR_TARGET_MISSING_ID indicates a configurator's `target` reference
+	// is itself non-stable: present but empty/whitespace-only, so it names no
+	// resolvable id. Targeting requires a stable, declared id; an empty target has
+	// no id to look up. (A normal NOT_FOUND covers the case where the id is
+	// well-formed but unmatched; MISSING_ID is the defense-in-depth guard for a
+	// target that carries no stable id at all.) The offending configurator's
+	// instance path is reported in Details["path"].
+	CONFIGURATOR_TARGET_MISSING_ID Code = "CONFIGURATOR_TARGET_MISSING_ID"
+)

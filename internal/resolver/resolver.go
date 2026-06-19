@@ -191,6 +191,19 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 		return nil, err
 	}
 
+	// Configurator target-resolution pass (E5-S1): for every `configurator` node,
+	// validate that its `target` references a real, id-carrying item in the same
+	// document. Builds a tree-wide id index once, then resolves each target against
+	// it (empty target -> CONFIGURATOR_TARGET_MISSING_ID; dangling target ->
+	// CONFIGURATOR_TARGET_NOT_FOUND). Runs after the instance walk because it needs
+	// the whole assembled tree to build the index and read each configurator's
+	// resolved type + interpolated config. Auto-generating the editor form from the
+	// target's configurable surface is E5-S2. Fail-fast, same machinery as the
+	// other passes. See configurator.go.
+	if err := resolveConfigurators(root); err != nil {
+		return nil, err
+	}
+
 	// Config-override pass (E4-S2): apply each node+field override
 	// ("<node-id>.<field>") to the resolved tree. Runs LAST — after the instance
 	// walk (config is interpolated and schema-validated) and the surface pass (each
