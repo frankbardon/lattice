@@ -369,3 +369,36 @@ const (
 	// Details["path"]/["target"].
 	CONFIGURATOR_TARGET_SCOPE_UNKNOWN Code = "CONFIGURATOR_TARGET_SCOPE_UNKNOWN"
 )
+
+// CHANGESET domain - The JSON Patch apply layer (patch-write-pipeline E1): a
+// changeset is an RFC 6902 JSON Patch document whose pointers are ID-ROOTED — the
+// leading pointer segment is an item's stable `id` or a reserved `$`-scope
+// keyword, and the remainder is literal RFC 6901. These codes guard parsing a
+// changeset document and translating its id-rooted pointers into physical RFC
+// 6901 pointers against the decoded document tree. Unknown `$`-scopes reuse the
+// configurator domain's CONFIGURATOR_TARGET_SCOPE_UNKNOWN code.
+const (
+	// CHANGESET_INVALID indicates a changeset document is malformed: it is not a
+	// JSON array of operation objects, or an operation is missing/has a wrong-typed
+	// required member (a non-string/absent `op` or `path`, an unknown `op`, a
+	// `value`-requiring op without `value`, or a `from`-requiring op without a
+	// `from`). The offending operation index and the reason are reported in Details
+	// when known (Details["index"]/["op"]).
+	CHANGESET_INVALID Code = "CHANGESET_INVALID"
+
+	// CHANGESET_POINTER_INVALID indicates an id-rooted changeset pointer is not
+	// well-formed for translation: it is empty, does not begin with "/", or carries
+	// an empty leading id/scope segment, so it names no item id or `$`-scope to
+	// resolve. The offending pointer and operation index are reported in
+	// Details["pointer"]/["index"].
+	CHANGESET_POINTER_INVALID Code = "CHANGESET_POINTER_INVALID"
+
+	// CHANGESET_TARGET_NOT_FOUND indicates an id-rooted changeset pointer's leading
+	// segment names an item `id` that NO node in the decoded document tree declares
+	// — there is nothing to address, so the pointer cannot be translated to a
+	// physical location. (A `$`-scope that is unknown reuses
+	// CONFIGURATOR_TARGET_SCOPE_UNKNOWN instead; this code is the item-id miss.) The
+	// unresolved id, the offending pointer, and the operation index are reported in
+	// Details["id"]/["pointer"]/["index"].
+	CHANGESET_TARGET_NOT_FOUND Code = "CHANGESET_TARGET_NOT_FOUND"
+)
