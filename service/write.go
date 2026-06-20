@@ -38,3 +38,27 @@ func (s *Service) ParseChangeset(b []byte) (*Changeset, error) {
 func (s *Service) Patch(id string, cs *Changeset, opts ...ApplyOption) (*ApplyResult, error) {
 	return changeset.ApplyChangeset(s.store, s.resolver, id, cs, opts...)
 }
+
+// Save persists whole-document bytes through the wired store — a thin passthrough
+// for callers that manage entire documents directly rather than via a changeset.
+// The addressing key is derived by the store from the document's manifest.id (not
+// a separate argument), so the bytes alone determine where they land.
+//
+// Save writes UNVALIDATED bytes by design: the store is a dumb blob store and
+// performs no schema resolution, so this is NOT a validated write path. Callers
+// that want apply→validate→save guarantees use Patch instead.
+//
+// An absent or filename-unsafe id, or a backend write failure, surface as the
+// store's STORAGE_ID_INVALID / STORAGE_IO *errors.CodedError, propagated verbatim
+// — they are not re-wrapped or re-coded.
+func (s *Service) Save(document []byte) error {
+	return s.store.Save(document)
+}
+
+// Delete removes the stored document with the given manifest id — a thin
+// passthrough to the wired store. A missing id surfaces as the store's
+// STORAGE_NOT_FOUND *errors.CodedError (other failures as STORAGE_IO),
+// propagated verbatim — they are not re-wrapped or re-coded.
+func (s *Service) Delete(id string) error {
+	return s.store.Delete(id)
+}
