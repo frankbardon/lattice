@@ -415,4 +415,16 @@ const (
 	// pipeline-internal failures surface as their own CHANGESET_*/PATCH_APPLY_FAILED
 	// (or storage/resolver) codes.
 	PATCH_INVALID Code = "PATCH_INVALID"
+
+	// CHANGESET_STRUCTURAL_ID_INVALID indicates a structural `add` op's value (a
+	// full item instance inserted into a `children` array) does not carry a valid,
+	// document-unique `id`: the value is not an object, its `id` member is missing
+	// or not a non-empty string, or the `id` collides with an id already present in
+	// the document being patched. Structural adds are gated by re-resolve for
+	// grammar/schema, but id presence + uniqueness is enforced HERE because the
+	// resolver's id index is last-wins and would silently accept a duplicate. The
+	// offending pointer, the supplied id (when present), and the operation index are
+	// reported in Details["pointer"]/["id"]/["index"]. The whole changeset is
+	// rejected and nothing is persisted (atomic).
+	CHANGESET_STRUCTURAL_ID_INVALID Code = "CHANGESET_STRUCTURAL_ID_INVALID"
 )

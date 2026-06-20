@@ -93,11 +93,24 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 
 	surfaces := newSurfaceIndex(tree)
 
-	// Field-edit guardrail: every op's target field must be on the relevant
-	// configurable surface, and its value must satisfy that field's declared type.
-	// Checked on the ID-ROOTED ops (before translation) so the leading id/scope and
-	// the target field are read directly from the authored pointer.
+	// Per-op guardrail dispatch (checked on the ID-ROOTED ops, before translation,
+	// so the leading id/scope and the target are read from the authored pointer).
+	// There are TWO guardrails, and each op is routed to exactly one:
+	//   - a STRUCTURAL op (insert/delete in a `children` array, or an item root for
+	//     remove) bypasses the field-edit surface check — the `$root` surface is
+	//     empty, so there is no surface field to match — and is instead gated by the
+	//     pipeline's RE-RESOLVE (grammar + schema) over the mutated document. The one
+	//     thing re-resolve cannot supply, the added instance's id presence +
+	//     uniqueness (the resolver's id index is last-wins), is enforced here.
+	//   - a FIELD/CONFIG edit stays surface-gated: its target field must be on the
+	//     relevant configurable surface and its value must satisfy that field's type.
 	for i, op := range cs.Ops {
+		if isStructuralOp(op.Path) {
+			if err := checkStructuralOp(op, doc, i); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		if err := surfaces.checkOp(op, i); err != nil {
 			return nil, err
 		}
