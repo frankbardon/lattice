@@ -95,6 +95,16 @@ the target reference and auto-generates an editor form from the target's
 [config override](overrides.md#config-overrides). See
 [Configurators](configurator.md).
 
+### Content item types
+
+Three **content leaves** — `markdown`, `heading`, and `image` — carry page-like
+content (prose, a section heading, an image) rather than data or a control. Each
+is a non-positional leaf that must be [block-wrapped](#block-itemsblock100) to sit
+under a region. The `markdown.source` and `image.src` strings are **opaque**: the
+resolver stores and validates them but never parses, renders, or fetches them.
+Fields, the block-wrap requirement, and `${var}` interpolation are documented on
+the [Content Item Types](content.md) page.
+
 ### Variable widgets
 
 Beyond `container` and `table`, the catalog ships **13 variable widgets** — leaf
