@@ -6,6 +6,7 @@
 
 - [Overview](overview.md)
 - [Building & Running](getting-started/building-and-running.md)
+- [Using as a Library](getting-started/library.md)
 - [Conventions](getting-started/conventions.md)
 
 # The Dashboard Format

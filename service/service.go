@@ -10,13 +10,44 @@
 // (filesystem abstraction, schema catalog, store/resolver construction) so the
 // load → resolve → apply → save dance lives in exactly one place.
 //
+// CONSTRUCTION. There are two ways to build a Service, both returning the same
+// wired facade:
+//
+//   - Open(Options{Backend, Root, Schemas}) — the batteries-included path for
+//     real-filesystem callers. It builds the writable store over an OS filesystem
+//     rooted at Root and a resolver over the Schemas fs.FS (an os.DirFS in a CLI),
+//     then wires them. This is the one most programs want.
+//
+//   - New(store, res) — the injection path, taking an already-built Store and
+//     *Resolver and wiring them without touching the filesystem. Pair it with the
+//     low-level builders NewStore(backend, fs, root) and NewResolver(schemas
+//     fs.FS) to supply a custom or in-memory store and a resolver over embedded
+//     schemas (an embed.FS). This is the path a WASM or MCP frontend uses, where
+//     the document and schema catalog live in memory rather than on a disk.
+//
+// VERBS. A constructed *Service exposes the whole transport-agnostic surface:
+//
+//   - Read:    Resolve(id, overrides) and ResolveBytes(b, src, overrides) run the
+//     two-pass resolver (store-addressed vs in-memory); Load(id),
+//     List(), Exists(id) are byte-level store reads.
+//   - Write:   ParseChangeset(b) yields an opaque *Changeset; Patch(id, cs, opts)
+//     applies it through the atomic apply→validate→re-resolve→save
+//     pipeline (pass WithExpectedRevision(rev) for an optimistic-
+//     concurrency precondition); Save(document) writes UNVALIDATED whole
+//     bytes; Delete(id) removes a document.
+//   - History: History(id) and LoadAt(id, rev) read version history (git backend
+//     only); Revision(id) returns the current revision token to pair with
+//     WithExpectedRevision. These are capability-gated — a backend that
+//     lacks the capability is rejected with STORAGE_CAPABILITY_UNSUPPORTED
+//     rather than degrading silently.
+//
 // OPAQUE HANDLES. The boundary types this package re-exports (ResolvedTree,
 // Changeset, ApplyResult, Store, …) are type ALIASES of their internal
 // definitions, so a caller can name and READ them through service.* but cannot
 // CONSTRUCT the ones with unexported fields itself. Values of those types are
-// produced only by the constructors and methods this package provides (added in
-// later stories). This keeps construction — and therefore invariants like
-// validation, atomicity, and byte-faithfulness — under the facade's control.
+// produced only by the constructors and methods above. This keeps construction —
+// and therefore invariants like validation, atomicity, and byte-faithfulness —
+// under the facade's control.
 //
 // ERRORS. Every failure path returns a *errors.CodedError from the lattice
 // errors package (github.com/frankbardon/lattice/errors), which is itself at the
@@ -42,9 +73,10 @@ import (
 // CONSTRAINT: an alias lets a caller name and read a boundary type, but the types
 // carrying unexported fields (Resolver, Store implementations, …) still cannot be
 // constructed outside their defining package. Callers obtain values of these
-// types only from the constructors and methods this package provides (E1-S2/S3),
-// so the facade retains control over how they are built and what invariants they
-// satisfy. They are, in effect, opaque handles.
+// types only from the constructors (Open / New / NewStore / NewResolver) and the
+// Service methods this package provides, so the facade retains control over how
+// they are built and what invariants they satisfy. They are, in effect, opaque
+// handles.
 
 // ResolvedTree is the durable, JSON-serializable output of resolution: the
 // document manifest plus the recursively resolved root instance, produced only
@@ -125,10 +157,10 @@ func WithExpectedRevision(revision string) ApplyOption {
 }
 
 // Service is the transport-agnostic facade: a single value that holds the wired
-// store and resolver and (in later stories) exposes read and write methods over
-// them. It is constructed via the facade's constructor (E1-S2); its fields are
-// unexported so callers cannot assemble one with an unwired or inconsistent
-// store/resolver pair.
+// store and resolver and exposes the read, write, and history methods over them
+// (see the package doc for the verb set). It is constructed via Open or New; its
+// fields are unexported so callers cannot assemble one with an unwired or
+// inconsistent store/resolver pair.
 type Service struct {
 	// store is the wired persistence backend (filesystem or git), the single
 	// blob store every read and write goes through.
