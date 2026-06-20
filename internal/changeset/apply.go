@@ -53,12 +53,12 @@ const canonicalIndent = "  "
 // guardrail reads the surface field name from the path segment AFTER `config`.
 const configKey = "config"
 
-// ApplyChangeset applies the parsed, id-rooted changeset cs to the decoded
-// document and returns the mutated document CANONICALLY re-marshaled (sorted keys,
-// fixed 2-space indent). docBytes is the stored document; tree is the RESOLVED
-// current document (resolved read-only by the caller) whose configurable surfaces
-// the field-edit guardrail is checked against — it must be the resolution of the
-// SAME bytes, so the surfaces describe the document being patched.
+// applyToBytes applies the parsed, id-rooted changeset cs to the decoded document
+// and returns the mutated document CANONICALLY re-marshaled (sorted keys, fixed
+// 2-space indent). docBytes is the stored document; tree is the RESOLVED current
+// document (resolved read-only by the caller) whose configurable surfaces the
+// field-edit guardrail is checked against — it must be the resolution of the SAME
+// bytes, so the surfaces describe the document being patched.
 //
 // The steps are: decode the document, enforce the field-edit guardrail against the
 // resolved surfaces (rejecting any edit off a configurable surface, or any nested
@@ -67,7 +67,13 @@ const configKey = "config"
 // RFC 6901 pointer, apply the RFC 6902 operations with the standard applier, then
 // canonically re-marshal. It is FAIL-FAST and pure: the first violation aborts and
 // nothing is applied; on any error the caller persists nothing.
-func ApplyChangeset(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) ([]byte, error) {
+//
+// This is the pure APPLY ENGINE — it neither loads nor persists. The public
+// ApplyChangeset (pipeline.go) owns the full load -> resolve -> apply -> re-resolve
+// -> Save pipeline and wraps this step. Splitting them keeps the engine pure (and
+// directly testable on bytes) while the pipeline owns the Store and the atomic
+// reject-or-persist decision.
+func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) ([]byte, error) {
 	var doc map[string]any
 	if err := json.Unmarshal(docBytes, &doc); err != nil {
 		return nil, errors.WrapCodedError(err, errors.RESOLVE_DOCUMENT_INVALID,

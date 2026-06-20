@@ -86,7 +86,7 @@ func readField(t *testing.T, doc []byte, keys ...string) any {
 	return v
 }
 
-func TestApplyChangeset_SurfacedFieldAccepted(t *testing.T) {
+func TestApplyToBytes_SurfacedFieldAccepted(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	// `fruits.title` (item surface) and `$manifest.title` (scope surface) are both
@@ -96,7 +96,7 @@ func TestApplyChangeset_SurfacedFieldAccepted(t *testing.T) {
 		{"op":"replace","path":"/$manifest/title","value":"Renamed"}
 	]`)
 
-	out, err := ApplyChangeset(docBytes, cs, tree)
+	out, err := applyToBytes(docBytes, cs, tree)
 	if err != nil {
 		t.Fatalf("ApplyChangeset: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestApplyChangeset_SurfacedFieldAccepted(t *testing.T) {
 	}
 }
 
-func TestApplyChangeset_OffSurfaceFieldRejected(t *testing.T) {
+func TestApplyToBytes_OffSurfaceFieldRejected(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	cases := map[string]string{
@@ -131,43 +131,43 @@ func TestApplyChangeset_OffSurfaceFieldRejected(t *testing.T) {
 	}
 	for name, patch := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := ApplyChangeset(docBytes, parse(t, patch), tree)
+			_, err := applyToBytes(docBytes, parse(t, patch), tree)
 			hasCode(t, err, errors.CONFIG_OVERRIDE_FIELD_UNKNOWN)
 		})
 	}
 }
 
-func TestApplyChangeset_BadValueRejected(t *testing.T) {
+func TestApplyToBytes_BadValueRejected(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	// `$manifest.title` is a string surface field; a number value is the wrong type.
 	cs := parse(t, `[{"op":"replace","path":"/$manifest/title","value":42}]`)
-	_, err := ApplyChangeset(docBytes, cs, tree)
+	_, err := applyToBytes(docBytes, cs, tree)
 	hasCode(t, err, errors.CONFIG_OVERRIDE_VALUE_INVALID)
 }
 
-func TestApplyChangeset_BadEnumValueRejected(t *testing.T) {
+func TestApplyToBytes_BadEnumValueRejected(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	// `$theme.emphasis` is an enum (none/low/high); an out-of-set value is rejected
 	// by the enum-membership check even though the type (string) matches.
 	cs := parse(t, `[{"op":"replace","path":"/$theme/emphasis","value":"loud"}]`)
-	_, err := ApplyChangeset(docBytes, cs, tree)
+	_, err := applyToBytes(docBytes, cs, tree)
 	hasCode(t, err, errors.CONFIG_OVERRIDE_VALUE_INVALID)
 }
 
-func TestApplyChangeset_CanonicalOutputStable(t *testing.T) {
+func TestApplyToBytes_CanonicalOutputStable(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	// An empty changeset is a no-op: applying it then canonically marshaling an
 	// already-canonical document must round-trip to identical bytes.
 	empty := parse(t, `[]`)
-	first, err := ApplyChangeset(docBytes, empty, tree)
+	first, err := applyToBytes(docBytes, empty, tree)
 	if err != nil {
 		t.Fatalf("ApplyChangeset (no-op): %v", err)
 	}
 	// Re-applying the no-op to the canonical output yields identical bytes.
-	second, err := ApplyChangeset(first, empty, tree)
+	second, err := applyToBytes(first, empty, tree)
 	if err != nil {
 		t.Fatalf("ApplyChangeset (re-run): %v", err)
 	}
@@ -187,13 +187,13 @@ func TestApplyChangeset_CanonicalOutputStable(t *testing.T) {
 	}
 }
 
-func TestApplyChangeset_TestOpMismatchRejected(t *testing.T) {
+func TestApplyToBytes_TestOpMismatchRejected(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	// A `test` op whose expected value does not match the document fails at apply
 	// time (the standard applier's precondition), surfacing as PATCH_APPLY_FAILED.
 	// `title` is surfaced, so it passes the guardrail and reaches the applier.
 	cs := parse(t, `[{"op":"test","path":"/$manifest/title","value":"Wrong"}]`)
-	_, err := ApplyChangeset(docBytes, cs, tree)
+	_, err := applyToBytes(docBytes, cs, tree)
 	hasCode(t, err, errors.PATCH_APPLY_FAILED)
 }
