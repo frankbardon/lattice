@@ -37,6 +37,7 @@ func buildApp() *cli.Command {
 		Commands: []*cli.Command{
 			lcli.ResolveCommand(),
 			lcli.ServeCommand(),
+			lcli.PatchCommand(),
 		},
 	}
 }

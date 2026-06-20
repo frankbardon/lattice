@@ -408,4 +408,11 @@ const (
 	// remove/replace of a member that does not exist, or an out-of-range array
 	// index). The whole changeset is rejected and nothing is persisted (atomic).
 	PATCH_APPLY_FAILED Code = "PATCH_APPLY_FAILED"
+
+	// PATCH_INVALID indicates an invalid `lattice patch` invocation: a missing
+	// manifest id argument, a missing/unreadable --changeset file, or a stdin read
+	// failure. It guards the CLI command's inputs before the apply pipeline runs;
+	// pipeline-internal failures surface as their own CHANGESET_*/PATCH_APPLY_FAILED
+	// (or storage/resolver) codes.
+	PATCH_INVALID Code = "PATCH_INVALID"
 )
