@@ -96,6 +96,34 @@ func TestE2E_FieldEditPersistsAndReloads(t *testing.T) {
 	}
 }
 
+// TestE2E_NestedFieldEditPersistsAndReloads proves a NESTED-config edit (E2-S2)
+// flows through the full public pipeline: a `replace` on the body container's
+// declared `grid.gap` nested surface entry (addressed by id at
+// `/body/config/grid/gap`) is persisted, and a reload reflects the new value with
+// the sibling tracks intact.
+func TestE2E_NestedFieldEditPersistsAndReloads(t *testing.T) {
+	res := newResolver(t)
+	store, _ := seedFSStoreWith(t, minimalDocPath)
+
+	cs := parse(t, `[{"op":"replace","path":"/body/config/grid/gap","value":3}]`)
+	if _, err := ApplyChangeset(store, res, fixtureID, cs); err != nil {
+		t.Fatalf("ApplyChangeset: %v", err)
+	}
+
+	reloaded, err := store.Load(fixtureID)
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	children := readField(t, reloaded, "root", "children").([]any)
+	grid := children[0].(map[string]any)["config"].(map[string]any)["grid"].(map[string]any)
+	if grid["gap"] != float64(3) {
+		t.Fatalf("reloaded body grid.gap = %v, want 3", grid["gap"])
+	}
+	if _, ok := grid["columns"]; !ok {
+		t.Fatalf("nested edit dropped sibling grid.columns: %v", grid)
+	}
+}
+
 // TestE2E_ThemeAndManifestScopeEdits proves a `$theme` token edit and a
 // `$manifest` title edit are persisted within their document-scope surfaces, and
 // a reload reflects both new values. Uses the themed fixture so the theme tokens

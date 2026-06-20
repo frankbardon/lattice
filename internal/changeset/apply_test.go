@@ -114,14 +114,66 @@ func TestApplyToBytes_SurfacedFieldAccepted(t *testing.T) {
 	}
 }
 
+func TestApplyToBytes_NestedSurfacedFieldAccepted(t *testing.T) {
+	docBytes, tree := resolveFixture(t)
+
+	// `grid.gap` is a declared NESTED surface entry of the body container (E2-S1):
+	// an id-rooted patch targeting the nested path `/body/config/grid/gap` is on the
+	// allow-list, so the number replace applies. The seed gap is 1.
+	cs := parse(t, `[{"op":"replace","path":"/body/config/grid/gap","value":4}]`)
+
+	out, err := applyToBytes(docBytes, cs, tree)
+	if err != nil {
+		t.Fatalf("applyToBytes: %v", err)
+	}
+
+	// The nested gap is mutated in place; the sibling tracks (columns/rows) are
+	// untouched. The body container is root.children[0].
+	var doc map[string]any
+	if err := json.Unmarshal(out, &doc); err != nil {
+		t.Fatalf("decode result doc: %v", err)
+	}
+	children := doc["root"].(map[string]any)["children"].([]any)
+	body := children[0].(map[string]any)
+	grid := body["config"].(map[string]any)["grid"].(map[string]any)
+	if grid["gap"] != float64(4) {
+		t.Fatalf("body grid.gap = %v, want 4", grid["gap"])
+	}
+	if _, ok := grid["columns"]; !ok {
+		t.Fatalf("nested edit dropped sibling grid.columns: %v", grid)
+	}
+}
+
+func TestApplyToBytes_OffAllowListNestedPathRejected(t *testing.T) {
+	docBytes, tree := resolveFixture(t)
+
+	// `grid.foo` is NOT an enumerated nested surface entry (only grid, grid.gap,
+	// grid.columns, grid.rows are). A nested path off the allow-list is rejected —
+	// the surface stays the single source of truth for nested editability.
+	cs := parse(t, `[{"op":"replace","path":"/body/config/grid/foo","value":1}]`)
+	_, err := applyToBytes(docBytes, cs, tree)
+	hasCode(t, err, errors.CONFIG_OVERRIDE_FIELD_UNKNOWN)
+}
+
+func TestApplyToBytes_NestedBadValueRejected(t *testing.T) {
+	docBytes, tree := resolveFixture(t)
+
+	// `grid.gap` is a number-typed nested leaf; a string value is the wrong type, so
+	// value validation rejects it exactly as it does for a top-level field.
+	cs := parse(t, `[{"op":"replace","path":"/body/config/grid/gap","value":"wide"}]`)
+	_, err := applyToBytes(docBytes, cs, tree)
+	hasCode(t, err, errors.CONFIG_OVERRIDE_VALUE_INVALID)
+}
+
 func TestApplyToBytes_OffSurfaceFieldRejected(t *testing.T) {
 	docBytes, tree := resolveFixture(t)
 
 	cases := map[string]string{
 		// `rows` is a real table config field but NOT on the table's surface.
 		"unsurfaced item field": `[{"op":"replace","path":"/fruits/config/rows","value":[]}]`,
-		// A nested path into a surfaced array field — surfaces cover top-level only.
-		"nested path": `[{"op":"replace","path":"/fruits/config/columns/0/header","value":"X"}]`,
+		// A nested path into a surfaced array field — the dotted key
+		// `columns.0.header` is not an enumerated nested surface entry of the table.
+		"unsurfaced nested path": `[{"op":"replace","path":"/fruits/config/columns/0/header","value":"X"}]`,
 		// The item node addressed as a whole (no config/<field>).
 		"node as a whole": `[{"op":"replace","path":"/fruits/config","value":{}}]`,
 		// A field not under the item's `config`.
