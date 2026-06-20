@@ -83,3 +83,33 @@ type VersionedStore interface {
 	// STORAGE_NOT_FOUND.
 	LoadAt(id, revision string) ([]byte, error)
 }
+
+// RevisionedStore is an OPTIONAL capability a backend may implement on top of the
+// core Store contract to expose a single "current revision" token for a stored
+// document. Unlike VersionedStore (git-only, read-side history), BOTH backends
+// implement RevisionedStore — the filesystem backend derives a content hash and
+// the git backend reuses its commit history — so a precondition check ("the
+// document I edited is still the one on disk") works uniformly across backends.
+//
+// Callers detect the capability with a type assertion:
+//
+//	if rs, ok := store.(storage.RevisionedStore); ok { … }
+//
+// The token is OPAQUE: callers must treat it as compare-only and never parse it.
+// It is stable for an unchanged document and changes whenever the document's
+// stored bytes change. Its concrete form differs per backend (a git commit hash
+// for the git backend, a content hash for the filesystem backend); the only
+// guarantees are stability and change-detection, not a particular format.
+//
+// All methods return errors as *errors.CodedError from the lattice errors
+// package (STORAGE_* codes), matching the core Store.
+type RevisionedStore interface {
+	Store
+
+	// Revision returns the current revision token for the document with the
+	// given manifest id. An id that no stored document matches returns a
+	// STORAGE_NOT_FOUND coded error. The returned token is stable across reads
+	// of an unchanged document and changes after any Save that alters the
+	// document's stored bytes.
+	Revision(id string) (string, error)
+}

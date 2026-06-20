@@ -44,6 +44,17 @@ type ResolvedTree struct {
 	// consumer composes the cascade. Nil/omitted when the document declares no
 	// default theme.
 	DefaultTheme map[string]any `json:"defaultTheme,omitempty"`
+
+	// ScopeSurfaces are the configurable surfaces of the reserved DOCUMENT scopes
+	// (E4-S2): the validated, runtime-tunable field sets of `$manifest` (title,
+	// description, …) and `$theme` (vocabulary tokens), keyed by the reserved
+	// `$`-keyword. They are the document-level twins of each item node's Surface and
+	// the guardrail source a field-level changeset edit targeting a `$`-scope is
+	// checked against (the patch-write pipeline). A scope the document schema
+	// declares no surface for is absent; scopes with no settable fields
+	// (`$variables`/`$connections`/`$root`) never appear. Omitted when the document
+	// declares no scope surfaces at all.
+	ScopeSurfaces map[string][]ConfigurableField `json:"scopeSurfaces,omitempty"`
 }
 
 // ResolvedInstance is one node of the resolved tree: a single item instance with
@@ -140,10 +151,21 @@ type ResolvedInstance struct {
 // optional rendering hint against the widget catalog, so every ConfigurableField
 // on a ResolvedInstance is known-valid.
 type ConfigurableField struct {
-	// Field is the name of the item type's config property this entry exposes.
-	// Guaranteed to be a real config property of the item type (validated against
-	// the item-type schema's properties).
+	// Field is the name of the item type's config property this entry exposes. For
+	// a TOP-LEVEL entry it is the property name (e.g. "grid"); for a NESTED entry
+	// (E2-S1) it is the full dotted path (e.g. "grid.gap"). Guaranteed to address a
+	// real config property of the item type — a top-level property, or, for a
+	// dotted path, a property reachable by walking the item-type schema's nested
+	// `properties` (each segment exists; the leaf carries a known value type).
 	Field string `json:"field"`
+
+	// Path is the dotted field's segments (e.g. ["grid", "gap"]) for a NESTED
+	// surface entry (E2-S1) — the bounded, explicitly-declared sub-path into a
+	// nested config object a guardrail (E2-S2) looks up BY PATH. It is the parsed
+	// form of Field: Field is the segments joined by ".". Nil/omitted for a
+	// TOP-LEVEL entry, whose whole address is Field; downstream code treats an
+	// absent Path as a single-segment [Field].
+	Path []string `json:"path,omitempty"`
 
 	// Type is the field's value type, one of the variable type set (string,
 	// number, integer, boolean, enum, array). It tells a configurator which editor

@@ -369,3 +369,82 @@ const (
 	// Details["path"]/["target"].
 	CONFIGURATOR_TARGET_SCOPE_UNKNOWN Code = "CONFIGURATOR_TARGET_SCOPE_UNKNOWN"
 )
+
+// CHANGESET domain - The JSON Patch apply layer (patch-write-pipeline E1): a
+// changeset is an RFC 6902 JSON Patch document whose pointers are ID-ROOTED — the
+// leading pointer segment is an item's stable `id` or a reserved `$`-scope
+// keyword, and the remainder is literal RFC 6901. These codes guard parsing a
+// changeset document and translating its id-rooted pointers into physical RFC
+// 6901 pointers against the decoded document tree. Unknown `$`-scopes reuse the
+// configurator domain's CONFIGURATOR_TARGET_SCOPE_UNKNOWN code.
+const (
+	// CHANGESET_INVALID indicates a changeset document is malformed: it is not a
+	// JSON array of operation objects, or an operation is missing/has a wrong-typed
+	// required member (a non-string/absent `op` or `path`, an unknown `op`, a
+	// `value`-requiring op without `value`, or a `from`-requiring op without a
+	// `from`). The offending operation index and the reason are reported in Details
+	// when known (Details["index"]/["op"]).
+	CHANGESET_INVALID Code = "CHANGESET_INVALID"
+
+	// CHANGESET_POINTER_INVALID indicates an id-rooted changeset pointer is not
+	// well-formed for translation: it is empty, does not begin with "/", or carries
+	// an empty leading id/scope segment, so it names no item id or `$`-scope to
+	// resolve. The offending pointer and operation index are reported in
+	// Details["pointer"]/["index"].
+	CHANGESET_POINTER_INVALID Code = "CHANGESET_POINTER_INVALID"
+
+	// CHANGESET_TARGET_NOT_FOUND indicates an id-rooted changeset pointer's leading
+	// segment names an item `id` that NO node in the decoded document tree declares
+	// — there is nothing to address, so the pointer cannot be translated to a
+	// physical location. (A `$`-scope that is unknown reuses
+	// CONFIGURATOR_TARGET_SCOPE_UNKNOWN instead; this code is the item-id miss.) The
+	// unresolved id, the offending pointer, and the operation index are reported in
+	// Details["id"]/["pointer"]/["index"].
+	CHANGESET_TARGET_NOT_FOUND Code = "CHANGESET_TARGET_NOT_FOUND"
+
+	// PATCH_APPLY_FAILED indicates a translated changeset could not be applied to
+	// the document by the RFC 6902 applier: the patch did not decode, or an
+	// operation failed at apply time (e.g. a `test` precondition mismatch, a
+	// remove/replace of a member that does not exist, or an out-of-range array
+	// index). The whole changeset is rejected and nothing is persisted (atomic).
+	PATCH_APPLY_FAILED Code = "PATCH_APPLY_FAILED"
+
+	// PATCH_INVALID indicates an invalid `lattice patch` invocation: a missing
+	// manifest id argument, a missing/unreadable --changeset file, or a stdin read
+	// failure. It guards the CLI command's inputs before the apply pipeline runs;
+	// pipeline-internal failures surface as their own CHANGESET_*/PATCH_APPLY_FAILED
+	// (or storage/resolver) codes.
+	PATCH_INVALID Code = "PATCH_INVALID"
+
+	// CHANGESET_REVISION_CONFLICT indicates an OPTIMISTIC-CONCURRENCY precondition
+	// failed (E4-S2): the apply carried an expected revision (WithExpectedRevision),
+	// but the store's CURRENT revision — re-read immediately before Save — no longer
+	// matches it, so the document changed since the caller loaded it. The whole
+	// changeset is rejected and nothing is persisted (atomic), leaving the stored
+	// document byte-for-byte unchanged. The code is distinct so callers can RETRY:
+	// reload, re-derive the changeset against the new bytes, and re-apply. The
+	// expected and current revision tokens are reported in
+	// Details["expected"]/["current"] (with the manifest id in Details["id"]).
+	CHANGESET_REVISION_CONFLICT Code = "CHANGESET_REVISION_CONFLICT"
+
+	// CHANGESET_REVISION_UNSUPPORTED indicates an apply carried an expected revision
+	// (WithExpectedRevision) but the configured store does NOT implement the
+	// RevisionedStore capability, so the precondition cannot be enforced. Rather than
+	// silently ignore a precondition the caller asked for, the apply is rejected and
+	// nothing is persisted. The manifest id is reported in Details["id"]. (Both the
+	// filesystem and git backends implement RevisionedStore, so this guards a
+	// custom/stub store only.)
+	CHANGESET_REVISION_UNSUPPORTED Code = "CHANGESET_REVISION_UNSUPPORTED"
+
+	// CHANGESET_STRUCTURAL_ID_INVALID indicates a structural `add` op's value (a
+	// full item instance inserted into a `children` array) does not carry a valid,
+	// document-unique `id`: the value is not an object, its `id` member is missing
+	// or not a non-empty string, or the `id` collides with an id already present in
+	// the document being patched. Structural adds are gated by re-resolve for
+	// grammar/schema, but id presence + uniqueness is enforced HERE because the
+	// resolver's id index is last-wins and would silently accept a duplicate. The
+	// offending pointer, the supplied id (when present), and the operation index are
+	// reported in Details["pointer"]/["id"]/["index"]. The whole changeset is
+	// rejected and nothing is persisted (atomic).
+	CHANGESET_STRUCTURAL_ID_INVALID Code = "CHANGESET_STRUCTURAL_ID_INVALID"
+)

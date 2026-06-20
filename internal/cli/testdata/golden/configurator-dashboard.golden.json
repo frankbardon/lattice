@@ -355,6 +355,43 @@
                 }
               }
             }
+          },
+          {
+            "field": "grid.columns",
+            "path": [
+              "grid",
+              "columns"
+            ],
+            "type": "array",
+            "label": "Column tracks",
+            "constraints": {
+              "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+            }
+          },
+          {
+            "field": "grid.gap",
+            "path": [
+              "grid",
+              "gap"
+            ],
+            "type": "number",
+            "label": "Track gap",
+            "constraints": {
+              "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "grid.rows",
+            "path": [
+              "grid",
+              "rows"
+            ],
+            "type": "array",
+            "label": "Row tracks",
+            "constraints": {
+              "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+            }
           }
         ]
       }
@@ -389,7 +426,156 @@
             }
           }
         }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+        }
       }
     ]
+  },
+  "scopeSurfaces": {
+    "$connections": [],
+    "$manifest": [
+      {
+        "field": "description",
+        "type": "string",
+        "label": "Description",
+        "constraints": {
+          "description": "An optional longer-form description of the dashboard."
+        },
+        "rendering": "textarea"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "label": "Title",
+        "constraints": {
+          "description": "The dashboard's human-readable title."
+        },
+        "rendering": "text-input"
+      }
+    ],
+    "$root": [],
+    "$theme": [
+      {
+        "field": "border",
+        "type": "enum",
+        "label": "Border Weight",
+        "constraints": {
+          "description": "How present a separating edge is around the styled surface.",
+          "enum": [
+            "none",
+            "hairline",
+            "standard"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "density",
+        "type": "enum",
+        "label": "Density",
+        "constraints": {
+          "description": "How tightly repeated/listed content is packed.",
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "emphasis",
+        "type": "enum",
+        "label": "Emphasis",
+        "constraints": {
+          "description": "How prominent the styled element appears.",
+          "enum": [
+            "none",
+            "low",
+            "high"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "radius",
+        "type": "enum",
+        "label": "Corner Radius",
+        "constraints": {
+          "description": "How softened the corners of the styled surface are.",
+          "enum": [
+            "none",
+            "subtle",
+            "rounded"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "spacing",
+        "type": "enum",
+        "label": "Spacing",
+        "constraints": {
+          "description": "The relative amount of internal/outer breathing room.",
+          "enum": [
+            "compact",
+            "cosy",
+            "roomy"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "tone",
+        "type": "enum",
+        "label": "Tone",
+        "constraints": {
+          "description": "The semantic colour intent, expressed by meaning.",
+          "enum": [
+            "neutral",
+            "accent",
+            "positive",
+            "caution",
+            "critical"
+          ]
+        },
+        "rendering": "select"
+      }
+    ],
+    "$variables": []
   }
 }

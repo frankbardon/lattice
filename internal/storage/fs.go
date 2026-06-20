@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"path"
 	"sort"
@@ -174,6 +176,20 @@ func (s *FS) Delete(id string) error {
 			"failed deleting document "+id, map[string]any{"id": id, "path": dest})
 	}
 	return nil
+}
+
+// Revision returns the current revision token for the stored document: the
+// lowercase-hex sha256 of its stored bytes. Because the store is byte-faithful
+// (a document Saved then Loaded is byte-identical), the hash is stable across
+// reads of an unchanged document and changes after any Save that alters the
+// bytes. A missing id returns the same STORAGE_NOT_FOUND coded error Load uses.
+func (s *FS) Revision(id string) (string, error) {
+	data, err := s.Load(id)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // pathFor maps a (validated) id to its on-disk path under root.

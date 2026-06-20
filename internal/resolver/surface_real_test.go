@@ -107,13 +107,23 @@ func fieldByName(t *testing.T, surface []ConfigurableField, name string) Configu
 }
 
 // TestContainerSurface asserts the container item type exposes its grid as a
-// runtime-configurable field with the expected type, label, and constraints.
+// runtime-configurable field with the expected type, label, and constraints,
+// plus the explicit NESTED sub-paths (E2-S1: grid.columns, grid.gap, grid.rows).
 func TestContainerSurface(t *testing.T) {
 	container, _ := resolveSurfaceDoc(t)
 
-	if len(container.Surface) != 1 {
-		t.Fatalf("container.Surface has %d fields, want 1 (grid)", len(container.Surface))
+	// The whole-grid field plus the three explicit nested sub-paths, in sorted
+	// field order: grid, grid.columns, grid.gap, grid.rows.
+	wantOrder := []string{"grid", "grid.columns", "grid.gap", "grid.rows"}
+	if len(container.Surface) != len(wantOrder) {
+		t.Fatalf("container.Surface has %d fields, want %d (%v)", len(container.Surface), len(wantOrder), wantOrder)
 	}
+	for i, want := range wantOrder {
+		if got := container.Surface[i].Field; got != want {
+			t.Fatalf("container.Surface[%d].Field = %q, want %q", i, got, want)
+		}
+	}
+
 	grid := fieldByName(t, container.Surface, "grid")
 	if grid.Type != variables.VarTypeArray {
 		t.Errorf("grid.Type = %q, want %q", grid.Type, variables.VarTypeArray)
@@ -121,10 +131,23 @@ func TestContainerSurface(t *testing.T) {
 	if grid.Label == "" {
 		t.Errorf("grid.Label is empty, want a human label")
 	}
+	if grid.Path != nil {
+		t.Errorf("grid.Path = %v, want nil for the top-level grid field", grid.Path)
+	}
 	if grid.Constraints == nil {
 		t.Errorf("grid.Constraints is nil, want the declared grid-field constraints")
 	} else if _, ok := grid.Constraints["fields"]; !ok {
 		t.Errorf("grid.Constraints missing %q describing the columns/rows/gap sub-fields", "fields")
+	}
+
+	// The nested gap entry carries its parsed path segments (the guardrail's
+	// lookup key, E2-S2) and resolves the leaf type from the schema's grid.gap.
+	gap := fieldByName(t, container.Surface, "grid.gap")
+	if want := []string{"grid", "gap"}; !equalStrings(gap.Path, want) {
+		t.Errorf("grid.gap.Path = %v, want %v", gap.Path, want)
+	}
+	if gap.Type != variables.VarTypeNumber {
+		t.Errorf("grid.gap.Type = %q, want %q", gap.Type, variables.VarTypeNumber)
 	}
 }
 
