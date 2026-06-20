@@ -44,6 +44,10 @@ func PatchCommand() *cli.Command {
 				Name:  "changeset",
 				Usage: "Path to the changeset file (an id-rooted JSON Patch array); - reads stdin",
 			},
+			&cli.StringFlag{
+				Name:  "expect-revision",
+				Usage: "Optimistic-concurrency precondition: an opaque revision token the stored document must still be at, re-checked just before write; omit for no precondition",
+			},
 		}, storeFlags()...),
 		Action: func(_ context.Context, cmd *cli.Command) error {
 			asJSON := cmd.Bool("json")
@@ -84,7 +88,14 @@ func PatchCommand() *cli.Command {
 
 			// The pipeline is atomic: load, resolve, apply, re-resolve, and persist on
 			// full success only. Any coded error rejects the apply and persists nothing.
-			if _, err := changeset.ApplyChangeset(store, res, id, cs); err != nil {
+			// When --expect-revision is supplied, the pipeline enforces it as an
+			// optimistic-concurrency precondition re-checked immediately before write
+			// (a mismatch rejects with CHANGESET_REVISION_CONFLICT, nothing persisted).
+			var applyOpts []changeset.ApplyOption
+			if cmd.IsSet("expect-revision") {
+				applyOpts = append(applyOpts, changeset.WithExpectedRevision(cmd.String("expect-revision")))
+			}
+			if _, err := changeset.ApplyChangeset(store, res, id, cs, applyOpts...); err != nil {
 				return reportError(cmd, asJSON, err)
 			}
 

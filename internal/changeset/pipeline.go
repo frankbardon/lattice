@@ -19,13 +19,22 @@ package changeset
 // once, on success, after every check passes, an invalid changeset or an invalid
 // result leaves the stored document BYTE-FOR-BYTE unchanged.
 //
-// THE REVISION-PRECONDITION SEAM (E4). Concurrency control — rejecting an apply
-// whose expected revision no longer matches the store's current revision — is a
-// later epic. This story leaves a clean seam (WithExpectedRevision) that records
-// the caller's expected revision on the apply but DOES NOT check it: E4 wires the
-// check in just before Save without changing this signature.
+// THE REVISION PRECONDITION (E4-S2). Optimistic concurrency: when the caller
+// supplies an expected revision (WithExpectedRevision), the pipeline re-reads the
+// store's CURRENT revision (storage.RevisionedStore.Revision) IMMEDIATELY BEFORE
+// Save — as close to the write as possible to minimize the race window — and
+// rejects with CHANGESET_REVISION_CONFLICT if it no longer matches, so a stale
+// edit cannot clobber a document changed since it was loaded. The conflict code is
+// distinct so callers can retry. When no expected revision is supplied the
+// behavior is unchanged from E1 (single-writer); a store that cannot expose a
+// revision but was handed an expected one fails with CHANGESET_REVISION_UNSUPPORTED
+// rather than silently skipping the precondition. RFC 6902 `test` ops are the
+// SECOND precondition lever: they are evaluated by the applier during apply.go and
+// a failing `test` aborts the whole changeset (PATCH_APPLY_FAILED) — nothing
+// persisted — just like any other apply failure.
 
 import (
+	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/storage"
 	"github.com/frankbardon/lattice/internal/variables"
@@ -59,9 +68,14 @@ type ApplyResult struct {
 // functional ApplyOption set and read by ApplyChangeset.
 type applyOptions struct {
 	// expectedRevision is the revision the caller expects the stored document to be
-	// at (the optimistic-concurrency precondition). RECORDED but NOT checked here —
-	// the revision-precondition check is E4. An empty string means "no precondition."
+	// at (the optimistic-concurrency precondition). An empty string means "no
+	// precondition." When set, the pipeline re-reads the store's current revision
+	// just before Save and rejects on mismatch (CHANGESET_REVISION_CONFLICT).
 	expectedRevision string
+	// expectRevisionSet records whether WithExpectedRevision was applied at all, so
+	// an explicitly-supplied EMPTY token is still a precondition (and is enforced)
+	// rather than being indistinguishable from "no precondition."
+	expectRevisionSet bool
 }
 
 // ApplyOption configures an ApplyChangeset call. Options are the stable seam for
@@ -70,12 +84,17 @@ type applyOptions struct {
 type ApplyOption func(*applyOptions)
 
 // WithExpectedRevision records the revision the caller expects the stored document
-// to currently be at — the optimistic-concurrency precondition. It is the E4 seam:
-// the expected revision is CARRIED on the apply but NOT yet checked (E4 wires the
-// expected-vs-current comparison in just before Save). Passing it today is a no-op
-// beyond being recorded.
+// to currently be at — the optimistic-concurrency precondition (E4-S2). When
+// supplied, the pipeline re-reads the store's current revision immediately before
+// Save and rejects the apply with CHANGESET_REVISION_CONFLICT if it differs, so a
+// stale edit cannot overwrite a document changed since it was loaded. Omitting it
+// leaves behavior unchanged (single-writer). The token is OPAQUE and compared as-is
+// against the store's RevisionedStore.Revision output.
 func WithExpectedRevision(revision string) ApplyOption {
-	return func(o *applyOptions) { o.expectedRevision = revision }
+	return func(o *applyOptions) {
+		o.expectedRevision = revision
+		o.expectRevisionSet = true
+	}
 }
 
 // ApplyChangeset is the single reusable entry point of the patch-write pipeline:
@@ -95,15 +114,14 @@ func WithExpectedRevision(revision string) ApplyOption {
 // Coded errors propagate verbatim from the step that produced them and identify the
 // offending op/path in Details where the step can (the guardrail, the translator,
 // and the applier all carry the pointer and operation index). The optional
-// ApplyOptions carry the E4 revision precondition (recorded, not yet checked).
+// ApplyOptions carry the E4 revision precondition (WithExpectedRevision): when set,
+// the store's current revision is re-read immediately before Save and a mismatch
+// rejects the apply with CHANGESET_REVISION_CONFLICT.
 func ApplyChangeset(store storage.Store, res DocumentResolver, id string, cs *Changeset, opts ...ApplyOption) (*ApplyResult, error) {
 	var options applyOptions
 	for _, opt := range opts {
 		opt(&options)
 	}
-	// options.expectedRevision is the E4 precondition seam: recorded above, checked
-	// by a later story just before Save. Intentionally unused here.
-	_ = options.expectedRevision
 
 	// Load the current document bytes. A missing id surfaces as the store's
 	// STORAGE_NOT_FOUND coded error.
@@ -137,6 +155,15 @@ func ApplyChangeset(store storage.Store, res DocumentResolver, id string, cs *Ch
 		return nil, err
 	}
 
+	// Optimistic-concurrency precondition (E4-S2): if the caller supplied an expected
+	// revision, re-read the store's CURRENT revision NOW — immediately before Save, as
+	// close to the write as possible to minimize the race window — and reject if it no
+	// longer matches. This is the last gate before the only write, so a stale edit
+	// cannot clobber a document that changed since it was loaded.
+	if err := checkRevisionPrecondition(store, id, options); err != nil {
+		return nil, err
+	}
+
 	// Every guardrail has passed: persist the validated bytes. Save is reached
 	// EXACTLY ONCE, only on full success, so a rejected apply leaves the stored
 	// document byte-for-byte unchanged.
@@ -145,4 +172,36 @@ func ApplyChangeset(store storage.Store, res DocumentResolver, id string, cs *Ch
 	}
 
 	return &ApplyResult{Document: mutated, Resolved: mutatedTree}, nil
+}
+
+// checkRevisionPrecondition enforces the optional optimistic-concurrency
+// precondition just before Save. When no expected revision was supplied it is a
+// no-op (single-writer behavior, unchanged from E1). When one was supplied it
+// requires the store to implement storage.RevisionedStore (else
+// CHANGESET_REVISION_UNSUPPORTED — the caller asked for a precondition that cannot
+// be enforced), re-reads the current revision token, and rejects with
+// CHANGESET_REVISION_CONFLICT if it differs from the expected token. Tokens are
+// opaque and compared verbatim.
+func checkRevisionPrecondition(store storage.Store, id string, options applyOptions) error {
+	if !options.expectRevisionSet {
+		return nil
+	}
+
+	revStore, ok := store.(storage.RevisionedStore)
+	if !ok {
+		return errors.NewCodedErrorWithDetails(errors.CHANGESET_REVISION_UNSUPPORTED,
+			"an expected revision was supplied but the store cannot report a current revision to enforce it",
+			map[string]any{"id": id})
+	}
+
+	current, err := revStore.Revision(id)
+	if err != nil {
+		return err
+	}
+	if current != options.expectedRevision {
+		return errors.NewCodedErrorWithDetails(errors.CHANGESET_REVISION_CONFLICT,
+			"the stored document's revision no longer matches the expected revision; reload and retry",
+			map[string]any{"id": id, "expected": options.expectedRevision, "current": current})
+	}
+	return nil
 }

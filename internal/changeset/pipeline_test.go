@@ -7,6 +7,7 @@ import (
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/spf13/afero"
 
+	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/storage"
 )
@@ -88,18 +89,23 @@ func TestApplyChangeset_MalformedPointerPersistsNothing(t *testing.T) {
 	}
 }
 
-func TestApplyChangeset_ExpectedRevisionSeamIsNoOp(t *testing.T) {
+func TestApplyChangeset_StaleExpectedRevisionConflicts(t *testing.T) {
 	res := newResolver(t)
-	store, _ := seedStore(t, res)
+	store, seed := seedStore(t, res)
 
-	// The E4 precondition seam is recorded but not yet checked: passing any expected
-	// revision today neither rejects nor alters a valid apply.
+	// E4-S2: the precondition is now enforced. An expected revision that does not
+	// match the store's current revision (here an arbitrary token that is not the
+	// document's content hash) rejects the apply with CHANGESET_REVISION_CONFLICT and
+	// persists nothing.
 	cs := parse(t, `[{"op":"replace","path":"/$manifest/title","value":"Renamed"}]`)
-	result, err := ApplyChangeset(store, res, fixtureID, cs, WithExpectedRevision("deadbeef"))
+	_, err := ApplyChangeset(store, res, fixtureID, cs, WithExpectedRevision("deadbeef"))
+	hasCode(t, err, errors.CHANGESET_REVISION_CONFLICT)
+
+	after, err := store.Load(fixtureID)
 	if err != nil {
-		t.Fatalf("ApplyChangeset with expected revision: %v", err)
+		t.Fatalf("reload after rejected apply: %v", err)
 	}
-	if title := readField(t, result.Document, "manifest", "title"); title != "Renamed" {
-		t.Fatalf("expected the edit to apply despite the (unchecked) precondition")
+	if !bytes.Equal(after, seed) {
+		t.Fatalf("rejected stale-revision apply mutated the store")
 	}
 }

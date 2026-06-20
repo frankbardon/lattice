@@ -416,6 +416,26 @@ const (
 	// (or storage/resolver) codes.
 	PATCH_INVALID Code = "PATCH_INVALID"
 
+	// CHANGESET_REVISION_CONFLICT indicates an OPTIMISTIC-CONCURRENCY precondition
+	// failed (E4-S2): the apply carried an expected revision (WithExpectedRevision),
+	// but the store's CURRENT revision — re-read immediately before Save — no longer
+	// matches it, so the document changed since the caller loaded it. The whole
+	// changeset is rejected and nothing is persisted (atomic), leaving the stored
+	// document byte-for-byte unchanged. The code is distinct so callers can RETRY:
+	// reload, re-derive the changeset against the new bytes, and re-apply. The
+	// expected and current revision tokens are reported in
+	// Details["expected"]/["current"] (with the manifest id in Details["id"]).
+	CHANGESET_REVISION_CONFLICT Code = "CHANGESET_REVISION_CONFLICT"
+
+	// CHANGESET_REVISION_UNSUPPORTED indicates an apply carried an expected revision
+	// (WithExpectedRevision) but the configured store does NOT implement the
+	// RevisionedStore capability, so the precondition cannot be enforced. Rather than
+	// silently ignore a precondition the caller asked for, the apply is rejected and
+	// nothing is persisted. The manifest id is reported in Details["id"]. (Both the
+	// filesystem and git backends implement RevisionedStore, so this guards a
+	// custom/stub store only.)
+	CHANGESET_REVISION_UNSUPPORTED Code = "CHANGESET_REVISION_UNSUPPORTED"
+
 	// CHANGESET_STRUCTURAL_ID_INVALID indicates a structural `add` op's value (a
 	// full item instance inserted into a `children` array) does not carry a valid,
 	// document-unique `id`: the value is not an object, its `id` member is missing

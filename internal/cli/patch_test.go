@@ -12,6 +12,7 @@ import (
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
+	"github.com/frankbardon/lattice/internal/storage"
 )
 
 // writeChangeset writes body to a changeset.json file under a fresh temp dir and
@@ -128,6 +129,81 @@ func TestPatchCommand_InvalidEditPersistsNothing(t *testing.T) {
 	}
 	if !bytes.Equal(before, after) {
 		t.Fatalf("expected stored document unchanged after a rejected patch")
+	}
+}
+
+// TestPatchCommand_ExpectRevisionMatchApplies proves --expect-revision wired to the
+// optimistic-concurrency precondition: when the supplied token matches the stored
+// document's current revision, the patch applies and persists normally.
+func TestPatchCommand_ExpectRevisionMatchApplies(t *testing.T) {
+	store, root := seedFSStore(t)
+	current, err := store.(storage.RevisionedStore).Revision(minimalID)
+	if err != nil {
+		t.Fatalf("read current revision: %v", err)
+	}
+	csPath := writeChangeset(t, `[{"op":"replace","path":"/$manifest/title","value":"Renamed"}]`)
+
+	var out, errOut bytes.Buffer
+	cmd := PatchCommand()
+	cmd.Writer = &out
+	cmd.ErrWriter = &errOut
+
+	args := []string{
+		"patch", "--schemas", repoSchemasDir, "--store", "fs", "--root", root,
+		"--changeset", csPath, "--expect-revision", current, minimalID,
+	}
+	if err := cmd.Run(context.Background(), args); err != nil {
+		t.Fatalf("patch with matching --expect-revision: %v (stderr=%s)", err, errOut.String())
+	}
+
+	reloaded, err := store.Load(minimalID)
+	if err != nil {
+		t.Fatalf("reload patched doc: %v", err)
+	}
+	if !strings.Contains(string(reloaded), "Renamed") {
+		t.Fatalf("expected matching-revision patch to persist the edit; got:\n%s", reloaded)
+	}
+}
+
+// TestPatchCommand_ExpectRevisionStaleConflicts proves a stale --expect-revision
+// token rejects the patch with CHANGESET_REVISION_CONFLICT, exits non-zero, and
+// leaves the stored document unchanged.
+func TestPatchCommand_ExpectRevisionStaleConflicts(t *testing.T) {
+	store, root := seedFSStore(t)
+	before, err := store.Load(minimalID)
+	if err != nil {
+		t.Fatalf("load before: %v", err)
+	}
+	csPath := writeChangeset(t, `[{"op":"replace","path":"/$manifest/title","value":"Renamed"}]`)
+
+	var code int
+	prev := cli.OsExiter
+	cli.OsExiter = func(c int) { code = c }
+	t.Cleanup(func() { cli.OsExiter = prev })
+
+	var out, errOut bytes.Buffer
+	cmd := PatchCommand()
+	cmd.Writer = &out
+	cmd.ErrWriter = &errOut
+
+	args := []string{
+		"patch", "--schemas", repoSchemasDir, "--store", "fs", "--root", root,
+		"--changeset", csPath, "--expect-revision", "stale-token", minimalID,
+	}
+	_ = cmd.Run(context.Background(), args)
+	if code != 1 {
+		t.Fatalf("expected exit code 1 for a stale revision, got %d", code)
+	}
+	if !strings.Contains(errOut.String(), string(errors.CHANGESET_REVISION_CONFLICT)) {
+		t.Fatalf("expected CHANGESET_REVISION_CONFLICT in error output; got:\n%s", errOut.String())
+	}
+
+	after, err := store.Load(minimalID)
+	if err != nil {
+		t.Fatalf("load after: %v", err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatalf("expected stored document unchanged after a conflicted patch")
 	}
 }
 
