@@ -96,16 +96,17 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 	// Per-op guardrail dispatch (checked on the ID-ROOTED ops, before translation,
 	// so the leading id/scope and the target are read from the authored pointer).
 	// There are TWO guardrails, and each op is routed to exactly one:
-	//   - a STRUCTURAL op (insert/delete in a `children` array, or an item root for
-	//     remove) bypasses the field-edit surface check — the `$root` surface is
-	//     empty, so there is no surface field to match — and is instead gated by the
-	//     pipeline's RE-RESOLVE (grammar + schema) over the mutated document. The one
-	//     thing re-resolve cannot supply, the added instance's id presence +
-	//     uniqueness (the resolver's id index is last-wins), is enforced here.
+	//   - a STRUCTURAL op (insert/delete in a `children` array, an item root for
+	//     remove, or a move/copy that relocates a node — E3-S2 reorder/move) bypasses
+	//     the field-edit surface check — the `$root` surface is empty, so there is no
+	//     surface field to match — and is instead gated by the pipeline's RE-RESOLVE
+	//     (grammar + schema + layout) over the mutated document. The one thing
+	//     re-resolve cannot supply, the added instance's id presence + uniqueness (the
+	//     resolver's id index is last-wins), is enforced here.
 	//   - a FIELD/CONFIG edit stays surface-gated: its target field must be on the
 	//     relevant configurable surface and its value must satisfy that field's type.
 	for i, op := range cs.Ops {
-		if isStructuralOp(op.Path) {
+		if isStructuralEdit(op) {
 			if err := checkStructuralOp(op, doc, i); err != nil {
 				return nil, err
 			}
@@ -124,6 +125,17 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 		return nil, err
 	}
 	mutated, err := applyPhysical(docBytes, physical)
+	if err != nil {
+		return nil, err
+	}
+
+	// Structural placement fix-up (E3-S2): a `move` carries the relocated node's
+	// `placement` verbatim, but placement is expressed in the SOURCE parent's grid
+	// coordinates; under a DIFFERENT parent that placement is stale and would fail
+	// re-resolve's layout bounds. Strip the stale placement from any cross-parent
+	// move so the node falls back to the default first-cell placement (which fits
+	// every grid). A same-parent reorder keeps its placement (the grid is unchanged).
+	mutated, err = reconcileMovedPlacements(doc, mutated, cs)
 	if err != nil {
 		return nil, err
 	}

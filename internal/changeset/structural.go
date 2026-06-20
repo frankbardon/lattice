@@ -52,16 +52,44 @@ const childrenKey = "children"
 // re-resolve does not, since the resolver's id index is last-wins on collision.
 const idKey = "id"
 
-// isStructuralOp reports whether an id-rooted op is a STRUCTURAL edit — one that
-// reshapes the tree rather than editing a field — so the apply pass can route it
-// past the field-edit surface guardrail and rely on re-resolve instead. An op is
-// structural when its pointer addresses a `children` array (insert/delete a child:
+// placementKey is the instance member carrying a node's explicit grid placement
+// ({colStart,colSpan,rowStart,rowSpan}), interpreted in its IMMEDIATE PARENT
+// container's grid coordinates (internal/layout). Because it is parent-relative, a
+// cross-parent move makes it stale; the move fix-up strips it so the node defaults
+// to the first cell of its new parent's grid.
+const placementKey = "placement"
+
+// isStructuralEdit reports whether an OP is a STRUCTURAL edit — one that reshapes
+// the tree rather than editing a field — so the apply pass can route it past the
+// field-edit surface guardrail and rely on re-resolve instead. It is the op-aware
+// front of isStructuralPointer: a `move`/`copy` carries BOTH a `from` and a `path`
+// (E3-S2: reorder within a parent, move across parents), and relocating a tree
+// NODE is structural even when only one end addresses a `children` slot, so the op
+// is structural if EITHER pointer is structural. add/remove/replace/test reshape
+// (or not) through their single `path` alone.
+func isStructuralEdit(op Operation) bool {
+	if isStructuralPointer(op.Path) {
+		return true
+	}
+	// move/copy relocate a node named by `from`; classify on the source pointer too
+	// so a reorder/move whose `from` is an item root (`/<item-id>`) routes
+	// structurally and is gated by re-resolve, never by the (empty) `$root` surface.
+	if op.HasFrom {
+		return isStructuralPointer(op.From)
+	}
+	return false
+}
+
+// isStructuralPointer reports whether an id-rooted POINTER addresses a STRUCTURAL
+// location — one that reshapes the tree rather than naming a field. A pointer is
+// structural when it addresses a `children` array (insert/delete/reorder a child:
 // remainder rooted at `children`) OR addresses an item/scope ROOT as a whole
-// (remainder empty: the item itself, the remove-by-item-id form). A config edit
-// (remainder rooted at `config`) is NOT structural and stays surface-gated. A
-// malformed pointer is left for checkOp/the translator to reject with its own
-// coded error, so this classifier never has the last word on a bad pointer.
-func isStructuralOp(pointer string) bool {
+// (remainder empty: the item itself, the remove-by-item-id and move-from forms). A
+// config edit (remainder rooted at `config`) is NOT structural and stays
+// surface-gated. A malformed pointer is left for checkOp/the translator to reject
+// with its own coded error, so this classifier never has the last word on a bad
+// pointer.
+func isStructuralPointer(pointer string) bool {
 	if pointer == "" || pointer[0] != '/' {
 		return false
 	}
@@ -169,6 +197,177 @@ func documentHasID(doc map[string]any, id string) bool {
 		return false
 	}
 	return instanceHasID(root, id)
+}
+
+// reconcileMovedPlacements strips the stale `placement` from any node a `move`
+// relocated to a DIFFERENT parent. Placement is expressed in the immediate parent
+// container's grid coordinates (internal/layout), so a node carried across parents
+// by a move keeps coordinates that belong to the OLD grid — which re-resolve's
+// layout bounds would reject (LAYOUT_PLACEMENT_OUT_OF_BOUNDS) even when the move is
+// otherwise grammar-legal. Dropping the placement lets the node fall back to the
+// default first-cell placement (internal/layout.normalizePlacement), which fits any
+// grid, so a legal cross-parent move re-resolves. A SAME-parent reorder keeps its
+// placement: the grid is unchanged, so the explicit coordinates are still valid and
+// the author's placement must be preserved.
+//
+// before is the document as decoded BEFORE the patch; mutated is the applier's
+// output bytes AFTER it. It compares each moved node's parent-id in the two trees
+// and rewrites only when the parent changed. A non-move op contributes nothing. The
+// fix-up is keyed on the moved node's id (the `from` pointer's leading segment),
+// which the structural-move contract requires to be a stable item id.
+func reconcileMovedPlacements(before map[string]any, mutated []byte, cs *Changeset) ([]byte, error) {
+	movedIDs := movedItemIDs(cs)
+	if len(movedIDs) == 0 {
+		return mutated, nil
+	}
+
+	var after map[string]any
+	if err := json.Unmarshal(mutated, &after); err != nil {
+		return nil, errors.WrapCodedError(err, errors.RESOLVE_INTERNAL,
+			"mutated document is not valid JSON after applying the changeset")
+	}
+
+	beforeParents := parentIDByInstanceID(before)
+	afterParents := parentIDByInstanceID(after)
+
+	changed := false
+	for id := range movedIDs {
+		// Only a node still present after the move (its id resolves in `after`) whose
+		// parent changed needs its stale placement dropped.
+		oldParent, hadOld := beforeParents[id]
+		newParent, hasNew := afterParents[id]
+		if !hasNew || (hadOld && oldParent == newParent) {
+			continue
+		}
+		if stripPlacementByID(after, id) {
+			changed = true
+		}
+	}
+	if !changed {
+		return mutated, nil
+	}
+
+	out, err := json.Marshal(after)
+	if err != nil {
+		return nil, errors.WrapCodedError(err, errors.RESOLVE_INTERNAL,
+			"failed re-serializing the document after the move placement fix-up")
+	}
+	return out, nil
+}
+
+// movedItemIDs collects the leading item id of every `move` op's `from` pointer —
+// the set of nodes a changeset relocates. Only an id-rooted `from` (leading segment
+// an item id, not a `$`-scope and not empty) contributes; a `$`-scope or malformed
+// `from` is left for the applier/translator, and a non-move op carries no `from` to
+// relocate.
+func movedItemIDs(cs *Changeset) map[string]struct{} {
+	ids := map[string]struct{}{}
+	for _, op := range cs.Ops {
+		if op.Op != OpMove || !op.HasFrom {
+			continue
+		}
+		from := op.From
+		if from == "" || from[0] != '/' {
+			continue
+		}
+		leading, _, _ := strings.Cut(from[1:], "/")
+		if leading == "" || strings.HasPrefix(leading, reservedScopePrefix) {
+			continue
+		}
+		ids[leading] = struct{}{}
+	}
+	return ids
+}
+
+// parentIDByInstanceID walks a decoded document and maps each id-carrying instance
+// to the id of its nearest id-carrying ANCESTOR instance (its parent in the
+// patchable tree). The root has no parent and is recorded with the empty string. It
+// descends the same physical instance-bearing locations the translator indexes —
+// `children[i]` slots and a block wrapper's `config/content` leaf — so the parent
+// relation matches the one a move actually changes.
+func parentIDByInstanceID(doc map[string]any) map[string]string {
+	parents := map[string]string{}
+	if doc == nil {
+		return parents
+	}
+	root, ok := doc["root"].(map[string]any)
+	if !ok {
+		return parents
+	}
+	walkParents(root, "", parents)
+	return parents
+}
+
+// walkParents records inst's id (if any) under parentID, then recurses into inst's
+// physical instance-bearing locations with inst's id as the new parent. A node with
+// no id is transparent: its children are recorded under the same parentID, so the
+// parent relation always links id-carrying nodes.
+func walkParents(inst map[string]any, parentID string, parents map[string]string) {
+	nextParent := parentID
+	if id, ok := inst[idKey].(string); ok && id != "" {
+		parents[id] = parentID
+		nextParent = id
+	}
+	if cfg, ok := inst[configKey].(map[string]any); ok {
+		if content, ok := cfg[instanceContentKey].(map[string]any); ok {
+			walkParents(content, nextParent, parents)
+		}
+	}
+	if children, ok := inst[childrenKey].([]any); ok {
+		for _, child := range children {
+			if childInst, ok := child.(map[string]any); ok {
+				walkParents(childInst, nextParent, parents)
+			}
+		}
+	}
+}
+
+// stripPlacementByID finds the instance declaring id and deletes its `placement`
+// member, returning whether a placement was actually removed (false when the node
+// is absent or carried no placement). It walks the same physical locations as the
+// id index; the first matching node is rewritten in place.
+func stripPlacementByID(doc map[string]any, id string) bool {
+	root, ok := doc["root"].(map[string]any)
+	if !ok {
+		return false
+	}
+	target := findInstanceByID(root, id)
+	if target == nil {
+		return false
+	}
+	if _, ok := target[placementKey]; !ok {
+		return false
+	}
+	delete(target, placementKey)
+	return true
+}
+
+// findInstanceByID returns the decoded instance map declaring id, searching inst
+// and its physical instance-bearing descendants (block content leaf, child slots),
+// or nil if none matches. Pre-order; the first match wins.
+func findInstanceByID(inst map[string]any, id string) map[string]any {
+	if got, ok := inst[idKey].(string); ok && got == id {
+		return inst
+	}
+	if cfg, ok := inst[configKey].(map[string]any); ok {
+		if content, ok := cfg[instanceContentKey].(map[string]any); ok {
+			if found := findInstanceByID(content, id); found != nil {
+				return found
+			}
+		}
+	}
+	if children, ok := inst[childrenKey].([]any); ok {
+		for _, child := range children {
+			childInst, ok := child.(map[string]any)
+			if !ok {
+				continue
+			}
+			if found := findInstanceByID(childInst, id); found != nil {
+				return found
+			}
+		}
+	}
+	return nil
 }
 
 // instanceHasID reports whether inst or any nested instance under it declares id,
