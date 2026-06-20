@@ -338,6 +338,19 @@ const (
 	// flag value) names no known backend. The recognized kinds are "fs" and
 	// "git". The offending value is reported in Details["store"].
 	STORAGE_BACKEND_UNKNOWN Code = "STORAGE_BACKEND_UNKNOWN"
+
+	// STORAGE_CAPABILITY_UNSUPPORTED indicates a caller invoked a capability-gated
+	// store operation — version history (History/LoadAt, the VersionedStore
+	// capability) or current-revision lookup (Revision, the RevisionedStore
+	// capability) — but the configured backend does NOT implement that optional
+	// capability. The store capabilities are detected by type assertion and are not
+	// uniform across backends: the filesystem backend implements RevisionedStore
+	// but not VersionedStore, and a custom/injected store may implement neither.
+	// Rather than silently degrade, the operation is rejected so the caller learns
+	// the backend cannot answer. The manifest id is reported in Details["id"].
+	// (This is the STORE-capability analogue of CHANGESET_REVISION_UNSUPPORTED,
+	// which guards a precondition the apply pipeline cannot enforce.)
+	STORAGE_CAPABILITY_UNSUPPORTED Code = "STORAGE_CAPABILITY_UNSUPPORTED"
 )
 
 // CONFIGURATOR domain - The configurator item type (E5): an item that renders an

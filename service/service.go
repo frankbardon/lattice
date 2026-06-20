@@ -87,6 +87,13 @@ type RevisionedStore = storage.RevisionedStore
 // storage.VersionedStore.
 type VersionedStore = storage.VersionedStore
 
+// Revision identifies one stored version of a document — the element type of the
+// slice History returns. It carries the revision Hash (the token LoadAt accepts),
+// the commit Message, and the Timestamp. It is re-exported so callers can name
+// History's []Revision return without naming an internal/... path. See
+// storage.Revision.
+type Revision = storage.Revision
+
 // Backend names the persistence backend kind selected when constructing a Store.
 // The known values are the BackendFS and BackendGit consts re-exported below. See
 // storage.Backend.
