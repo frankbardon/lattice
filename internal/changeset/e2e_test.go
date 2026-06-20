@@ -181,6 +181,21 @@ func TestE2E_RejectedEditsLeaveStoreUnchanged(t *testing.T) {
 			`[{"op":"replace","path":"/$theme/emphasis","value":"loud"}]`,
 			errors.CONFIG_OVERRIDE_VALUE_INVALID,
 		},
+		// Off-allow-list NESTED path (E2-S3): `grid.foo` is not one of the body
+		// container's enumerated nested surface entries (only grid, grid.gap,
+		// grid.columns, grid.rows are), so the nested-path edit is rejected — the
+		// surface stays the single source of truth for nested editability.
+		"off-allow-list nested path": {
+			`[{"op":"replace","path":"/body/config/grid/foo","value":1}]`,
+			errors.CONFIG_OVERRIDE_FIELD_UNKNOWN,
+		},
+		// Invalid NESTED value (E2-S3): `grid.gap` is a number-typed nested leaf; a
+		// string is the wrong type, so value validation rejects it exactly as it
+		// does for a top-level field.
+		"bad nested value type": {
+			`[{"op":"replace","path":"/body/config/grid/gap","value":"wide"}]`,
+			errors.CONFIG_OVERRIDE_VALUE_INVALID,
+		},
 		// Unknown id: no node named `ghost`. The field-edit guardrail runs ahead of
 		// pointer translation, so an id with no resolved surface is rejected as
 		// off-surface (CONFIG_OVERRIDE_FIELD_UNKNOWN) before the translator's
