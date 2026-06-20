@@ -1,0 +1,40 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "markdown-leaf",
+    "title": "Markdown Leaf Example",
+    "description": "A hand-written fixture proving the markdown content leaf (E1-S1): a root container holds a body region whose grid places a block-wrapped markdown leaf. The leaf's opaque `source` carries a ${region} template that interpolates from the doc-scope variable before validation, demonstrating that a new content-leaf type auto-discovers, fits the grammar as a block-wrapped leaf, and gains interpolation for free. Conforms to https://lattice.dev/schemas/dashboard/1.0.0."
+  },
+  "variables": [
+    { "name": "region", "type": "string", "default": "EMEA" }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "intro-block",
+            "config": {
+              "id": "intro-block",
+              "title": "Intro",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                "id": "intro",
+                "config": {
+                  "source": "# Welcome\n\nDashboard for the ${region} region."
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
