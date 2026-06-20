@@ -7,14 +7,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/spf13/afero"
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/storage"
-	"github.com/frankbardon/lattice/internal/variables"
 	"github.com/frankbardon/lattice/service"
 )
 
@@ -22,10 +20,6 @@ import (
 // and item-type schemas when --schemas is not supplied. It is relative to the
 // process working directory (config is via flags, not config files).
 const defaultSchemasDir = "schemas"
-
-// dashboardSchemaFile is the dashboard document schema's filename within the
-// schemas directory; it is loaded for the structural (Pass 1) validation.
-const dashboardSchemaFile = "dashboard.schema.json"
 
 // defaultStore is the storage backend selected when --store is not supplied. It
 // matches the existing direct-path behavior: a filesystem backend.
@@ -162,82 +156,6 @@ func resolvePathViaService(schemasDir, docPath string, overrides map[string]any)
 
 	svc := service.New(nil, res)
 	return svc.ResolveBytes(data, docPath, overrides)
-}
-
-// runResolve wires the resolver: it loads the dashboard schema from schemasDir,
-// builds a resolver over the on-disk catalog, and resolves the document.
-//
-// NOTE: with the service-layer cutover (E3) the resolve command no longer wires
-// through this helper — it routes through the service facade. It is retained only
-// because internal/cli tests (examples_golden_test.go) still compile against it;
-// E3-S5 updates those tests, after which this chain can be removed.
-func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
-	return runResolveWithValues(schemasDir, docPath, nil)
-}
-
-// runResolveWithValues is runResolve with E4-S1 runtime overrides applied: an
-// addressable override set keyed by address (a bare name targets a settable
-// variable as in E3-S4; a "<node-id>.<field>" address targets a node config
-// field, carried for E4-S2). A nil/empty overrides map is identical to
-// runResolve.
-func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
-	res, err := newResolver(schemasDir)
-	if err != nil {
-		return nil, err
-	}
-	return res.ResolveWithValues(docPath, variables.OverrideSet(overrides))
-}
-
-// resolveBytesByID loads the document addressed by id through store, then
-// resolves its bytes with the given overrides. It is the shared backend-load
-// step. A not-found id surfaces as the store's STORAGE_NOT_FOUND coded error. id
-// doubles as the error source.
-//
-// NOTE: with the service-layer cutover (E3) the resolve/serve commands no longer
-// wire through this helper — they route through the service facade. It is
-// retained only because internal/cli tests (loadbyid_test.go) still compile
-// against it; E3-S5 updates those tests, after which this and its newResolver
-// dependency can be removed.
-func resolveBytesByID(store storage.Store, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
-	data, err := store.Load(id)
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := newResolver(schemasDir)
-	if err != nil {
-		return nil, err
-	}
-	return res.ResolveBytesWithValues(data, id, variables.OverrideSet(overrides))
-}
-
-// newResolver builds a resolver over the on-disk schema catalog in schemasDir.
-// It is the shared construction step for both the path-addressed and
-// id-addressed resolve paths.
-func newResolver(schemasDir string) (*resolver.Resolver, error) {
-	fs := afero.NewOsFs()
-
-	dashSch, err := loadDashboardSchema(fs, schemasDir)
-	if err != nil {
-		return nil, err
-	}
-
-	return resolver.New(fs, dashSch, []string{schemasDir})
-}
-
-// loadDashboardSchema reads and parses the dashboard document schema from
-// schemasDir/dashboard.schema.json.
-func loadDashboardSchema(fs afero.Fs, schemasDir string) (*jsonschema.Schema, error) {
-	p := schemasDir + "/" + dashboardSchemaFile
-	data, err := afero.ReadFile(fs, p)
-	if err != nil {
-		return nil, errors.WrapCodedError(err, errors.SCHEMA_IO, "failed reading dashboard schema "+p)
-	}
-	var s jsonschema.Schema
-	if err := s.UnmarshalJSON(data); err != nil {
-		return nil, errors.WrapCodedError(err, errors.SCHEMA_INVALID, "failed parsing dashboard schema "+p)
-	}
-	return &s, nil
 }
 
 // reportError prints err and returns a non-nil error so the CLI exits non-zero.

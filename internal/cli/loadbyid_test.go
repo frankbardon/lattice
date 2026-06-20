@@ -13,7 +13,22 @@ import (
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/storage"
+	"github.com/frankbardon/lattice/service"
 )
+
+// resolveByIDViaSvc drives the backend-addressed read through the public service
+// facade, mirroring the CLI's by-id wiring (resolveByIDViaService): it wires the
+// already-built store and a resolver over the on-disk schema catalog into a
+// Service, then resolves the manifest id. It replaces the deleted
+// resolveBytesByID cli helper while preserving its exact load->resolve behavior.
+func resolveByIDViaSvc(t *testing.T, store storage.Store, schemasDir, id string, overrides map[string]any) (*service.ResolvedTree, error) {
+	t.Helper()
+	res, err := service.NewResolver(os.DirFS(schemasDir))
+	if err != nil {
+		t.Fatalf("new resolver: %v", err)
+	}
+	return service.New(store, res).Resolve(id, overrides)
+}
 
 // minimalExample is the shipped example used as a known-good document for the
 // load-by-id tests; its manifest.id is the load key.
@@ -47,9 +62,9 @@ func seedFSStore(t *testing.T) (storage.Store, string) {
 func TestResolveBytesByID(t *testing.T) {
 	store, _ := seedFSStore(t)
 
-	tree, err := resolveBytesByID(store, repoSchemasDir, minimalID, nil)
+	tree, err := resolveByIDViaSvc(t, store, repoSchemasDir, minimalID, nil)
 	if err != nil {
-		t.Fatalf("resolveBytesByID: %v", err)
+		t.Fatalf("resolve by id: %v", err)
 	}
 	if tree == nil || tree.Root == nil {
 		t.Fatal("expected a resolved tree with a root")
@@ -64,7 +79,7 @@ func TestResolveBytesByID(t *testing.T) {
 func TestResolveBytesByID_NotFound(t *testing.T) {
 	store, _ := seedFSStore(t)
 
-	_, err := resolveBytesByID(store, repoSchemasDir, "no-such-dashboard", nil)
+	_, err := resolveByIDViaSvc(t, store, repoSchemasDir, "no-such-dashboard", nil)
 	if err == nil {
 		t.Fatal("expected a not-found error, got nil")
 	}

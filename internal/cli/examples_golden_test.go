@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/frankbardon/lattice/service"
 )
 
 // update regenerates the example golden files instead of comparing against them.
@@ -64,7 +66,21 @@ func TestExamplesGolden(t *testing.T) {
 	for _, doc := range docs {
 		doc := doc
 		t.Run(filepath.Base(doc), func(t *testing.T) {
-			tree, err := runResolve(repoSchemasDir, doc)
+			// Drive the path-mode resolve through the public service facade,
+			// mirroring the CLI's path-mode wiring (resolvePathViaService): read the
+			// document bytes off disk, build a resolver over the on-disk schema
+			// catalog, and resolve the bytes with docPath as the source label. This
+			// yields the identical *ResolvedTree the golden was minted against.
+			res, err := service.NewResolver(os.DirFS(repoSchemasDir))
+			if err != nil {
+				t.Fatalf("new resolver for %s: %v", doc, err)
+			}
+			data, err := os.ReadFile(doc)
+			if err != nil {
+				t.Fatalf("read example %s: %v", doc, err)
+			}
+			svc := service.New(nil, res)
+			tree, err := svc.ResolveBytes(data, doc, nil)
 			if err != nil {
 				t.Fatalf("resolve %s: %v", doc, err)
 			}
