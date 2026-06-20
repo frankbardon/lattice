@@ -8,13 +8,13 @@ change retunes one item's config, rewrites the manifest, adds a variable, swaps 
 connection, flips a theme token, or restructures the root region, it is the same
 artifact — an ordered array of JSON Patch operations against the document.
 
-> **Contract only.** This page defines the *changeset contract* — the shape an
-> edit takes and the rules that decide whether it is legal. **No patch
-> application, enforcement, validation-execution, or persistence code ships in
-> this effort.** How a patch is applied, where it is stored, and where it is
-> enforced are deferred (see [What is deferred](#what-is-deferred)). Today the
-> format only *commits to* JSON Patch as the universal changeset; the machinery
-> that consumes one is future work, exposed in ways chosen later.
+> **Implemented.** A changeset can now be applied: `lattice` loads a stored
+> document, applies a changeset to it under the configurable-surface and tree-grammar
+> guardrails, re-resolves the result for full validation, and persists it — all
+> atomically. The Go entry point is `changeset.ApplyChangeset`; the CLI is
+> [`lattice patch`](#applying-a-changeset-lattice-patch). Two pieces remain
+> out of scope (see [What is deferred](#what-is-deferred)): an **HTTP write
+> endpoint** (`serve` stays read-only) and a **database storage backend**.
 
 ## Why one mechanism
 
@@ -29,8 +29,8 @@ operations needed to mutate one — `add`, `remove`, `replace`, `move`, `copy`,
   document scope, or the whole root. A consumer learns one changeset format, not
   one per scope.
 - **Addressability.** A JSON Pointer names exactly the node and field a change
-  touches, which is precisely what a [guardrail](#the-guardrail) needs in order
-  to decide legality.
+  touches, which is precisely what a [guardrail](#the-two-guardrails) needs in
+  order to decide legality.
 - **Ordering and atomicity.** A patch is an ordered list; `test` operations let a
   changeset assert preconditions. The format inherits this for free.
 
@@ -70,74 +70,248 @@ A minimal config edit and a minimal theme edit are the same kind of document:
 ]
 ```
 
-> The exact JSON Pointer dialect that maps an item `id` or a `$`-scope keyword to
-> a concrete pointer into the on-disk document is **not pinned down here** — that
-> is part of the deferred application layer. What this contract fixes is that the
-> changeset *is* RFC 6902, uniformly, for every scope above.
+## The id-rooted pointer dialect
 
-## The guardrail
+A changeset pointer's **leading segment** is not a literal physical path — it is
+an *address* the apply layer resolves, exactly the way a
+[configurator `target`](configurator.md) or a
+[config override](overrides.md#config-overrides) addresses a node. The remainder
+after the leading segment is a literal [RFC 6901](https://www.rfc-editor.org/rfc/rfc6901)
+JSON Pointer.
 
-A changeset is not free to touch anything. The
-[configurable surface](configurable.md) is the **guardrail**: it enumerates the
-paths a patch may legally touch, and a path outside the surface is illegal.
+- **Leading segment → physical base.** A leading segment beginning with `$` is a
+  reserved [document scope](configurator.md#reserved-document-scope-targets) and
+  routes to that scope's physical member (`$manifest` → `/manifest`, `$variables`
+  → `/variables`, `$connections` → `/connections`, `$theme` → `/theme`, `$root` →
+  `/root`); the `$`-prefix is recognized *before* any id lookup, so a reserved
+  keyword can never collide with an item id. Any other leading segment is an item
+  `id`, resolved through an index of every id-carrying node to that node's
+  physical pointer in the on-disk tree.
+- **Block content is `/config/content`, not a child slot.** A
+  [block wrapper](blocks-and-grammar.md#the-block-wrapper)'s single inner content
+  item lives physically at the wrapper's `config.content` — a config field, not a
+  `children` slot. So to edit a wrapped leaf's config you address
+  `/<wrapper-id>/config/content/config/<field>` (or, more usually, address the
+  inner item directly by *its own* id). The id index descends into `config/content`
+  precisely so the inner item is addressable by its own id.
+- **Structure is `children/-` and `children/N`.** Only a container or form carries
+  a `children` array. Append a child with the RFC 6901 end-of-array token —
+  `/<container-id>/children/-` — and address an existing child slot positionally —
+  `/<container-id>/children/0`. Remove a whole item by addressing it as a whole:
+  `/<item-id>`.
+- **Move uses `from` + `path`.** A `move` (or `copy`) names the relocated node by
+  `from` (an id-rooted pointer to the source) and its destination by `path`. Both
+  ends are translated. Reordering a child within one parent is a `move` whose
+  `from` and `path` are slots of the same `children` array.
 
-- For an **item**, the surface is the item type's `configurable` declaration —
-  the honest list of runtime-tunable fields. A patch operation whose target
-  resolves to a field *not* on that surface is out of bounds, exactly as a
-  [config override](overrides.md#config-overrides) addressing an unsurfaced field
-  fails `CONFIG_OVERRIDE_FIELD_UNKNOWN`.
-- For a **document scope**, the surface is the scope's entry in the document
-  schema's `documentScopes` keyword — see
-  [document-scope surfaces](configurator.md#document-scope-surfaces). It "doubles
-  as the guardrail": it enumerates the legal target paths within the scope
-  (`$manifest` → `title` / `description`, `$theme` → the six theme tokens, and so
-  on). A patch reaching a field the scope does not surface is out of bounds.
+```json
+[
+  { "op": "add", "path": "/main-grid/children/-",
+    "value": { "id": "kpi-block", "$ref": "block@1.0.0",
+               "config": { "content": { "id": "kpi", "$ref": "metric@1.0.0", "config": {} } } } },
+  { "op": "move", "from": "/old-block", "path": "/main-grid/children/0" },
+  { "op": "remove", "path": "/stale-block" }
+]
+```
 
-So the configurable surface plays the same role for a *persisted* changeset that
-it already plays for an *ephemeral* [runtime override](overrides.md): it is the
-single source of truth for **which paths are editable**. The override system is
-the live, in-memory expression of that boundary; a JSON Patch changeset is the
-durable expression of an edit *within the same boundary*. They are two faces of
-one rule — the surface declares what is editable, and nothing edits outside it.
+> **Gotcha — id-rooted pointers resolve against the *original* tree.** The id
+> index is built once, up front, from the document as loaded — it is *not*
+> recomputed between operations. So a positional pointer like `/<id>/children/2`
+> always means "index 2 in the original array," even if an earlier operation in
+> the same changeset removed an earlier sibling. When you remove several siblings
+> of one parent in a single changeset, **author the removes in descending
+> physical-index order** (highest index first) so each removal does not shift the
+> index of a sibling a later operation still refers to. Removing or appending by a
+> stable item `id` (`/<item-id>`, `children/-`) sidesteps this entirely.
 
-This is what makes the surface load-bearing: because it is derived from the
-schema and validated on every resolve, the set of legal patch paths can never
-drift out of sync with what an item type or scope actually accepts.
+## The two guardrails
+
+A changeset is not free to touch anything. Each operation is routed to **exactly
+one** of two guardrails, decided by what it addresses:
+
+### Field and nested edits → the configurable surface
+
+A field-level edit — anything rooted at an item's `config` or at a settable
+document scope — may only touch a path the
+[configurable surface](configurable.md) actually exposes. This is the same
+surface that gates an [ephemeral runtime override](overrides.md): the resolver
+computes it from the schema on every resolve, so the set of legal patch paths can
+never drift out of sync with what an item type or scope accepts.
+
+- For an **item** edit (`/<id>/config/<field>`), the surface is the item type's
+  `configurable` declaration. A target that resolves to a field *not* on that
+  surface is rejected with `CONFIG_OVERRIDE_FIELD_UNKNOWN` — exactly as a config
+  override of an unsurfaced field fails. The value is type-checked against the
+  surface field's declared type (and enum options), rejected with
+  `CONFIG_OVERRIDE_VALUE_INVALID`.
+- For a **document scope** edit (`/$manifest/<field>`, `/$theme/<token>`), the
+  surface is the scope's entry in the document schema's
+  [`documentScopes`](configurator.md#document-scope-surfaces) keyword. `$manifest`
+  surfaces `title` / `description`; `$theme` surfaces the theme tokens. A path the
+  scope does not surface is out of bounds.
+
+**Nested config edits** are supported through the surface's nested declaration.
+A `configurable` key that itself carries a dot — e.g. `"grid.gap"` — declares an
+explicit sub-path into a nested config object. A changeset that addresses the
+matching nested path, `/<id>/config/grid/gap`, has its pointer remainder joined
+with "." into the dotted surface key (`grid.gap`) and is checked against that
+nested entry. A nested edit is legal **only** if the surface declares the dotted
+key; addressing a nested path the surface does not enumerate is off-surface, the
+same `CONFIG_OVERRIDE_FIELD_UNKNOWN`. (Document scopes surface top-level fields
+only, so a multi-segment scope path simply never matches.)
+
+### Structural edits → tree grammar + re-resolve
+
+A structural edit — an insert or delete in a `children` array, a remove by item
+id, or a `move`/`copy` that relocates a node — cannot be surface-gated: the
+`$root` configurable surface is intentionally **empty**, so there is no surface
+field to match against. Instead, structure is validated by **re-resolving the
+mutated document**: the full two-pass resolver runs again, so the
+[tree grammar](blocks-and-grammar.md#the-grammar-rules) (root holds only
+positional regions, a container holds regions or block wrappers, a bare leaf must
+be wrapped, …), every item-type schema, referential integrity, and
+variable/interpolation validity are all re-checked "for free." A mutated tree
+that violates any rule rejects the whole changeset.
+
+Re-resolve catches almost everything, but it cannot catch a **missing or
+duplicate instance `id`** — the resolver's id index is last-wins, so a second
+node reusing an id is silently shadowed rather than rejected. Because the `id` is
+the stable address every changeset pointer roots on, a structural `add` is
+checked *before* apply: its value must carry its own non-empty, document-unique
+`id` (`CHANGESET_STRUCTURAL_ID_INVALID`).
+
+Two structural specifics:
+
+- **Emptied regions are legal.** Removing the last child of a container leaves an
+  empty `children` array; the grammar permits it, so a changeset may legally empty
+  a region.
+- **Cross-parent move strips placement.** A node's
+  [`placement`](forms.md#widget-placement) is expressed in its *immediate parent*
+  container's grid coordinates. A `move` that carries a node to a **different**
+  parent would carry stale coordinates that the new grid's bounds reject. The
+  apply layer therefore strips the `placement` from any cross-parent move, so the
+  node falls back to the default first cell (which fits any grid). A **same-parent
+  reorder keeps** its placement — the grid is unchanged, so the author's explicit
+  coordinates are still valid and are preserved.
+
+## Preconditions: `test` ops and the revision precondition
+
+A changeset has two independent levers for optimistic concurrency, so a stale
+edit cannot clobber a document that changed underneath it.
+
+- **RFC 6902 `test` ops.** A `test` operation asserts that a given path holds an
+  expected value; the standard applier evaluates it during apply, and a mismatch
+  aborts the whole changeset (`PATCH_APPLY_FAILED`) with nothing persisted. Use a
+  `test` to make a changeset's legality depend on the current value of the very
+  field it edits.
+- **The revision precondition.** A caller may supply an opaque *expected
+  revision* — `changeset.WithExpectedRevision(token)` in Go, `--expect-revision`
+  on the CLI. The pipeline re-reads the store's **current** revision immediately
+  before the write (as close to the write as possible, to minimize the race
+  window) and rejects with `CHANGESET_REVISION_CONFLICT` if it no longer matches.
+  The conflict code is distinct so a caller can retry: reload, re-derive the
+  changeset against the new bytes, re-apply. The revision token is opaque and
+  compared verbatim — a git commit hash for the git backend, a content hash for
+  the filesystem backend (both
+  [storage backends](../reference/storage.md) expose it). If the configured store
+  cannot report a revision but an expected one was supplied, the apply fails with
+  `CHANGESET_REVISION_UNSUPPORTED` rather than silently skipping the check. Omit
+  the precondition for single-writer behavior.
+
+## Canonical serialization
+
+After a changeset is applied, the mutated document is re-serialized
+**canonically**: object keys are emitted in sorted order with a fixed two-space
+indent. This makes the on-disk form deterministic — the same logical document
+always produces identical bytes.
+
+The practical consequence is a **one-time reflow**. The first changeset applied
+to a hand-authored document may rewrite key order and indentation across the
+whole file (a large, noisy diff), because it brings the document into canonical
+form. Every subsequent changeset then produces a **minimal, stable diff** that
+touches only the bytes the edit actually changed. A no-op changeset applied to an
+already-canonical document round-trips to identical bytes.
+
+## Applying a changeset (`lattice patch`)
+
+The `lattice patch` command applies a changeset to a stored document end to end:
+
+```console
+lattice patch <id> --changeset edit.json
+```
+
+- **`<id>`** is the document's **manifest id**, not a filesystem path. Unlike
+  `resolve`/`serve`, `patch` always operates through a storage backend.
+- **`--changeset <path>`** is the changeset file — an id-rooted JSON Patch array.
+  The special path `-` reads the changeset from **stdin**, so a changeset can be
+  piped in.
+- **`--store fs|git`** and **`--root <dir>`** select the backend, the same seam
+  `resolve`/`serve` use (defaults: `fs`, the working directory). For the git
+  backend, the persisting `Save` is a commit.
+- **`--expect-revision <token>`** is the optional optimistic-concurrency
+  precondition described above; omit it for no precondition.
+- **`--schemas <dir>`** points at the dashboard schema and item-type catalog.
+
+The command exits non-zero on any coded error, reported through the shared CLI
+error path (a `{code, message, details}` JSON envelope under the global `--json`
+flag), and nothing is persisted on failure.
+
+### The `ApplyChangeset` Go entry point
+
+The CLI is a thin wrapper over the single reusable Go entry point, which every
+touchpoint shares:
+
+```go
+func ApplyChangeset(
+    store storage.Store,
+    res DocumentResolver,
+    id string,
+    cs *changeset.Changeset,
+    opts ...changeset.ApplyOption,
+) (*changeset.ApplyResult, error)
+```
+
+It runs the whole pipeline — `Store.Load(id)` → resolve the current bytes (to get
+the surfaces the field-edit guardrail checks against) → apply under the
+guardrails and canonically re-marshal → **re-resolve** the mutated bytes (the
+structural/schema/referential guardrail) → check the revision precondition →
+`Store.Save`. It is **atomic**: on any error at any step the apply is rejected and
+the store is never touched, so the stored document is left byte-for-byte
+unchanged. The store is written **exactly once**, only on full success.
+`*resolver.Resolver` satisfies the `DocumentResolver` capability via
+`ResolveBytesWithValues`. `ApplyResult` returns the persisted bytes and their
+already-computed resolved tree.
 
 ## Relationship to runtime overrides
 
-It is worth being precise about the boundary between this contract and the
-[runtime override](overrides.md) system, because they share the configurable
-surface but differ in lifetime:
+A changeset and a [runtime override](overrides.md) share the configurable surface
+but differ in lifetime:
 
 | | [Runtime override](overrides.md) | JSON Patch changeset |
 | --- | --- | --- |
-| **Lifetime** | ephemeral — one resolution | durable — a persisted edit (future) |
+| **Lifetime** | ephemeral — one resolution | durable — a persisted edit |
 | **Shape** | flat `address → value` map | ordered RFC 6902 operation list |
 | **Scope** | variables and config fields | every scope, uniformly |
-| **Guardrail** | configurable surface | configurable surface |
-| **Status today** | implemented | **contract only** |
+| **Field guardrail** | configurable surface | configurable surface |
+| **Structural edits** | not applicable | tree grammar + re-resolve |
 
 An override answers "what should this one resolution see?" A changeset answers
-"what edit should be recorded against the document?" Both are gated by the same
-surface; only the changeset's *application* is deferred.
+"what edit should be recorded against the document?" Field edits in both are
+gated by the same surface, and the changeset reuses the override pass's coded
+errors so a field-level violation reads the same either way.
 
 ## What is deferred
 
-To be unambiguous about the boundary of the current effort, the following are
-**explicitly out of scope** and not implemented here:
+The apply pipeline is implemented. Two adjacent capabilities are still
+**explicitly out of scope** (see [Out of Scope](../reference/out-of-scope.md)):
 
-- **Patch application** — taking a JSON Patch and producing a mutated document.
-- **Enforcement** — rejecting a patch that touches a path outside the
-  configurable-surface guardrail. The guardrail is *defined* here; the code that
-  *executes* the check ships later.
-- **Validation execution** — re-resolving and re-validating a document after a
-  patch is applied.
-- **Persistence** — where and how an applied patch (or the resulting document) is
-  stored.
+- **An HTTP write endpoint.** The `serve` command stays **read-only** — it
+  re-resolves and renders, but exposes no write path. A changeset is applied
+  through the Go `ApplyChangeset` entry point or the `lattice patch` CLI, not over
+  HTTP.
+- **A database storage backend.** Apply persists through the existing filesystem
+  and git [storage backends](../reference/storage.md). A database-backed `Store`
+  is future work — the `Store` contract admits one, but none ships.
 
-These will be exposed through interfaces chosen in a later effort. Nothing in
-this page should be read as a claim that a patch can be applied today; it cannot.
-What is fixed now is the *contract*: JSON Patch (RFC 6902) is the one universal
-changeset mechanism, uniform across every scope, with the configurable surface as
-its guardrail.
+When either is implemented, this page and the relevant reference chapter should be
+updated rather than left stale.

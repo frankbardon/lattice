@@ -110,6 +110,25 @@ See [Configurators](../format/configurator.md).
 | `CONFIGURATOR_TARGET_MISSING_ID` | A configurator's `target` is empty/whitespace-only, so it names no resolvable id. |
 | `CONFIGURATOR_TARGET_SCOPE_UNKNOWN` | A configurator's `target` is a `$`-prefixed keyword naming no known document scope (the recognized scopes are `$manifest`, `$variables`, `$connections`, `$theme`, `$root`). |
 
+## `CHANGESET_*`, `PATCH_*` — the JSON Patch write pipeline
+
+See [Changesets (JSON Patch)](../format/changesets.md). A field-edit guardrail
+violation reuses the `CONFIG_OVERRIDE_*` codes (the changeset and runtime-override
+guardrails share the configurable surface); an unknown `$`-scope in a changeset
+pointer reuses `CONFIGURATOR_TARGET_SCOPE_UNKNOWN`. The codes below are specific to
+applying a changeset.
+
+| Code | Meaning |
+| --- | --- |
+| `CHANGESET_INVALID` | A changeset document is malformed: not a JSON array of operation objects, or an operation has a missing/wrong-typed required member (a non-string/absent `op` or `path`, an unknown `op`, a `value`-requiring op without `value`, or a `from`-requiring op without `from`). |
+| `CHANGESET_POINTER_INVALID` | An id-rooted changeset pointer is not well-formed for translation: empty, not rooted at `/`, or with an empty leading id/scope segment. |
+| `CHANGESET_TARGET_NOT_FOUND` | A changeset pointer's leading segment names an item `id` that no node in the document declares, so there is nothing to address. (An unknown `$`-scope reuses `CONFIGURATOR_TARGET_SCOPE_UNKNOWN`.) |
+| `CHANGESET_STRUCTURAL_ID_INVALID` | A structural `add` op inserting an item into a `children` array does not carry a valid, document-unique `id`: the value is not an object, its `id` is missing/blank/non-string, or it collides with an id already in the document. (Re-resolve cannot catch this — the resolver's id index is last-wins.) |
+| `CHANGESET_REVISION_CONFLICT` | The optimistic-concurrency precondition failed: an expected revision was supplied, but the store's current revision — re-read immediately before write — no longer matches, so the document changed since it was loaded. Distinct so callers can reload and retry; nothing is persisted. |
+| `CHANGESET_REVISION_UNSUPPORTED` | An expected revision was supplied but the configured store does not implement the `RevisionedStore` capability, so the precondition cannot be enforced. (Both the `fs` and `git` backends implement it; this guards a custom/stub store.) |
+| `PATCH_APPLY_FAILED` | A translated changeset could not be applied by the RFC 6902 applier: the patch did not decode, or an operation failed at apply time (a `test` precondition mismatch, a remove/replace of a missing member, or an out-of-range array index). The whole changeset is rejected. |
+| `PATCH_INVALID` | An invalid `lattice patch` invocation: a missing manifest id argument, a missing/unreadable `--changeset` file, or a stdin read failure. |
+
 ## `SERVE_*` — the HTTP layer
 
 | Code | Meaning |
