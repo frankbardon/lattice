@@ -16,6 +16,7 @@
 - [Schema Catalog](format/catalog.md)
 - [Variables](format/variables.md)
 - [Widgets](format/widgets.md)
+- [Content Item Types](format/content.md)
 - [Forms & Widget Placement](format/forms.md)
 - [Configurable Surfaces](format/configurable.md)
 - [Theme & Semantic Tokens](format/theme.md)

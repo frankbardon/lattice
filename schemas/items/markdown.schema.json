@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/markdown/1.0.0",
+  "title": "Markdown Item",
+  "description": "A CONTENT LEAF item type carrying a single block of opaque prose `source`. It is the foundational page-content leaf: a non-positional, non-wrapper, non-widget type, so the resolver grammar's default case treats it as a content leaf that must be BLOCK-WRAPPED under a container (a bare markdown leaf directly under a region fails GRAMMAR_REGION_CHILD_INVALID; wrapping it in a `block` satisfies the grammar and lets the block apply its per-block theme/visibility/title concerns). The `source` is OPAQUE: this schema imposes no Markdown grammar, flavor, or sanitization — it stores the author's text verbatim and a downstream renderer interprets it. Because interpolation runs over every instance config before validation, a `${var}` template (or `{\"$var\":...}` binding) inside `source` is substituted from the in-scope variable environment for free; an undefined reference fails fast with VAR_UNDEFINED. The single `source` field is runtime-tunable through the existing configurable-surface mechanism, rendered as a multi-line text area. A markdown leaf never has children.",
+  "type": "object",
+  "required": [
+    "source"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "source": {
+      "type": "string",
+      "label": "Source",
+      "rendering": "textarea",
+      "constraints": {
+        "description": "The Markdown prose body — editable at runtime through a multi-line text area. Must be non-empty; the value is stored verbatim and interpreted by a downstream renderer, and any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+      }
+    }
+  },
+  "properties": {
+    "source": {
+      "title": "Markdown Source",
+      "description": "The opaque Markdown prose body for this leaf, stored verbatim. Required and non-empty (`minLength: 1`) — an absent or empty `source` fails config validation (RESOLVE_CONFIG_INVALID, naming this leaf's path). This schema deliberately imposes NO Markdown grammar, flavor, or sanitization constraint: it is a pass-through string a downstream renderer interprets. A `${var}` template embedded here is interpolated from the in-scope variable environment before validation; an undefined reference fails fast with VAR_UNDEFINED. Tunable at runtime via the configurable surface.",
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

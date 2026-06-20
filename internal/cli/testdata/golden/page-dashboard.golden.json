@@ -1,0 +1,756 @@
+{
+  "manifest": {
+    "description": "A page-like dashboard: a single body region of block-wrapped content leaves — a heading, two markdown prose paragraphs, and a captioned image — that reads like an article. Two document-scope variables (productName, releaseVersion) are interpolated into the heading and the prose via ${var} to demonstrate that content text is carried verbatim with variables substituted. Run: lattice resolve examples/page-dashboard.json. Structured under the page-content grammar (root -\u003e body region -\u003e block -\u003e content leaf).",
+    "formatVersion": "1.0.0",
+    "id": "page-example",
+    "title": "Page-like Content Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "body",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
+          "version": "1.0.0"
+        },
+        "container": true,
+        "config": {
+          "grid": {
+            "columns": [
+              1
+            ]
+          }
+        },
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 0,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            },
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "title-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "title-block",
+              "title": "Page title"
+            },
+            "children": [
+              {
+                "id": "page-heading",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/heading/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/heading/1.0.0",
+                  "name": "heading",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "level": 1,
+                  "text": "Introducing Lattice 0.3.0"
+                },
+                "varEnv": {
+                  "productName": {
+                    "name": "productName",
+                    "type": "string",
+                    "default": "Lattice",
+                    "declaredAt": "doc"
+                  },
+                  "releaseVersion": {
+                    "name": "releaseVersion",
+                    "type": "string",
+                    "default": "0.3.0",
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "level",
+                    "type": "integer",
+                    "label": "Level",
+                    "constraints": {
+                      "description": "The semantic heading depth, an integer in the inclusive range 1-6 (1 = top-level section heading, 6 = deepest). Required with no default — a value below 1, above 6, or non-integer fails config validation."
+                    },
+                    "rendering": "number-field"
+                  },
+                  {
+                    "field": "text",
+                    "type": "string",
+                    "label": "Text",
+                    "constraints": {
+                      "description": "The heading label — editable at runtime through a single-line text input. Must be non-empty; any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "productName": {
+                "name": "productName",
+                "type": "string",
+                "default": "Lattice",
+                "declaredAt": "doc"
+              },
+              "releaseVersion": {
+                "name": "releaseVersion",
+                "type": "string",
+                "default": "0.3.0",
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          },
+          {
+            "id": "intro-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "intro-block"
+            },
+            "children": [
+              {
+                "id": "intro-prose",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                  "name": "markdown",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "source": "Welcome to **Lattice**. This release, version 0.3.0, brings page-like content blocks so a dashboard can read like a real document: a heading, prose, and imagery composed from the same declarative grammar.\n\nEverything you see below is a block-wrapped content leaf. The resolver carries the text verbatim and substitutes any variable reference from the in-scope variable environment before validation."
+                },
+                "varEnv": {
+                  "productName": {
+                    "name": "productName",
+                    "type": "string",
+                    "default": "Lattice",
+                    "declaredAt": "doc"
+                  },
+                  "releaseVersion": {
+                    "name": "releaseVersion",
+                    "type": "string",
+                    "default": "0.3.0",
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "source",
+                    "type": "string",
+                    "label": "Source",
+                    "constraints": {
+                      "description": "The Markdown prose body — editable at runtime through a multi-line text area. Must be non-empty; the value is stored verbatim and interpreted by a downstream renderer, and any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+                    },
+                    "rendering": "textarea"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "productName": {
+                "name": "productName",
+                "type": "string",
+                "default": "Lattice",
+                "declaredAt": "doc"
+              },
+              "releaseVersion": {
+                "name": "releaseVersion",
+                "type": "string",
+                "default": "0.3.0",
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          },
+          {
+            "id": "figure-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "figure-block",
+              "title": "Figure"
+            },
+            "children": [
+              {
+                "id": "architecture-figure",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/image/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/image/1.0.0",
+                  "name": "image",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "alt": "Diagram of a page composed from heading, markdown, and image leaves",
+                  "caption": "Figure 1. A page assembled from block-wrapped content leaves.",
+                  "src": "https://assets.example.com/page-content-blocks.png"
+                },
+                "varEnv": {
+                  "productName": {
+                    "name": "productName",
+                    "type": "string",
+                    "default": "Lattice",
+                    "declaredAt": "doc"
+                  },
+                  "releaseVersion": {
+                    "name": "releaseVersion",
+                    "type": "string",
+                    "default": "0.3.0",
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "alt",
+                    "type": "string",
+                    "label": "Alt Text",
+                    "constraints": {
+                      "description": "Optional alternative text describing the image for accessibility — editable at runtime through a single-line text input. When omitted the leaf still resolves; any `${var}` template it contains is interpolated from the in-scope variables before validation."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "caption",
+                    "type": "string",
+                    "label": "Caption",
+                    "constraints": {
+                      "description": "Optional caption rendered alongside the image — editable at runtime through a single-line text input. When omitted the leaf still resolves; any `${var}` template it contains is interpolated from the in-scope variables before validation."
+                    },
+                    "rendering": "text-input"
+                  },
+                  {
+                    "field": "src",
+                    "type": "string",
+                    "label": "Source",
+                    "constraints": {
+                      "description": "The opaque image reference — editable at runtime through a single-line text input. Must be non-empty; the value is stored verbatim (an absolute URL, a relative path, or a data URI are all valid) and loaded by a downstream renderer, never by the resolver. Any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "productName": {
+                "name": "productName",
+                "type": "string",
+                "default": "Lattice",
+                "declaredAt": "doc"
+              },
+              "releaseVersion": {
+                "name": "releaseVersion",
+                "type": "string",
+                "default": "0.3.0",
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          },
+          {
+            "id": "details-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "details-block"
+            },
+            "children": [
+              {
+                "id": "details-prose",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                  "name": "markdown",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "source": "## How it fits together\n\nEach leaf — heading, markdown, image — is a non-positional content type, so the grammar requires it to be wrapped in a `block`. The block applies per-block concerns (title, visibility, theme) to the single leaf it carries.\n\nBecause the same interpolation pass runs over every leaf, the product name **Lattice** and version **0.3.0** appear identically wherever they are referenced."
+                },
+                "varEnv": {
+                  "productName": {
+                    "name": "productName",
+                    "type": "string",
+                    "default": "Lattice",
+                    "declaredAt": "doc"
+                  },
+                  "releaseVersion": {
+                    "name": "releaseVersion",
+                    "type": "string",
+                    "default": "0.3.0",
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "source",
+                    "type": "string",
+                    "label": "Source",
+                    "constraints": {
+                      "description": "The Markdown prose body — editable at runtime through a multi-line text area. Must be non-empty; the value is stored verbatim and interpreted by a downstream renderer, and any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+                    },
+                    "rendering": "textarea"
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "productName": {
+                "name": "productName",
+                "type": "string",
+                "default": "Lattice",
+                "declaredAt": "doc"
+              },
+              "releaseVersion": {
+                "name": "releaseVersion",
+                "type": "string",
+                "default": "0.3.0",
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
+        "varEnv": {
+          "productName": {
+            "name": "productName",
+            "type": "string",
+            "default": "Lattice",
+            "declaredAt": "doc"
+          },
+          "releaseVersion": {
+            "name": "releaseVersion",
+            "type": "string",
+            "default": "0.3.0",
+            "declaredAt": "doc"
+          }
+        },
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "field": "grid.columns",
+            "path": [
+              "grid",
+              "columns"
+            ],
+            "type": "array",
+            "label": "Column tracks",
+            "constraints": {
+              "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+            }
+          },
+          {
+            "field": "grid.gap",
+            "path": [
+              "grid",
+              "gap"
+            ],
+            "type": "number",
+            "label": "Track gap",
+            "constraints": {
+              "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "grid.rows",
+            "path": [
+              "grid",
+              "rows"
+            ],
+            "type": "array",
+            "label": "Row tracks",
+            "constraints": {
+              "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+            }
+          }
+        ]
+      }
+    ],
+    "varEnv": {
+      "productName": {
+        "name": "productName",
+        "type": "string",
+        "default": "Lattice",
+        "declaredAt": "doc"
+      },
+      "releaseVersion": {
+        "name": "releaseVersion",
+        "type": "string",
+        "default": "0.3.0",
+        "declaredAt": "doc"
+      }
+    },
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+        }
+      }
+    ]
+  },
+  "scopeSurfaces": {
+    "$connections": [],
+    "$manifest": [
+      {
+        "field": "description",
+        "type": "string",
+        "label": "Description",
+        "constraints": {
+          "description": "An optional longer-form description of the dashboard."
+        },
+        "rendering": "textarea"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "label": "Title",
+        "constraints": {
+          "description": "The dashboard's human-readable title."
+        },
+        "rendering": "text-input"
+      }
+    ],
+    "$root": [],
+    "$theme": [
+      {
+        "field": "border",
+        "type": "enum",
+        "label": "Border Weight",
+        "constraints": {
+          "description": "How present a separating edge is around the styled surface.",
+          "enum": [
+            "none",
+            "hairline",
+            "standard"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "density",
+        "type": "enum",
+        "label": "Density",
+        "constraints": {
+          "description": "How tightly repeated/listed content is packed.",
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "emphasis",
+        "type": "enum",
+        "label": "Emphasis",
+        "constraints": {
+          "description": "How prominent the styled element appears.",
+          "enum": [
+            "none",
+            "low",
+            "high"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "radius",
+        "type": "enum",
+        "label": "Corner Radius",
+        "constraints": {
+          "description": "How softened the corners of the styled surface are.",
+          "enum": [
+            "none",
+            "subtle",
+            "rounded"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "spacing",
+        "type": "enum",
+        "label": "Spacing",
+        "constraints": {
+          "description": "The relative amount of internal/outer breathing room.",
+          "enum": [
+            "compact",
+            "cosy",
+            "roomy"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "tone",
+        "type": "enum",
+        "label": "Tone",
+        "constraints": {
+          "description": "The semantic colour intent, expressed by meaning.",
+          "enum": [
+            "neutral",
+            "accent",
+            "positive",
+            "caution",
+            "critical"
+          ]
+        },
+        "rendering": "select"
+      }
+    ],
+    "$variables": []
+  }
+}

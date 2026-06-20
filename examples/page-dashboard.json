@@ -1,0 +1,87 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "page-example",
+    "title": "Page-like Content Example",
+    "description": "A page-like dashboard: a single body region of block-wrapped content leaves — a heading, two markdown prose paragraphs, and a captioned image — that reads like an article. Two document-scope variables (productName, releaseVersion) are interpolated into the heading and the prose via ${var} to demonstrate that content text is carried verbatim with variables substituted. Run: lattice resolve examples/page-dashboard.json. Structured under the page-content grammar (root -> body region -> block -> content leaf)."
+  },
+  "variables": [
+    { "name": "productName", "type": "string", "default": "Lattice" },
+    { "name": "releaseVersion", "type": "string", "default": "0.3.0" }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "title-block",
+            "config": {
+              "id": "title-block",
+              "title": "Page title",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/heading/1.0.0",
+                "id": "page-heading",
+                "config": {
+                  "text": "Introducing ${productName} ${releaseVersion}",
+                  "level": 1
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "intro-block",
+            "config": {
+              "id": "intro-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                "id": "intro-prose",
+                "config": {
+                  "source": "Welcome to **${productName}**. This release, version ${releaseVersion}, brings page-like content blocks so a dashboard can read like a real document: a heading, prose, and imagery composed from the same declarative grammar.\n\nEverything you see below is a block-wrapped content leaf. The resolver carries the text verbatim and substitutes any variable reference from the in-scope variable environment before validation."
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "figure-block",
+            "config": {
+              "id": "figure-block",
+              "title": "Figure",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/image/1.0.0",
+                "id": "architecture-figure",
+                "config": {
+                  "src": "https://assets.example.com/page-content-blocks.png",
+                  "alt": "Diagram of a page composed from heading, markdown, and image leaves",
+                  "caption": "Figure 1. A page assembled from block-wrapped content leaves."
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "details-block",
+            "config": {
+              "id": "details-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/markdown/1.0.0",
+                "id": "details-prose",
+                "config": {
+                  "source": "## How it fits together\n\nEach leaf — heading, markdown, image — is a non-positional content type, so the grammar requires it to be wrapped in a `block`. The block applies per-block concerns (title, visibility, theme) to the single leaf it carries.\n\nBecause the same interpolation pass runs over every leaf, the product name **${productName}** and version **${releaseVersion}** appear identically wherever they are referenced."
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/image/1.0.0",
+  "title": "Image Item",
+  "description": "A CONTENT LEAF item type carrying a single image reference: a required OPAQUE `src` string plus an optional `alt` text and optional `caption`. Like every page-content leaf it is a non-positional, non-wrapper, non-widget type, so the resolver grammar's default case treats it as a content leaf that must be BLOCK-WRAPPED under a container (a bare image leaf directly under a region fails GRAMMAR_REGION_CHILD_INVALID; wrapping it in a `block` satisfies the grammar and lets the block apply its per-block theme/visibility/title concerns). The `src` is OPAQUE on purpose: this schema imposes NO `format: uri`, no URL grammar, no reachability or fetch behavior — it stores the author's reference verbatim so an absolute URL, a relative path, or a data URI are all equally valid, and a downstream renderer (never the resolver) interprets and loads it. Because interpolation runs over every instance config before validation, a `${var}` template (or `{\"$var\":...}` binding) inside `src`, `alt`, or `caption` is substituted from the in-scope variable environment for free; an undefined reference fails fast with VAR_UNDEFINED. All three fields are runtime-tunable through the existing configurable-surface mechanism, each rendered as a single-line text input. An image leaf never has children.",
+  "type": "object",
+  "required": [
+    "src"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "src": {
+      "type": "string",
+      "label": "Source",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The opaque image reference — editable at runtime through a single-line text input. Must be non-empty; the value is stored verbatim (an absolute URL, a relative path, or a data URI are all valid) and loaded by a downstream renderer, never by the resolver. Any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+      }
+    },
+    "alt": {
+      "type": "string",
+      "label": "Alt Text",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "Optional alternative text describing the image for accessibility — editable at runtime through a single-line text input. When omitted the leaf still resolves; any `${var}` template it contains is interpolated from the in-scope variables before validation."
+      }
+    },
+    "caption": {
+      "type": "string",
+      "label": "Caption",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "Optional caption rendered alongside the image — editable at runtime through a single-line text input. When omitted the leaf still resolves; any `${var}` template it contains is interpolated from the in-scope variables before validation."
+      }
+    }
+  },
+  "properties": {
+    "src": {
+      "title": "Image Source",
+      "description": "The opaque image reference for this leaf, stored verbatim. Required and non-empty (`minLength: 1`) — an absent or empty `src` fails config validation (RESOLVE_CONFIG_INVALID, naming this leaf's wrapper path). This schema deliberately imposes NO `format: uri`, URL grammar, reachability, or fetch constraint: an absolute URL, a relative path, or a data URI are all valid, and a downstream renderer loads it — the resolver never dials it. A `${var}` template embedded here is interpolated from the in-scope variable environment before validation; an undefined reference fails fast with VAR_UNDEFINED. Tunable at runtime via the configurable surface.",
+      "type": "string",
+      "minLength": 1
+    },
+    "alt": {
+      "title": "Alt Text",
+      "description": "Optional alternative text describing the image for accessibility and fallback. Absent is valid (the leaf resolves with `src` alone). When present it is an opaque string with no further constraint; a `${var}` template embedded here is interpolated from the in-scope variable environment before validation. Tunable at runtime via the configurable surface.",
+      "type": "string"
+    },
+    "caption": {
+      "title": "Caption",
+      "description": "Optional caption text rendered alongside the image. Absent is valid (the leaf resolves with `src` alone). When present it is an opaque string with no further constraint; a `${var}` template embedded here is interpolated from the in-scope variable environment before validation. Tunable at runtime via the configurable surface.",
+      "type": "string"
+    }
+  }
+}

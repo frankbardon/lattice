@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lattice.dev/schemas/items/heading/1.0.0",
+  "title": "Heading Item",
+  "description": "A CONTENT LEAF item type carrying a single structured section heading: a required non-empty `text` label and a required integer `level` constrained to the document-heading range 1-6. Like every page-content leaf it is a non-positional, non-wrapper, non-widget type, so the resolver grammar's default case treats it as a content leaf that must be BLOCK-WRAPPED under a container (a bare heading leaf directly under a region fails GRAMMAR_REGION_CHILD_INVALID; wrapping it in a `block` satisfies the grammar and lets the block apply its per-block theme/visibility/title concerns). The `level` is the semantic heading depth (1 = top-level section, 6 = deepest) and is enforced entirely in JSON Schema (`integer`, `minimum: 1`, `maximum: 6`) by the generic config validator — there is no type-specific resolver code. There is no default `level`: every heading must declare its depth explicitly. Because interpolation runs over every instance config before validation, a `${var}` template (or `{\"$var\":...}` binding) inside `text` is substituted from the in-scope variable environment for free; an undefined reference fails fast with VAR_UNDEFINED. Both fields are runtime-tunable through the existing configurable-surface mechanism — `text` as a single-line text input and `level` as a numeric field. A heading leaf never has children.",
+  "type": "object",
+  "required": [
+    "text",
+    "level"
+  ],
+  "additionalProperties": false,
+  "configurable": {
+    "text": {
+      "type": "string",
+      "label": "Text",
+      "rendering": "text-input",
+      "constraints": {
+        "description": "The heading label — editable at runtime through a single-line text input. Must be non-empty; any `${var}` template it contains is interpolated from the in-scope variables before the document is validated."
+      }
+    },
+    "level": {
+      "type": "integer",
+      "label": "Level",
+      "rendering": "number-field",
+      "constraints": {
+        "description": "The semantic heading depth, an integer in the inclusive range 1-6 (1 = top-level section heading, 6 = deepest). Required with no default — a value below 1, above 6, or non-integer fails config validation."
+      }
+    }
+  },
+  "properties": {
+    "text": {
+      "title": "Heading Text",
+      "description": "The heading's label text. Required and non-empty (`minLength: 1`) — an absent or empty `text` fails config validation (RESOLVE_CONFIG_INVALID, naming this leaf's path). A `${var}` template embedded here is interpolated from the in-scope variable environment before validation; an undefined reference fails fast with VAR_UNDEFINED. Tunable at runtime via the configurable surface.",
+      "type": "string",
+      "minLength": 1
+    },
+    "level": {
+      "title": "Heading Level",
+      "description": "The semantic heading depth, expressed as an integer in the inclusive range 1-6 (1 = top-level section heading, 6 = deepest). Required with NO default: every heading must state its depth explicitly. The range is enforced purely in JSON Schema (`integer`, `minimum: 1`, `maximum: 6`) by the generic config validator — a level of 0, 7, or a non-integer (e.g. 2.5) fails config validation (RESOLVE_CONFIG_INVALID, naming this leaf's path). Tunable at runtime via the configurable surface as a numeric field.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 6
+    }
+  }
+}
