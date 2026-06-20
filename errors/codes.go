@@ -401,4 +401,11 @@ const (
 	// unresolved id, the offending pointer, and the operation index are reported in
 	// Details["id"]/["pointer"]/["index"].
 	CHANGESET_TARGET_NOT_FOUND Code = "CHANGESET_TARGET_NOT_FOUND"
+
+	// PATCH_APPLY_FAILED indicates a translated changeset could not be applied to
+	// the document by the RFC 6902 applier: the patch did not decode, or an
+	// operation failed at apply time (e.g. a `test` precondition mismatch, a
+	// remove/replace of a member that does not exist, or an out-of-range array
+	// index). The whole changeset is rejected and nothing is persisted (atomic).
+	PATCH_APPLY_FAILED Code = "PATCH_APPLY_FAILED"
 )

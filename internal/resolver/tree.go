@@ -44,6 +44,17 @@ type ResolvedTree struct {
 	// consumer composes the cascade. Nil/omitted when the document declares no
 	// default theme.
 	DefaultTheme map[string]any `json:"defaultTheme,omitempty"`
+
+	// ScopeSurfaces are the configurable surfaces of the reserved DOCUMENT scopes
+	// (E4-S2): the validated, runtime-tunable field sets of `$manifest` (title,
+	// description, …) and `$theme` (vocabulary tokens), keyed by the reserved
+	// `$`-keyword. They are the document-level twins of each item node's Surface and
+	// the guardrail source a field-level changeset edit targeting a `$`-scope is
+	// checked against (the patch-write pipeline). A scope the document schema
+	// declares no surface for is absent; scopes with no settable fields
+	// (`$variables`/`$connections`/`$root`) never appear. Omitted when the document
+	// declares no scope surfaces at all.
+	ScopeSurfaces map[string][]ConfigurableField `json:"scopeSurfaces,omitempty"`
 }
 
 // ResolvedInstance is one node of the resolved tree: a single item instance with

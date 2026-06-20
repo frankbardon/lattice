@@ -265,10 +265,11 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	}
 
 	tree := &ResolvedTree{
-		Manifest:     g.Document.Manifest,
-		Root:         root,
-		Connections:  conns,
-		DefaultTheme: defaultTheme,
+		Manifest:      g.Document.Manifest,
+		Root:          root,
+		Connections:   conns,
+		DefaultTheme:  defaultTheme,
+		ScopeSurfaces: scopeSurfaces,
 	}
 
 	return tree, nil
