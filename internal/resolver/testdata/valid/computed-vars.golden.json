@@ -276,6 +276,43 @@
                 }
               }
             }
+          },
+          {
+            "field": "grid.columns",
+            "path": [
+              "grid",
+              "columns"
+            ],
+            "type": "array",
+            "label": "Column tracks",
+            "constraints": {
+              "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+            }
+          },
+          {
+            "field": "grid.gap",
+            "path": [
+              "grid",
+              "gap"
+            ],
+            "type": "number",
+            "label": "Track gap",
+            "constraints": {
+              "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "grid.rows",
+            "path": [
+              "grid",
+              "rows"
+            ],
+            "type": "array",
+            "label": "Row tracks",
+            "constraints": {
+              "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+            }
           }
         ]
       }
@@ -331,6 +368,43 @@
               "type": "array"
             }
           }
+        }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
         }
       }
     ]

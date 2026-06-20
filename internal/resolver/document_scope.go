@@ -81,7 +81,7 @@ func documentScopeSurfaces(dash *jsonschema.Schema, themeTokens map[string]struc
 			continue
 		}
 		props := scopeProperties(keyword, dash, themeTokens)
-		surface, err := buildSurface(decl, sortedFields(decl), props, keyword, scopePath(keyword))
+		surface, err := buildSurface(decl, sortedFields(decl), flatProps(props), keyword, scopePath(keyword))
 		if err != nil {
 			return nil, err
 		}

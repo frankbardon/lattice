@@ -151,10 +151,21 @@ type ResolvedInstance struct {
 // optional rendering hint against the widget catalog, so every ConfigurableField
 // on a ResolvedInstance is known-valid.
 type ConfigurableField struct {
-	// Field is the name of the item type's config property this entry exposes.
-	// Guaranteed to be a real config property of the item type (validated against
-	// the item-type schema's properties).
+	// Field is the name of the item type's config property this entry exposes. For
+	// a TOP-LEVEL entry it is the property name (e.g. "grid"); for a NESTED entry
+	// (E2-S1) it is the full dotted path (e.g. "grid.gap"). Guaranteed to address a
+	// real config property of the item type — a top-level property, or, for a
+	// dotted path, a property reachable by walking the item-type schema's nested
+	// `properties` (each segment exists; the leaf carries a known value type).
 	Field string `json:"field"`
+
+	// Path is the dotted field's segments (e.g. ["grid", "gap"]) for a NESTED
+	// surface entry (E2-S1) — the bounded, explicitly-declared sub-path into a
+	// nested config object a guardrail (E2-S2) looks up BY PATH. It is the parsed
+	// form of Field: Field is the segments joined by ".". Nil/omitted for a
+	// TOP-LEVEL entry, whose whole address is Field; downstream code treats an
+	// absent Path as a single-segment [Field].
+	Path []string `json:"path,omitempty"`
 
 	// Type is the field's value type, one of the variable type set (string,
 	// number, integer, boolean, enum, array). It tells a configurator which editor

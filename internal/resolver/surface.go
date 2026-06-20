@@ -38,11 +38,74 @@ package resolver
 import (
 	"sort"
 	"strconv"
+	"strings"
+
+	"github.com/google/jsonschema-go/jsonschema"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/schema"
 	"github.com/frankbardon/lattice/internal/variables"
 )
+
+// pathSeparator is the delimiter for a NESTED configurable-field path (E2-S1): a
+// `configurable` key carrying a "." declares an explicit sub-path into a nested
+// config object (e.g. "grid.gap"), as opposed to a bare top-level field name.
+const pathSeparator = "."
+
+// propLookup answers, for a `configurable`-declared field key, whether that key
+// addresses a real, settable property of the surface owner — the single honesty
+// check that keeps a surface from ever offering an editor for a field the owner
+// cannot accept. It is the seam that lets the SHARED buildSurface serve both the
+// item-type surface (whose owner is a JSON Schema that can be walked for nested
+// paths, E2-S1) and the document-scope surfaces (whose owner is a flat,
+// top-level-only field set).
+type propLookup interface {
+	// has reports whether field (a `configurable` key — a bare name, or a
+	// dotted nested path for an item-type schema) addresses a real property of
+	// the surface owner.
+	has(field string) bool
+}
+
+// flatProps is a top-level-only property set. A dotted (nested) key never
+// matches — document scopes cover top-level fields only — so a flatProps owner
+// can never declare a nested surface entry.
+type flatProps map[string]struct{}
+
+func (p flatProps) has(field string) bool {
+	if strings.Contains(field, pathSeparator) {
+		return false
+	}
+	_, ok := p[field]
+	return ok
+}
+
+// schemaProps validates a `configurable` key against an item-type schema's
+// `properties`, supporting NESTED dotted paths (E2-S1): a bare key must be a
+// top-level property; a dotted key is walked segment by segment through the
+// nested `properties` of each intermediate object property. A path is legal only
+// when every segment exists, so a surface can never declare a sub-path the item
+// type's schema does not actually carry.
+type schemaProps struct {
+	schema *jsonschema.Schema
+}
+
+func (p schemaProps) has(field string) bool {
+	if p.schema == nil {
+		return false
+	}
+	cur := p.schema
+	for _, seg := range strings.Split(field, pathSeparator) {
+		if cur.Properties == nil {
+			return false
+		}
+		next, ok := cur.Properties[seg]
+		if !ok || next == nil {
+			return false
+		}
+		cur = next
+	}
+	return true
+}
 
 // configurableKey is the reserved item-type schema keyword that declares an item
 // type's configurable surface. Like expectedResultKey it is a top-level keyword
@@ -100,8 +163,7 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 		return nil, nil
 	}
 
-	props := configProperties(g, inst.Type.ID)
-	return buildSurface(decl, sortedFields(decl), props, inst.Type.Name, path)
+	return buildSurface(decl, sortedFields(decl), itemProps(g, inst.Type.ID), inst.Type.Name, path)
 }
 
 // buildSurface validates a `configurable`-shaped declaration (field -> descriptor)
@@ -113,14 +175,22 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 // surface owner reported in errors (the item-type name, or the reserved scope
 // keyword for a document scope).
 //
+// A `configurable` key may be a bare top-level field name OR, for an item-type
+// schema, a NESTED dotted path (e.g. "grid.gap") that declares an explicit,
+// bounded sub-path into a nested config object (E2-S1) — never recursive
+// whole-object editability, only the paths the schema actually enumerates. A
+// nested entry carries its parsed segments in ConfigurableField.Path so a
+// guardrail can look it up by path; a top-level entry leaves Path nil.
+//
 // Validation rules (identical to the item-type surface):
-//   - every declared field must be a real property of the surface owner (present
-//     in props — its config properties for an item type, or its scope's settable
+//   - every declared field must address a real property of the surface owner
+//     (via props.has — its config properties for an item type, walked
+//     segment-by-segment for a nested path, or its scope's top-level settable
 //     fields for a document scope), so a surface can never offer an editor for a
 //     field the owner cannot accept;
 //   - each field's `type` must be one of the variable type set;
 //   - any `rendering` hint must name a registered widget family.
-func buildSurface(decl map[string]any, fields []string, props map[string]struct{}, typeName, path string) ([]ConfigurableField, error) {
+func buildSurface(decl map[string]any, fields []string, props propLookup, typeName, path string) ([]ConfigurableField, error) {
 	out := make([]ConfigurableField, 0, len(decl))
 	for _, field := range fields {
 		entry, ok := decl[field].(map[string]any)
@@ -130,10 +200,11 @@ func buildSurface(decl map[string]any, fields []string, props map[string]struct{
 				map[string]any{"path": path, "type": typeName, "field": field})
 		}
 
-		// The field must be a real property of the surface owner. An unknown field
-		// would let a configurator offer an editor for a property the owner cannot
-		// accept.
-		if _, isProp := props[field]; !isProp {
+		// The field must address a real property of the surface owner — a top-level
+		// property, or, for a dotted key, a property reachable by walking the item
+		// type's nested schema. An unknown field (or unreachable sub-path) would let
+		// a configurator offer an editor for a property the owner cannot accept.
+		if !props.has(field) {
 			return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 				"configurable surface names a field the item type does not declare",
 				map[string]any{"path": path, "type": typeName, "field": field})
@@ -163,6 +234,7 @@ func buildSurface(decl map[string]any, fields []string, props map[string]struct{
 
 		out = append(out, ConfigurableField{
 			Field:       field,
+			Path:        nestedPath(field),
 			Type:        vt,
 			Label:       label,
 			Constraints: constraints,
@@ -203,17 +275,26 @@ func configurableFor(g *schema.ResolvedGraph, typeID string) (map[string]any, bo
 	return decl, true
 }
 
-// configProperties returns the set of config property names the resolved item
-// type declares (its JSON Schema `properties` keys). It is the authority for the
-// "unknown field" check. A type with no declared properties yields an empty map.
-func configProperties(g *schema.ResolvedGraph, typeID string) map[string]struct{} {
-	props := map[string]struct{}{}
+// itemProps returns the property lookup for a resolved item type: a schemaProps
+// over the item-type schema, so the surface's "unknown field" check accepts both
+// a top-level property and a NESTED dotted path (E2-S1) reachable by walking the
+// schema's nested `properties`. A type with no resolved schema rejects every
+// field (an empty surface owner).
+func itemProps(g *schema.ResolvedGraph, typeID string) propLookup {
 	rt := g.Types[typeID]
-	if rt == nil || rt.Schema == nil {
-		return props
+	if rt == nil {
+		return schemaProps{}
 	}
-	for name := range rt.Schema.Properties {
-		props[name] = struct{}{}
+	return schemaProps{schema: rt.Schema}
+}
+
+// nestedPath parses a `configurable` field key into its dotted segments for a
+// NESTED entry (E2-S1), returning nil for a bare top-level key (whose whole
+// address is the key itself, so Path stays omitted). It is the inverse of
+// joining the segments with "." that produces the entry's Field.
+func nestedPath(field string) []string {
+	if !strings.Contains(field, pathSeparator) {
+		return nil
 	}
-	return props
+	return strings.Split(field, pathSeparator)
 }
