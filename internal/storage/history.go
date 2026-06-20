@@ -124,6 +124,32 @@ func (g *Git) LoadAt(id, revision string) ([]byte, error) {
 	return data, nil
 }
 
+// Revision returns the current revision token for <id>.json: the FULL hash of
+// the latest commit that touched it (the newest entry History reports). This
+// OVERRIDES the content-hash Revision the embedded FS backend provides, so the
+// git backend's token is a commit hash consistent with History/LoadAt — the same
+// value LoadAt accepts to reconstruct this exact state. An id that no commit ever
+// touched returns the STORAGE_NOT_FOUND coded error History raises.
+//
+// The token is stable while the document is unchanged (each Save commits new
+// content, advancing HEAD) and changes after any Save that records a new commit.
+func (g *Git) Revision(id string) (string, error) {
+	revs, err := g.History(id)
+	if err != nil {
+		return "", err
+	}
+	// History returns newest-first and never an empty slice (it raises
+	// STORAGE_NOT_FOUND instead), so revs[0] is the latest commit touching id.
+	return revs[0].Hash, nil
+}
+
 // Static assertion: Git satisfies the optional VersionedStore capability (and,
 // transitively, the core Store).
 var _ VersionedStore = (*Git)(nil)
+
+// Static assertions: both backends satisfy the optional RevisionedStore
+// capability (unlike VersionedStore, which only the git backend implements).
+var (
+	_ RevisionedStore = (*Git)(nil)
+	_ RevisionedStore = (*FS)(nil)
+)
