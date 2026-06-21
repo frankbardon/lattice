@@ -98,6 +98,14 @@ type ResolvedInstance = resolver.ResolvedInstance
 // without naming an internal/... path. See resolver.ResolvedTypeRef.
 type ResolvedTypeRef = resolver.ResolvedTypeRef
 
+// ConfigurableField is one entry of a node's editable CONFIGURABLE SURFACE
+// (E3-S1): a config field the item type declares runtime-configurable, with its
+// value type, label, optional constraints, and optional preferred widget
+// rendering. It is re-exported so a caller can name and READ a node's editable
+// surface (the NodeView surface get_node returns) through service.* without naming
+// an internal/... path. See resolver.ConfigurableField.
+type ConfigurableField = resolver.ConfigurableField
+
 // Resolver validates dashboard documents and emits resolved trees (the two-pass
 // resolver). It carries unexported state and is constructed only via the facade.
 // See resolver.Resolver.
