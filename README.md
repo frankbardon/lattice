@@ -69,6 +69,12 @@ else lives under `internal/` and is not importable; an external module programs
 against `service.*` (plus the root `errors` package) and never names an
 `internal/...` path.
 
+Two rules govern this surface — boundary types are opaque handles (name and read
+them, but construct only via the facade's constructors), and store capabilities
+(`History` / `LoadAt` / `Revision`) are probed by error code rather than a
+feature flag. Both, plus the FS-vs-git capability matrix, are spelled out in the
+[Library API Contract](docs/src/getting-started/library-contract.md).
+
 Add the module and import the facade:
 
 ```sh

@@ -11,6 +11,11 @@ root [`errors`](../reference/error-codes.md) package) and never names an
 `internal/...` path. The CLI, and the future WASM and MCP frontends, are each a
 thin adapter over this same facade.
 
+> **Two rules govern this surface** — boundary types are opaque handles (name and
+> read them, but construct only via the facade), and store capabilities are probed
+> by error code. Both are spelled out in the
+> [Library API Contract](library-contract.md).
+
 ## Install
 
 ```sh
@@ -75,7 +80,9 @@ A `*Service` built either way exposes:
   backend only); `Revision(id)` returns the current token to pair with
   `WithExpectedRevision`. These are capability-gated: a backend that lacks the
   capability is rejected with `STORAGE_CAPABILITY_UNSUPPORTED` rather than
-  degrading silently.
+  degrading silently. See the
+  [capability matrix](library-contract.md#rule-2--capabilities-are-flat-probed-by-error-code)
+  for which backend supports what and how to probe.
 
 ## Injection path (custom store / embedded schemas)
 
