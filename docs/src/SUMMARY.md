@@ -31,5 +31,6 @@
 
 - [Examples](reference/examples.md)
 - [Storage Backends](reference/storage.md)
+- [MCP Mode](reference/mcp.md)
 - [Error Codes](reference/error-codes.md)
 - [Out of Scope](reference/out-of-scope.md)
