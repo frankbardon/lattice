@@ -476,4 +476,12 @@ const (
 	// MCP_INTERNAL indicates an unexpected failure in the MCP server layer: the
 	// service facade could not be assembled, or the transport failed while serving.
 	MCP_INTERNAL Code = "MCP_INTERNAL"
+
+	// MCP_SKILL_NOT_FOUND indicates the get_skill tool was asked for a skill name
+	// that no embedded skill file matches — there is no such skill in the corpus.
+	// The skills corpus is a fixed, self-contained embedded data set (no store or
+	// resolver is consulted), so no existing STORAGE_*/SCHEMA_* code fits: this is
+	// a miss against the skills package itself. The requested name is reported in
+	// Details["name"].
+	MCP_SKILL_NOT_FOUND Code = "MCP_SKILL_NOT_FOUND"
 )

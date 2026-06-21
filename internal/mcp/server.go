@@ -23,6 +23,13 @@ import (
 // handshake. Hosts use it to identify the server.
 const serverName = "lattice"
 
+// serverVersion holds the build version NewServer was last constructed with, so
+// registrars (whose signature carries only the server + service) can read the
+// version a host was handed. The get_manifest tool surfaces it in its
+// server/version section. NewServer sets it before applying registrars; it is a
+// process-global because a single process runs one lattice MCP server.
+var serverVersion string
+
 // registrar appends one tool's registration to the given *mcp.Server. Every
 // lattice MCP tool is expressed as a registrar bound to the shared
 // *service.Service, which keeps tool wiring on the facade alone.
@@ -51,6 +58,11 @@ var registrars = []registrar{}
 // version is the lattice build version, advertised to MCP hosts in the
 // initialize handshake.
 func NewServer(svc *service.Service, version string) *sdkmcp.Server {
+	// Record the version for registrars (notably get_manifest) before applying
+	// them: the registrar signature carries only the server + service, so the
+	// build version reaches tool handlers through this package var.
+	serverVersion = version
+
 	srv := sdkmcp.NewServer(&sdkmcp.Implementation{
 		Name:    serverName,
 		Version: version,
