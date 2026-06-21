@@ -80,6 +80,17 @@ func New(fs afero.Fs, dashboardSchema *jsonschema.Schema, catalogDirs []string, 
 	}, nil
 }
 
+// SchemaFS returns the read-only schema-catalog filesystem the resolver was
+// constructed over — the SAME afero.Fs it loads the dashboard schema and
+// item-type catalog from. It exists so the facade can read raw schema bytes by
+// type (the get_schema/list_schemas grammar catalog) from the single source of
+// truth, rather than re-opening the schemas directory or duplicating files. The
+// returned filesystem is the resolver's own; callers read from it and must not
+// write.
+func (r *Resolver) SchemaFS() afero.Fs {
+	return r.fs
+}
+
 // Resolve loads, validates (two passes), and assembles the resolved tree for the
 // dashboard document at docPath. It returns the first error as a CodedError.
 func (r *Resolver) Resolve(docPath string) (*ResolvedTree, error) {

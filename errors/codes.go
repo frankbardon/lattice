@@ -461,3 +461,19 @@ const (
 	// rejected and nothing is persisted (atomic).
 	CHANGESET_STRUCTURAL_ID_INVALID Code = "CHANGESET_STRUCTURAL_ID_INVALID"
 )
+
+// MCP domain - The Model Context Protocol server layer (mcp subcommand). The MCP
+// server exposes lattice's read/dry-run capabilities to an MCP host over a
+// transport (stdio now, HTTP later). It NEVER persists. These codes guard the
+// `lattice mcp` command's inputs and transport before any tool runs; tool-level
+// failures surface their own RESOLVE_*/CHANGESET_*/etc. codes verbatim.
+const (
+	// MCP_INVALID indicates an invalid `lattice mcp` invocation: a missing or
+	// malformed flag value (e.g. an unparseable --store backend) detected before
+	// the server is constructed.
+	MCP_INVALID Code = "MCP_INVALID"
+
+	// MCP_INTERNAL indicates an unexpected failure in the MCP server layer: the
+	// service facade could not be assembled, or the transport failed while serving.
+	MCP_INTERNAL Code = "MCP_INTERNAL"
+)

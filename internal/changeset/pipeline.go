@@ -123,6 +123,61 @@ func ApplyChangeset(store storage.Store, res DocumentResolver, id string, cs *Ch
 		opt(&options)
 	}
 
+	// Run the shared validate core (load → resolve → apply → re-resolve under every
+	// guardrail). On any coded error nothing is persisted; the result is the
+	// would-be-mutated bytes and their resolved tree.
+	result, err := validate(store, res, id, cs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Optimistic-concurrency precondition (E4-S2): if the caller supplied an expected
+	// revision, re-read the store's CURRENT revision NOW — immediately before Save, as
+	// close to the write as possible to minimize the race window — and reject if it no
+	// longer matches. This is the last gate before the only write, so a stale edit
+	// cannot clobber a document that changed since it was loaded.
+	if err := checkRevisionPrecondition(store, id, options); err != nil {
+		return nil, err
+	}
+
+	// Every guardrail has passed: persist the validated bytes. Save is reached
+	// EXACTLY ONCE, only on full success, so a rejected apply leaves the stored
+	// document byte-for-byte unchanged.
+	if err := store.Save(result.Document); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// DryRunChangeset runs the SAME validate core as ApplyChangeset — load the stored
+// document, resolve the current bytes for the field-edit surfaces, apply the
+// changeset under the field-edit guardrail, and re-resolve the mutated document for
+// the structural/constraint/schema guardrails and RFC 6902 `test` ops — but STOPS
+// before persisting. It NEVER reaches Store.Save and NEVER reads or enforces a
+// revision precondition (which exists only to guard the write), so the store is
+// touched exactly once, by the read-only Load, and is left byte-for-byte unchanged
+// no matter the outcome.
+//
+// It returns the would-be-mutated, canonically-serialized document bytes plus their
+// resolved tree — the result a real ApplyChangeset WOULD have persisted — or, on any
+// coded error from a guardrail, the SAME *errors.CodedError that ApplyChangeset
+// would have returned at that step, propagated verbatim. This is the engine behind
+// the facade's dry-run/validate primitive: callers can preview and validate an edit
+// without any risk of mutating the stored document.
+func DryRunChangeset(store storage.Store, res DocumentResolver, id string, cs *Changeset) (*ApplyResult, error) {
+	return validate(store, res, id, cs)
+}
+
+// validate is the shared apply+re-resolve core of the patch pipeline, factored out
+// so the real save path (ApplyChangeset) and the dry-run path (DryRunChangeset) run
+// IDENTICAL guardrails without duplicating the load→resolve→apply→re-resolve dance.
+// It performs NO persistence and enforces NO revision precondition — those belong to
+// the write and stay in ApplyChangeset. On full success it returns the validated,
+// canonically-marshaled document bytes and the resolved tree of those bytes; on any
+// coded error it returns nil and the error verbatim, having touched the store only
+// via the read-only Load.
+func validate(store storage.Store, res DocumentResolver, id string, cs *Changeset) (*ApplyResult, error) {
 	// Load the current document bytes. A missing id surfaces as the store's
 	// STORAGE_NOT_FOUND coded error.
 	current, err := store.Load(id)
@@ -152,22 +207,6 @@ func ApplyChangeset(store storage.Store, res DocumentResolver, id string, cs *Ch
 	// coded error rejects the whole apply — nothing is persisted.
 	mutatedTree, err := res.ResolveBytesWithValues(mutated, id, nil)
 	if err != nil {
-		return nil, err
-	}
-
-	// Optimistic-concurrency precondition (E4-S2): if the caller supplied an expected
-	// revision, re-read the store's CURRENT revision NOW — immediately before Save, as
-	// close to the write as possible to minimize the race window — and reject if it no
-	// longer matches. This is the last gate before the only write, so a stale edit
-	// cannot clobber a document that changed since it was loaded.
-	if err := checkRevisionPrecondition(store, id, options); err != nil {
-		return nil, err
-	}
-
-	// Every guardrail has passed: persist the validated bytes. Save is reached
-	// EXACTLY ONCE, only on full success, so a rejected apply leaves the stored
-	// document byte-for-byte unchanged.
-	if err := store.Save(mutated); err != nil {
 		return nil, err
 	}
 

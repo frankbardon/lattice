@@ -28,7 +28,7 @@ Requires Go 1.26+.
 
 ## Run
 
-`lattice` has two subcommands.
+`lattice` has three subcommands.
 
 ### `resolve`
 
@@ -59,6 +59,51 @@ lattice serve examples/dropdown-dashboard.json   # http://localhost:8080
 ```
 
 Flags: `--schemas <dir>` and `--port <n>` (default 8080).
+
+When run in **backend mode** (`--store`/`--root`, addressing a document by its
+manifest id) the server also exposes a write endpoint:
+
+```
+POST /api/patch   {"id": "<id>", "ops": [<RFC 6902 id-rooted JSON Patch>], "expectedRevision": "<optional>"}
+```
+
+It commits the changeset through the atomic apply→validate→save pipeline and
+returns `{"revision": "<new>", "result": <resolved tree>}`. A stale
+`expectedRevision` yields `409` (`CHANGESET_REVISION_CONFLICT`); an unknown id
+`404`; a malformed/off-surface/invalid changeset `422` — each as a coded-error
+JSON envelope. The route is disabled (read-only server) in path mode.
+
+> **Security:** the HTTP server, including `POST /api/patch`, has **no
+> authentication or authorization**. It assumes a localhost/trusted deployment.
+> Do not expose it on an untrusted network — any caller could mutate stored
+> documents. This is a known, accepted gap.
+
+### `mcp`
+
+Run lattice as an [MCP](https://modelcontextprotocol.io/) server over **stdio**,
+exposing its read and dry-run capabilities as tools an MCP host (a coding
+assistant, an agent) can call:
+
+```sh
+lattice mcp --store fs --root ./dashboards --schemas schemas
+```
+
+Flags: `--store`/`--root` (backend selection, as for `resolve`/`serve`) and
+`--schemas <dir>`. The server advertises seven tools — `list_dashboards`,
+`get_outline`, `get_node`, `get_document`, `list_schemas`, `get_schema`, and
+`validate_patch` — all **read or dry-run only**. The model navigates a document,
+drills into a node or fetches a type schema, and **simulates** an edit with
+`validate_patch` (the same apply→validate pipeline as a real write, minus the
+save). It **never persists**: a validated patch is committed separately by a
+human through the `POST /api/patch` endpoint above, passing the `baseRevision`
+`validate_patch` returned as `expectedRevision`.
+
+> **Security:** like the HTTP write endpoint, MCP mode has **no authentication**
+> and assumes a localhost/trusted deployment — a known, accepted gap.
+
+The full tool reference, host-config snippet, and the propose-then-commit
+walkthrough are in the spec's
+[MCP Mode](https://frankbardon.github.io/lattice/reference/mcp.html) page.
 
 ## Using lattice as a library
 
