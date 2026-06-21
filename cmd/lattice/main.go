@@ -38,6 +38,7 @@ func buildApp() *cli.Command {
 			lcli.ResolveCommand(),
 			lcli.ServeCommand(),
 			lcli.PatchCommand(),
+			lcli.McpCommand(),
 		},
 	}
 }
