@@ -60,6 +60,24 @@ lattice serve examples/dropdown-dashboard.json   # http://localhost:8080
 
 Flags: `--schemas <dir>` and `--port <n>` (default 8080).
 
+When run in **backend mode** (`--store`/`--root`, addressing a document by its
+manifest id) the server also exposes a write endpoint:
+
+```
+POST /api/patch   {"id": "<id>", "ops": [<RFC 6902 id-rooted JSON Patch>], "expectedRevision": "<optional>"}
+```
+
+It commits the changeset through the atomic apply→validate→save pipeline and
+returns `{"revision": "<new>", "result": <resolved tree>}`. A stale
+`expectedRevision` yields `409` (`CHANGESET_REVISION_CONFLICT`); an unknown id
+`404`; a malformed/off-surface/invalid changeset `422` — each as a coded-error
+JSON envelope. The route is disabled (read-only server) in path mode.
+
+> **Security:** the HTTP server, including `POST /api/patch`, has **no
+> authentication or authorization**. It assumes a localhost/trusted deployment.
+> Do not expose it on an untrusted network — any caller could mutate stored
+> documents. This is a known, accepted gap.
+
 ## Using lattice as a library
 
 Lattice's entire public Go surface is the single package

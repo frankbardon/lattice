@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -92,6 +93,10 @@ func ServeCommand() *cli.Command {
 			// straight into the addressable OverrideSet, so serve routes both to
 			// the resolver without distinguishing them.
 			var resolve server.ResolveFunc
+			// patch is the optional write closure: only a backend-mode serve has a
+			// store to persist to, so path mode leaves it nil and the POST /api/patch
+			// route reports the capability as unavailable.
+			var patch server.PatchFunc
 			if backendConfigured(cmd) {
 				svc, err := service.Open(service.Options{
 					Backend: service.Backend(cmd.String("store")),
@@ -103,6 +108,30 @@ func ServeCommand() *cli.Command {
 				}
 				resolve = func(overrides map[string]any) (*resolver.ResolvedTree, error) {
 					return svc.Resolve(arg, overrides)
+				}
+				// The write closure parses the id-rooted changeset, applies it through
+				// the atomic service.Patch pipeline (optionally under an
+				// optimistic-concurrency precondition), then re-reads the post-write
+				// revision. Failures propagate verbatim as *errors.CodedError; the
+				// server maps them to a status. NOTE: no auth — localhost/trusted only.
+				patch = func(id string, ops json.RawMessage, expectedRevision *string) (*server.PatchResult, error) {
+					cs, err := svc.ParseChangeset(ops)
+					if err != nil {
+						return nil, err
+					}
+					var applyOpts []service.ApplyOption
+					if expectedRevision != nil {
+						applyOpts = append(applyOpts, service.WithExpectedRevision(*expectedRevision))
+					}
+					res, err := svc.Patch(id, cs, applyOpts...)
+					if err != nil {
+						return nil, err
+					}
+					rev, err := svc.Revision(id)
+					if err != nil {
+						return nil, err
+					}
+					return &server.PatchResult{Revision: rev, Result: res.Resolved}, nil
 				}
 			} else {
 				res, err := service.NewResolver(os.DirFS(schemasDir))
@@ -119,7 +148,7 @@ func ServeCommand() *cli.Command {
 				}
 			}
 
-			srv, err := server.New(resolve)
+			srv, err := server.New(resolve, server.WithPatch(patch))
 			if err != nil {
 				return reportError(cmd, asJSON, err)
 			}
