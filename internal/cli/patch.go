@@ -10,7 +10,7 @@ import (
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
-	"github.com/frankbardon/lattice/internal/changeset"
+	"github.com/frankbardon/lattice/service"
 )
 
 // PatchCommand returns the `patch` subcommand.
@@ -18,7 +18,7 @@ import (
 // It edits a stored dashboard end to end: it loads the document addressed by the
 // positional manifest id through the configured backend (--store/--root, the same
 // seam resolve/serve use), parses the --changeset file (an RFC 6902 / id-rooted
-// JSON Patch), and runs the patch-write pipeline (changeset.ApplyChangeset). The
+// JSON Patch), and runs the patch-write pipeline (service.Patch). The
 // pipeline is ATOMIC — it applies under the field-edit guardrail, re-resolves the
 // mutated document for the structural/schema/referential guardrails, and persists
 // the validated bytes back to the store only when every check passes (for the git
@@ -69,19 +69,22 @@ func PatchCommand() *cli.Command {
 				return reportError(cmd, asJSON, err)
 			}
 
-			cs, err := changeset.Parse(csBytes)
+			// Assemble the Service via Open exactly as the load-by-id resolve path
+			// does: the store is the --store backend over the real filesystem rooted
+			// at --root, and the resolver reads the --schemas catalog (os.DirFS rooted
+			// directly at the schemas dir, matching the facade's schemasRoot
+			// assumption). ParseChangeset/Patch wrap the same parser + atomic pipeline
+			// the inline wiring called, so behavior is unchanged.
+			svc, err := service.Open(service.Options{
+				Backend: service.Backend(cmd.String("store")),
+				Root:    cmd.String("root"),
+				Schemas: os.DirFS(cmd.String("schemas")),
+			})
 			if err != nil {
 				return reportError(cmd, asJSON, err)
 			}
 
-			// Construct the backend and the resolver exactly as the load-by-id resolve
-			// path does: the id is a manifest id, the store is built from --store/--root,
-			// and *resolver.Resolver satisfies the pipeline's DocumentResolver.
-			store, err := newStore(cmd)
-			if err != nil {
-				return reportError(cmd, asJSON, err)
-			}
-			res, err := newResolver(cmd.String("schemas"))
+			cs, err := svc.ParseChangeset(csBytes)
 			if err != nil {
 				return reportError(cmd, asJSON, err)
 			}
@@ -91,11 +94,11 @@ func PatchCommand() *cli.Command {
 			// When --expect-revision is supplied, the pipeline enforces it as an
 			// optimistic-concurrency precondition re-checked immediately before write
 			// (a mismatch rejects with CHANGESET_REVISION_CONFLICT, nothing persisted).
-			var applyOpts []changeset.ApplyOption
+			var applyOpts []service.ApplyOption
 			if cmd.IsSet("expect-revision") {
-				applyOpts = append(applyOpts, changeset.WithExpectedRevision(cmd.String("expect-revision")))
+				applyOpts = append(applyOpts, service.WithExpectedRevision(cmd.String("expect-revision")))
 			}
-			if _, err := changeset.ApplyChangeset(store, res, id, cs, applyOpts...); err != nil {
+			if _, err := svc.Patch(id, cs, applyOpts...); err != nil {
 				return reportError(cmd, asJSON, err)
 			}
 

@@ -60,6 +60,116 @@ lattice serve examples/dropdown-dashboard.json   # http://localhost:8080
 
 Flags: `--schemas <dir>` and `--port <n>` (default 8080).
 
+## Using lattice as a library
+
+Lattice's entire public Go surface is the single package
+`github.com/frankbardon/lattice/service` — a transport-agnostic facade over the
+resolver, the changeset write pipeline, and the storage backends. Everything
+else lives under `internal/` and is not importable; an external module programs
+against `service.*` (plus the root `errors` package) and never names an
+`internal/...` path.
+
+Two rules govern this surface — boundary types are opaque handles (name and read
+them, but construct only via the facade's constructors), and store capabilities
+(`History` / `LoadAt` / `Revision`) are probed by error code rather than a
+feature flag. Both, plus the FS-vs-git capability matrix, are spelled out in the
+[Library API Contract](docs/src/getting-started/library-contract.md).
+
+Add the module and import the facade:
+
+```sh
+go get github.com/frankbardon/lattice@v0.4.0
+```
+
+```go
+import "github.com/frankbardon/lattice/service"
+```
+
+### Open + Resolve + Patch (filesystem)
+
+The batteries-included `Open` constructor wires a filesystem-backed store rooted
+at a directory plus a resolver over a schema-catalog `fs.FS`. Documents are
+addressed by their `manifest.id`, so a document with id `example-minimal` lives
+at `<Root>/example-minimal.json`.
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/frankbardon/lattice/service"
+)
+
+func main() {
+	svc, err := service.Open(service.Options{
+		Backend: service.BackendFS,        // or service.BackendGit for write history
+		Root:    ".",                       // directory of <id>.json documents
+		Schemas: os.DirFS("schemas"),       // holds dashboard.schema.json + the catalog
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// Resolve loads ./example-minimal.json by manifest.id and runs the two-pass
+	// resolver. The second argument is the runtime override map (nil applies none).
+	tree, err := svc.Resolve("example-minimal", nil)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("resolved", tree.Manifest["id"])
+
+	// Apply a validated RFC 6902 edit. ParseChangeset returns an opaque handle;
+	// Patch runs the atomic apply -> validate -> re-resolve -> save pipeline and
+	// persists only on full success. Pointers are id-rooted ("/<node-id>/config/...")
+	// with document scopes under a "$"-prefixed token ("/$manifest", "/$theme").
+	cs, err := svc.ParseChangeset([]byte(
+		`[{"op":"replace","path":"/$manifest/title","value":"Renamed"}]`))
+	if err != nil {
+		panic(err)
+	}
+	if _, err := svc.Patch("example-minimal", cs); err != nil {
+		panic(err)
+	}
+}
+```
+
+Every failure path returns an `*errors.CodedError`
+(`github.com/frankbardon/lattice/errors`) carrying a stable `Code`, a message,
+and a `Details` map — type-assert or use `errors.HasCode` to branch on it.
+
+### Injection path (custom store / embedded schemas)
+
+When the store or schema catalog should not come from the OS filesystem — an
+in-memory store, a custom `Store` implementation, or schemas baked in via
+`embed.FS` — build the pieces yourself with the low-level builders and wire them
+with `New` instead of `Open`. This is the path the future WASM and MCP frontends
+use, where the document and catalog live in memory rather than on disk.
+
+```go
+//go:embed schemas
+var schemaFS embed.FS
+
+// A resolver over embedded schemas (the embed.FS sub-tree whose top level holds
+// dashboard.schema.json), and any Store you like — here an in-memory one.
+res, err := service.NewResolver(schemaFS)        // fs.FS: os.DirFS or embed.FS
+store, err := service.NewStore(service.BackendFS, afero.NewMemMapFs(), "docs")
+
+svc := service.New(store, res)                   // same verb set as Open returns
+```
+
+`NewStore(backend, fs, root)` takes an `afero.Fs`, so any afero-backed
+filesystem (in-memory, OS, read-only overlay) works; `NewResolver(schemas)`
+takes a stdlib `fs.FS`. A `*Service` built either way exposes the same methods:
+reads (`Resolve`, `ResolveBytes`, `Load`, `List`, `Exists`), writes
+(`ParseChangeset`, `Patch`, `Save`, `Delete`), and git-only history
+(`History`, `LoadAt`, `Revision`).
+
+A compile-checked version of both examples lives in
+[`service/example_test.go`](service/example_test.go) (Go `Example` functions),
+so the documented usage cannot drift from the real signatures.
+
 ## Conventions
 
 Lattice mirrors the engineering conventions of its sibling project

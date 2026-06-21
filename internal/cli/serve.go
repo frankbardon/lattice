@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 
+	"github.com/spf13/afero"
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/server"
-	"github.com/frankbardon/lattice/internal/storage"
+	"github.com/frankbardon/lattice/service"
 )
 
 // defaultServePort is the listen port used when --port is not supplied.
@@ -52,19 +54,6 @@ func ServeCommand() *cli.Command {
 					"serve requires a dashboard document path or manifest id argument"))
 			}
 
-			// When the user selected a backend (--store/--root), the argument is a
-			// manifest.id served through the store; otherwise it is a filesystem
-			// path served directly (the pre-existing default). The store is
-			// constructed once here, lazily and only in backend mode, so a plain
-			// path-mode serve never incurs a backend side-effect (e.g. git init).
-			var store storage.Store
-			if backendConfigured(cmd) {
-				var err error
-				if store, err = newStore(cmd); err != nil {
-					return reportError(cmd, asJSON, err)
-				}
-			}
-
 			port := cmd.Int("port")
 			if port < 1 || port > 65535 {
 				return reportError(cmd, asJSON, errors.NewCodedErrorWithDetails(errors.SERVE_INVALID,
@@ -72,22 +61,62 @@ func ServeCommand() *cli.Command {
 			}
 
 			schemasDir := cmd.String("schemas")
-			// Re-resolve on every request so a document edit is reflected on
-			// reload and resolution errors render as the HTML error page. The
-			// per-request override map is the UNIFIED override set (E4): a bare
-			// key names a variable (widget selection / URL query param), a
+
+			// Build the service facade ONCE and reuse it across every request
+			// (the intended pattern: schema catalog + store are loaded a single
+			// time, then each request re-resolves through the same Service). The
+			// ResolveFunc closure below is what the server package injects.
+			//
+			// Two modes, mirroring the resolve command's service adapters:
+			//
+			//   - Backend mode (--store/--root set): the argument is a manifest.id
+			//     loaded through the store. service.Open assembles the store
+			//     (backend over OsFs rooted at --root) and the resolver (catalog
+			//     rooted at --schemas), then svc.Resolve(id, overrides) re-reads
+			//     the stored document and resolves it on every request — so an edit
+			//     to the stored document is reflected on reload, render read-only.
+			//
+			//   - Path mode (default): the argument is a filesystem path. The
+			//     facade has no path-mode method, so the closure owns the document
+			//     I/O — it reads the file off the real filesystem (same RESOLVE_IO
+			//     wrap the resolver's path read uses) on every request, then feeds
+			//     the bytes to svc.ResolveBytes (which never touches the store, so
+			//     the Service is wired with a nil store). Re-reading per request
+			//     keeps the reflect-on-reload behavior of the prior path wiring.
+			//
+			// Re-resolving per request also means resolution errors render as the
+			// HTML error page / 422 envelope rather than crashing the server. The
+			// per-request override map is the UNIFIED override set (E4): a bare key
+			// names a variable (widget selection / URL query param), a
 			// "<node-id>.<field>" key names a node config field. Both kinds flow
 			// straight into the addressable OverrideSet, so serve routes both to
 			// the resolver without distinguishing them.
-			//
-			// In backend mode the store is re-read per request too (Load(arg) then
-			// resolve the bytes), so editing the stored document is reflected on
-			// reload exactly as a path-mode edit is; the render stays read-only.
-			resolve := func(overrides map[string]any) (*resolver.ResolvedTree, error) {
-				if store != nil {
-					return resolveBytesByID(store, schemasDir, arg, overrides)
+			var resolve server.ResolveFunc
+			if backendConfigured(cmd) {
+				svc, err := service.Open(service.Options{
+					Backend: service.Backend(cmd.String("store")),
+					Root:    cmd.String("root"),
+					Schemas: os.DirFS(schemasDir),
+				})
+				if err != nil {
+					return reportError(cmd, asJSON, err)
 				}
-				return runResolveWithValues(schemasDir, arg, overrides)
+				resolve = func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+					return svc.Resolve(arg, overrides)
+				}
+			} else {
+				res, err := service.NewResolver(os.DirFS(schemasDir))
+				if err != nil {
+					return reportError(cmd, asJSON, err)
+				}
+				svc := service.New(nil, res)
+				resolve = func(overrides map[string]any) (*resolver.ResolvedTree, error) {
+					data, err := afero.ReadFile(afero.NewOsFs(), arg)
+					if err != nil {
+						return nil, errors.WrapCodedError(err, errors.RESOLVE_IO, "failed reading dashboard document "+arg)
+					}
+					return svc.ResolveBytes(data, arg, overrides)
+				}
 			}
 
 			srv, err := server.New(resolve)

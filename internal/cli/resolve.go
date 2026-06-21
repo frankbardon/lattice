@@ -5,25 +5,21 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"os"
 
-	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/spf13/afero"
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/storage"
-	"github.com/frankbardon/lattice/internal/variables"
+	"github.com/frankbardon/lattice/service"
 )
 
 // defaultSchemasDir is the catalog directory scanned for the dashboard schema
 // and item-type schemas when --schemas is not supplied. It is relative to the
 // process working directory (config is via flags, not config files).
 const defaultSchemasDir = "schemas"
-
-// dashboardSchemaFile is the dashboard document schema's filename within the
-// schemas directory; it is loaded for the structural (Pass 1) validation.
-const dashboardSchemaFile = "dashboard.schema.json"
 
 // defaultStore is the storage backend selected when --store is not supplied. It
 // matches the existing direct-path behavior: a filesystem backend.
@@ -48,19 +44,6 @@ func storeFlags() []cli.Flag {
 			Value: defaultStoreRoot,
 		},
 	}
-}
-
-// newStore constructs the storage backend selected by the --store/--root flags
-// over the real filesystem. Backend construction lives in the storage factory;
-// this is the thin CLI adapter that reads the flags and reports an unknown
-// backend as a coded error.
-//
-// It is called LAZILY — only when the positional argument is to be treated as a
-// manifest.id (see backendConfigured) — so a plain path-mode resolve never
-// constructs a backend and the git backend's `git init` side-effect (E3-S1
-// followup) is incurred only when actually loading by id.
-func newStore(cmd *cli.Command) (storage.Store, error) {
-	return storage.New(storage.Backend(cmd.String("store")), afero.NewOsFs(), cmd.String("root"))
 }
 
 // backendConfigured reports whether the user explicitly selected a storage
@@ -105,11 +88,14 @@ func ResolveCommand() *cli.Command {
 			if backendConfigured(cmd) {
 				// The user selected a backend (--store/--root): the argument is a
 				// manifest.id loaded through the store, then resolved from its bytes.
-				tree, err = runResolveByID(cmd, schemasDir, arg, nil)
+				// service.Open assembles the same store (backend over OsFs rooted at
+				// --root) and resolver (schema catalog rooted at --schemas) the
+				// inline wiring did; Resolve runs the identical load→two-pass pipeline.
+				tree, err = resolveByIDViaService(cmd, schemasDir, arg, nil)
 			} else {
 				// Default, path-friendly behavior: the argument is a filesystem path
 				// resolved directly. No backend is constructed.
-				tree, err = runResolve(schemasDir, arg)
+				tree, err = resolvePathViaService(schemasDir, arg, nil)
 			}
 			if err != nil {
 				return reportError(cmd, asJSON, err)
@@ -126,86 +112,50 @@ func ResolveCommand() *cli.Command {
 	}
 }
 
-// runResolve wires the resolver: it loads the dashboard schema from schemasDir,
-// builds a resolver over the on-disk catalog, and resolves the document.
-func runResolve(schemasDir, docPath string) (*resolver.ResolvedTree, error) {
-	return runResolveWithValues(schemasDir, docPath, nil)
-}
-
-// runResolveWithValues is runResolve with E4-S1 runtime overrides applied: an
-// addressable override set keyed by address (a bare name targets a settable
-// variable as in E3-S4; a "<node-id>.<field>" address targets a node config
-// field, carried for E4-S2). A nil/empty overrides map is identical to
-// runResolve.
-func runResolveWithValues(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
-	res, err := newResolver(schemasDir)
+// resolveByIDViaService is the by-id resolve path routed through the service
+// facade. It assembles a Service via service.Open — a store over the real
+// filesystem (the --store backend rooted at --root) and a resolver over the
+// --schemas catalog (os.DirFS rooted directly at the schemas dir, matching the
+// facade's schemasRoot assumption) — then resolves the manifest id. Open's store
+// is built lazily here, only once the argument is known to be an id, preserving
+// the no-backend-on-path-mode property. A not-found id surfaces as the store's
+// STORAGE_NOT_FOUND coded error; schema/backend construction failures surface as
+// the facade's SCHEMA_*/storage coded errors. Behavior matches the prior inline
+// store-construction + ResolveBytesWithValues wiring.
+func resolveByIDViaService(cmd *cli.Command, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
+	svc, err := service.Open(service.Options{
+		Backend: service.Backend(cmd.String("store")),
+		Root:    cmd.String("root"),
+		Schemas: os.DirFS(schemasDir),
+	})
 	if err != nil {
 		return nil, err
 	}
-	return res.ResolveWithValues(docPath, variables.OverrideSet(overrides))
+	return svc.Resolve(id, overrides)
 }
 
-// runResolveByID loads the document addressed by id through the configured
-// backend, then resolves its bytes with the given overrides. It is the
-// backend-addressed load path: the store is constructed lazily here (only now
-// that we know the argument is a manifest.id), Load(id) yields the whole-document
-// bytes, and ResolveBytesWithValues runs the identical two-pass pipeline. A
-// not-found id surfaces as the store's STORAGE_NOT_FOUND coded error, reported
-// through the normal CLI error path. id is also used as the error source.
-func runResolveByID(cmd *cli.Command, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
-	store, err := newStore(cmd)
-	if err != nil {
-		return nil, err
-	}
-	return resolveBytesByID(store, schemasDir, id, overrides)
-}
-
-// resolveBytesByID loads the document addressed by id through store, then
-// resolves its bytes with the given overrides. It is the shared backend-load
-// step: resolve constructs the store per invocation (runResolveByID), serve
-// constructs it once and reuses it across per-request resolves. A not-found id
-// surfaces as the store's STORAGE_NOT_FOUND coded error. id doubles as the error
-// source.
-func resolveBytesByID(store storage.Store, schemasDir, id string, overrides map[string]any) (*resolver.ResolvedTree, error) {
-	data, err := store.Load(id)
+// resolvePathViaService is the default path-mode resolve routed through the
+// service facade. The facade has no path-mode method (its resolver reads schemas
+// from the supplied fs.FS, not the document), so the adapter owns the document
+// I/O: it reads the file off the real filesystem with the same RESOLVE_IO error
+// wrapping the resolver's path read used, then feeds the bytes to
+// Service.ResolveBytes with docPath as the source label. ResolveBytes never
+// touches the store, so the Service is wired with a nil store via service.New
+// over a resolver built from the --schemas catalog. This reproduces the prior
+// resolver.ResolveWithValues(docPath, ...) behavior byte-for-byte.
+func resolvePathViaService(schemasDir, docPath string, overrides map[string]any) (*resolver.ResolvedTree, error) {
+	res, err := service.NewResolver(os.DirFS(schemasDir))
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := newResolver(schemasDir)
+	data, err := afero.ReadFile(afero.NewOsFs(), docPath)
 	if err != nil {
-		return nil, err
-	}
-	return res.ResolveBytesWithValues(data, id, variables.OverrideSet(overrides))
-}
-
-// newResolver builds a resolver over the on-disk schema catalog in schemasDir.
-// It is the shared construction step for both the path-addressed and
-// id-addressed resolve paths.
-func newResolver(schemasDir string) (*resolver.Resolver, error) {
-	fs := afero.NewOsFs()
-
-	dashSch, err := loadDashboardSchema(fs, schemasDir)
-	if err != nil {
-		return nil, err
+		return nil, errors.WrapCodedError(err, errors.RESOLVE_IO, "failed reading dashboard document "+docPath)
 	}
 
-	return resolver.New(fs, dashSch, []string{schemasDir})
-}
-
-// loadDashboardSchema reads and parses the dashboard document schema from
-// schemasDir/dashboard.schema.json.
-func loadDashboardSchema(fs afero.Fs, schemasDir string) (*jsonschema.Schema, error) {
-	p := schemasDir + "/" + dashboardSchemaFile
-	data, err := afero.ReadFile(fs, p)
-	if err != nil {
-		return nil, errors.WrapCodedError(err, errors.SCHEMA_IO, "failed reading dashboard schema "+p)
-	}
-	var s jsonschema.Schema
-	if err := s.UnmarshalJSON(data); err != nil {
-		return nil, errors.WrapCodedError(err, errors.SCHEMA_INVALID, "failed parsing dashboard schema "+p)
-	}
-	return &s, nil
+	svc := service.New(nil, res)
+	return svc.ResolveBytes(data, docPath, overrides)
 }
 
 // reportError prints err and returns a non-nil error so the CLI exits non-zero.
