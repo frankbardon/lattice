@@ -84,6 +84,20 @@ import (
 // contract and field-level documentation.
 type ResolvedTree = resolver.ResolvedTree
 
+// ResolvedInstance is one node of the resolved tree: a single item instance with
+// its type reference resolved to a canonical, versioned identity, plus its
+// validated config, placement, layout, children, and per-node scopes. It is
+// re-exported so a caller can name and READ a tree's nodes (e.g. ResolvedTree.Root
+// and a node's Children) through service.* without naming an internal/... path.
+// See resolver.ResolvedInstance.
+type ResolvedInstance = resolver.ResolvedInstance
+
+// ResolvedTypeRef is the resolved identity of an item type as referenced by an
+// instance: the raw $ref, the canonical id it resolved to, and the parsed
+// name/version. It is re-exported so callers can read a ResolvedInstance.Type
+// without naming an internal/... path. See resolver.ResolvedTypeRef.
+type ResolvedTypeRef = resolver.ResolvedTypeRef
+
 // Resolver validates dashboard documents and emits resolved trees (the two-pass
 // resolver). It carries unexported state and is constructed only via the facade.
 // See resolver.Resolver.
