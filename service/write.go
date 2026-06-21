@@ -39,6 +39,30 @@ func (s *Service) Patch(id string, cs *Changeset, opts ...ApplyOption) (*ApplyRe
 	return changeset.ApplyChangeset(s.store, s.resolver, id, cs, opts...)
 }
 
+// DryRunPatch validates the changeset cs against the stored document addressed by
+// id and returns the result it WOULD have persisted — without persisting anything.
+// It runs the SAME atomic pipeline as Patch (load → resolve → apply → re-resolve)
+// under EVERY guardrail (the field-surface gate, the structural id check, schema
+// re-validation, constraint checks, and RFC 6902 `test` ops), but STOPS before the
+// store write: it is a thin wrapper over changeset.DryRunChangeset, which shares
+// Patch's apply+re-resolve core and never reaches Store.Save.
+//
+// The stored document is therefore guaranteed untouched — the store is read only,
+// via a single Load — so this is the safe path for previewing or validating an edit
+// (the engine behind the MCP validate primitive, where persistence is never
+// reachable). On success it returns the ApplyResult: the would-be-mutated, canonical
+// document bytes plus their resolved tree, identical to what Patch would have
+// written. There is no revision precondition because nothing is written.
+//
+// All failures — a not-found id, a malformed/off-surface/ill-typed changeset, or an
+// apply or re-resolution failure — surface as *errors.CodedError (STORAGE_NOT_FOUND,
+// PATCH_*, CONFIG_OVERRIDE_*, CHANGESET_STRUCTURAL_*, RESOLVE_*/SCHEMA_*/VAR_*)
+// propagated verbatim from the pipeline, IDENTICAL to the error a real Patch of the
+// same changeset would have returned; they are not re-wrapped or re-coded.
+func (s *Service) DryRunPatch(id string, cs *Changeset) (*ApplyResult, error) {
+	return changeset.DryRunChangeset(s.store, s.resolver, id, cs)
+}
+
 // Save persists whole-document bytes through the wired store — a thin passthrough
 // for callers that manage entire documents directly rather than via a changeset.
 // The addressing key is derived by the store from the document's manifest.id (not

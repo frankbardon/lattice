@@ -229,6 +229,117 @@ func TestExternalPatchStaleRevisionConflict(t *testing.T) {
 	}
 }
 
+// TestExternalDryRunPatchHappyPath proves the dry-run primitive through the facade:
+// a surfaced $manifest/title edit validated via DryRunPatch returns the would-be
+// document bytes (carrying the new value) and a resolved tree — yet the store is
+// provably untouched (the persisted bytes still equal the seed). It mirrors
+// TestExternalPatchHappyPath minus the persistence.
+func TestExternalDryRunPatchHappyPath(t *testing.T) {
+	svc, store, seed := newFSService(t)
+
+	cs, err := svc.ParseChangeset([]byte(`[{"op":"replace","path":"/$manifest/title","value":"Renamed"}]`))
+	if err != nil {
+		t.Fatalf("ParseChangeset: %v", err)
+	}
+
+	result, err := svc.DryRunPatch(fixtureID, cs)
+	if err != nil {
+		t.Fatalf("DryRunPatch: %v", err)
+	}
+
+	// The returned document carries the new value and a resolved tree...
+	if got := readManifestTitle(t, result.Document); got != "Renamed" {
+		t.Fatalf("DryRunPatch.Document title = %q, want %q", got, "Renamed")
+	}
+	if result.Resolved == nil {
+		t.Fatal("DryRunPatch.Resolved is nil, want a resolved tree")
+	}
+	if got, _ := result.Resolved.Manifest["id"].(string); got != fixtureID {
+		t.Fatalf("DryRunPatch.Resolved manifest id = %v, want %q", got, fixtureID)
+	}
+
+	// ...but the store is untouched: the persisted bytes still equal the seed.
+	after, err := store.Load(fixtureID)
+	if err != nil {
+		t.Fatalf("reload after dry run: %v", err)
+	}
+	if !bytes.Equal(after, seed) {
+		t.Fatalf("DryRunPatch mutated the store:\n--- want (seed) ---\n%s\n--- got ---\n%s", seed, after)
+	}
+
+	// And the would-be bytes match exactly what a real Patch would persist.
+	applied, err := svc.Patch(fixtureID, cs)
+	if err != nil {
+		t.Fatalf("Patch: %v", err)
+	}
+	if !bytes.Equal(result.Document, applied.Document) {
+		t.Fatalf("dry-run document differs from the persisted document")
+	}
+}
+
+// TestExternalDryRunPatchRejections proves the dry-run primitive runs every
+// guardrail and surfaces the SAME coded error a real Patch would — while NEVER
+// touching the store. Each case validates a bad changeset via DryRunPatch (asserting
+// the coded error and that the store is byte-identical to the seed) and confirms a
+// real Patch of the same changeset fails with the same code.
+func TestExternalDryRunPatchRejections(t *testing.T) {
+	cases := []struct {
+		name  string
+		patch string
+		code  errors.Code
+	}{
+		{
+			"off-surface field",
+			`[{"op":"replace","path":"/fruits/config/rows","value":[]}]`,
+			errors.CONFIG_OVERRIDE_FIELD_UNKNOWN,
+		},
+		{
+			"structural add missing id",
+			`[{"op":"add","path":"/body/children/-","value":{` +
+				`"$ref":"https://lattice.dev/schemas/items/block/1.0.0",` +
+				`"config":{"id":"x","content":{"$ref":"https://lattice.dev/schemas/items/table/1.0.0","config":{"title":"X"}}}}}]`,
+			errors.CHANGESET_STRUCTURAL_ID_INVALID,
+		},
+		{
+			"schema violation",
+			`[{"op":"replace","path":"/body/config/grid/gap","value":"wide"}]`,
+			errors.CONFIG_OVERRIDE_VALUE_INVALID,
+		},
+		{
+			"failing test op",
+			`[{"op":"test","path":"/$manifest/title","value":"Wrong"}]`,
+			errors.PATCH_APPLY_FAILED,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			svc, store, seed := newFSService(t)
+
+			cs, err := svc.ParseChangeset([]byte(c.patch))
+			if err != nil {
+				t.Fatalf("ParseChangeset: %v", err)
+			}
+
+			_, err = svc.DryRunPatch(fixtureID, cs)
+			assertCode(t, err, c.code)
+
+			// The store is byte-for-byte unchanged after the rejected dry run.
+			after, err := store.Load(fixtureID)
+			if err != nil {
+				t.Fatalf("reload after rejected dry run: %v", err)
+			}
+			if !bytes.Equal(after, seed) {
+				t.Fatalf("rejected DryRunPatch mutated the store:\n--- want (seed) ---\n%s\n--- got ---\n%s", seed, after)
+			}
+
+			// A real Patch of the same changeset fails with the identical coded error.
+			_, patchErr := svc.Patch(fixtureID, cs)
+			assertCode(t, patchErr, c.code)
+		})
+	}
+}
+
 // TestExternalSaveDeleteRoundTrip proves the whole-document Save/Delete
 // passthrough through the facade: a fresh document Saved is then Loadable
 // byte-faithfully and reported by Exists/List, and after Delete it is gone
