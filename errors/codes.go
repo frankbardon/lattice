@@ -56,6 +56,21 @@ const (
 	// but the pinned semver version is missing from or mismatched against the
 	// catalog.
 	SCHEMA_VERSION_MISMATCH Code = "SCHEMA_VERSION_MISMATCH"
+
+	// SCHEMA_BEHAVIOR_INVALID indicates an item-type schema's `latticeBehavior`
+	// keyword is incoherent and is rejected at catalog-index time (when the
+	// ResolvedType is built), so a custom-type author finds the mistake
+	// immediately rather than at resolve time. The block fails validation when:
+	// `role` is absent or names an unknown role; a role is missing a required
+	// sub-key (a `wrapper` without `contentField`, a `widget` with empty/absent
+	// `binds`); `contentField` names a config property the schema does not
+	// declare; `childPolicy` or `layout` is present on a non-region role; or any
+	// of `role`/`childPolicy`/`layout`/`binds` members carries a value outside its
+	// permitted enum. A schema that declares NO `latticeBehavior` block is a plain
+	// leaf and is never rejected. The offending schema's $id (or source) is named
+	// in Details["schema"], with the specific failing sub-key/value in
+	// Details["field"]/["value"] when known.
+	SCHEMA_BEHAVIOR_INVALID Code = "SCHEMA_BEHAVIOR_INVALID"
 )
 
 // VAR domain - Variable declaration, scoping, and interpolation.

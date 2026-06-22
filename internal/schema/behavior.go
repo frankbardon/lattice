@@ -1,5 +1,7 @@
 package schema
 
+import "github.com/frankbardon/lattice/errors"
+
 // This file owns the `latticeBehavior` schema-level keyword: the single,
 // keyword-driven vocabulary that tells the resolver how an item type
 // participates in the tree (its ROLE) and the role-specific knobs that govern
@@ -164,3 +166,188 @@ func (rt *ResolvedType) RequireOptions() bool { return rt.behavior().requireOpti
 // RangeCheck reports whether a widget enforces a numeric range. False for
 // non-widgets or widgets that omit the flag.
 func (rt *ResolvedType) RangeCheck() bool { return rt.behavior().rangeCheck }
+
+// bindKinds is the set of variable-value kinds a widget may legally bind to. A
+// widget's `binds` list must be non-empty and every member must appear here. The
+// kinds mirror the variable type vocabulary (string/number/integer/boolean/enum/
+// array) — the permitted-type set that supersedes the old widgetFamilies map.
+var bindKinds = map[string]bool{
+	"string":  true,
+	"number":  true,
+	"integer": true,
+	"boolean": true,
+	"enum":    true,
+	"array":   true,
+}
+
+// validateBehavior validates the `latticeBehavior` keyword (if present) for one
+// resolved item type at catalog-index time, failing fast with the offending
+// schema named. It is the erroring counterpart to the defensive accessors above:
+// where the accessors report zero values for malformed fields, this rejects them.
+//
+// A type that declares NO `latticeBehavior` block is a plain leaf and validates
+// cleanly — the block is never required. When present it must be coherent:
+//   - `role` must be present and name one of region/wrapper/widget;
+//   - a `wrapper` requires a `contentField` that names a declared config property;
+//   - a `widget` requires a non-empty `binds`, each member a known bind kind;
+//   - `childPolicy` and `layout` are region-only, and when present must name a
+//     known enum value;
+//   - every typed field must carry its expected JSON type.
+//
+// Validation is O(1) per type (a single Schema.Extra read, no schema walk), so it
+// adds no per-document cost — it runs once when the ResolvedType is indexed.
+func (rt *ResolvedType) validateBehavior() error {
+	if rt == nil || rt.Schema == nil || rt.Schema.Extra == nil {
+		return nil
+	}
+	rawAny, present := rt.Schema.Extra[behaviorKey]
+	if !present {
+		return nil // plain leaf / legacy positional — nothing to validate.
+	}
+	raw, ok := rawAny.(map[string]any)
+	if !ok {
+		return rt.behaviorErr("latticeBehavior must be an object", nil)
+	}
+
+	// role — required, must be a known enum value.
+	roleAny, hasRole := raw["role"]
+	if !hasRole {
+		return rt.behaviorErr("latticeBehavior is missing required field \"role\"",
+			map[string]any{"field": "role"})
+	}
+	roleStr, ok := roleAny.(string)
+	if !ok {
+		return rt.behaviorErr("latticeBehavior \"role\" must be a string",
+			map[string]any{"field": "role", "value": roleAny})
+	}
+	role := Role(roleStr)
+	switch role {
+	case RoleRegion, RoleWrapper, RoleWidget:
+	default:
+		return rt.behaviorErr("latticeBehavior \"role\" names an unknown role (want region, wrapper, or widget)",
+			map[string]any{"field": "role", "value": roleStr})
+	}
+
+	// childPolicy — region-only; when present must be a known enum value.
+	if cpAny, has := raw["childPolicy"]; has {
+		if role != RoleRegion {
+			return rt.behaviorErr("latticeBehavior \"childPolicy\" is only valid on a region role",
+				map[string]any{"field": "childPolicy", "value": cpAny})
+		}
+		cp, ok := cpAny.(string)
+		if !ok {
+			return rt.behaviorErr("latticeBehavior \"childPolicy\" must be a string",
+				map[string]any{"field": "childPolicy", "value": cpAny})
+		}
+		switch ChildPolicy(cp) {
+		case ChildPolicyRegionsOrWrappers, ChildPolicyWidgets:
+		default:
+			return rt.behaviorErr("latticeBehavior \"childPolicy\" names an unknown policy (want regions-or-wrappers or widgets)",
+				map[string]any{"field": "childPolicy", "value": cp})
+		}
+	}
+
+	// layout — region-only; when present must be a known enum value.
+	if loAny, has := raw["layout"]; has {
+		if role != RoleRegion {
+			return rt.behaviorErr("latticeBehavior \"layout\" is only valid on a region role",
+				map[string]any{"field": "layout", "value": loAny})
+		}
+		lo, ok := loAny.(string)
+		if !ok {
+			return rt.behaviorErr("latticeBehavior \"layout\" must be a string",
+				map[string]any{"field": "layout", "value": loAny})
+		}
+		switch Layout(lo) {
+		case LayoutNone, LayoutGrid, LayoutFlow:
+		default:
+			return rt.behaviorErr("latticeBehavior \"layout\" names an unknown layout (want none, grid, or flow)",
+				map[string]any{"field": "layout", "value": lo})
+		}
+	}
+
+	// contentField — required on a wrapper; when present must be a string naming a
+	// declared config property. It is wrapper-only knowledge but harmless on other
+	// roles, so only its required-ness on a wrapper is enforced here.
+	if cfAny, has := raw["contentField"]; has {
+		cf, ok := cfAny.(string)
+		if !ok {
+			return rt.behaviorErr("latticeBehavior \"contentField\" must be a string",
+				map[string]any{"field": "contentField", "value": cfAny})
+		}
+		if cf != "" && !rt.hasProperty(cf) {
+			return rt.behaviorErr("latticeBehavior \"contentField\" names a config property the schema does not declare",
+				map[string]any{"field": "contentField", "value": cf})
+		}
+	}
+	if role == RoleWrapper {
+		cf, _ := raw["contentField"].(string)
+		if cf == "" {
+			return rt.behaviorErr("latticeBehavior wrapper role requires a non-empty \"contentField\"",
+				map[string]any{"field": "contentField"})
+		}
+	}
+
+	// binds — required and non-empty on a widget; every member a known bind kind.
+	if bAny, has := raw["binds"]; has {
+		arr, ok := bAny.([]any)
+		if !ok {
+			return rt.behaviorErr("latticeBehavior \"binds\" must be an array of strings",
+				map[string]any{"field": "binds", "value": bAny})
+		}
+		for _, e := range arr {
+			s, ok := e.(string)
+			if !ok {
+				return rt.behaviorErr("latticeBehavior \"binds\" member must be a string",
+					map[string]any{"field": "binds", "value": e})
+			}
+			if !bindKinds[s] {
+				return rt.behaviorErr("latticeBehavior \"binds\" names an unknown bind kind (want string, number, integer, boolean, enum, or array)",
+					map[string]any{"field": "binds", "value": s})
+			}
+		}
+	}
+	if role == RoleWidget {
+		arr, _ := raw["binds"].([]any)
+		if len(arr) == 0 {
+			return rt.behaviorErr("latticeBehavior widget role requires a non-empty \"binds\"",
+				map[string]any{"field": "binds"})
+		}
+	}
+
+	return nil
+}
+
+// hasProperty reports whether the resolved item-type schema declares a top-level
+// config property by the given name.
+func (rt *ResolvedType) hasProperty(name string) bool {
+	if rt.Schema == nil || rt.Schema.Properties == nil {
+		return false
+	}
+	_, ok := rt.Schema.Properties[name]
+	return ok
+}
+
+// behaviorErr builds a SCHEMA_BEHAVIOR_INVALID coded error naming the offending
+// schema in Details["schema"] (its $id, falling back to its source path), merging
+// any extra field/value details.
+func (rt *ResolvedType) behaviorErr(message string, extra map[string]any) error {
+	details := map[string]any{"schema": rt.schemaName()}
+	for k, v := range extra {
+		details[k] = v
+	}
+	return errors.NewCodedErrorWithDetails(errors.SCHEMA_BEHAVIOR_INVALID, message, details)
+}
+
+// schemaName returns the most identifying name for the schema in diagnostics: its
+// canonical $id, falling back to its source path, then its parsed name.
+func (rt *ResolvedType) schemaName() string {
+	switch {
+	case rt.ID != "":
+		return rt.ID
+	case rt.Source != "":
+		return rt.Source
+	default:
+		return rt.Name
+	}
+}

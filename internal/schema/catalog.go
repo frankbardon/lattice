@@ -80,13 +80,20 @@ func (c *Catalog) loadFile(p string) error {
 		return errors.NewCodedErrorWithDetails(errors.SCHEMA_INVALID,
 			"schema file is missing required $id", map[string]any{"file": p})
 	}
-	c.index(&ResolvedType{
+	rt := &ResolvedType{
 		ID:      sch.ID,
 		Name:    nameOf(sch.ID),
 		Version: versionOf(sch.ID),
 		Schema:  sch,
 		Source:  p,
-	})
+	}
+	// Validate the `latticeBehavior` keyword (if present) once, at index time, so
+	// a custom-type author finds an incoherent role/subkey combination here rather
+	// than at resolve time. A schema with no behavior block validates cleanly.
+	if err := rt.validateBehavior(); err != nil {
+		return err
+	}
+	c.index(rt)
 	return nil
 }
 
