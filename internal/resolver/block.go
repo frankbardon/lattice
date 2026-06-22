@@ -49,19 +49,13 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// blockTypeName is the block wrapper item-type name (E1-S1, schemas/items/block).
-// A node whose resolved item-type name matches is a wrapper and is resolved by
-// this pass instead of the generic leaf path.
-const blockTypeName = "block"
-
-// blockIDKey and blockContentKey are the reserved config keys of a block wrapper:
-// `id` is the wrapper's required stable anchor and `content` is its single inner
-// item. Both are config fields of the block item-type schema (not document-level
-// instance fields).
-const (
-	blockIDKey      = "id"
-	blockContentKey = "content"
-)
+// blockIDKey is the reserved config key carrying a wrapper's required stable
+// anchor `id` (a config field of the wrapper item-type schema, not a document-level
+// instance field). The single inner item's config key is NOT hardcoded: it is the
+// wrapper schema's declared `latticeBehavior.contentField` (E4-S1), read via
+// ResolvedType.ContentField() so a CUSTOM wrapper with a different field name
+// resolves through this same pass. (The built-in `block` declares `content`.)
+const blockIDKey = "id"
 
 // resolveBlock resolves a block wrapper node and its single inner content as two
 // SEPARATE resolved nodes. It runs the wrapper through the same per-node pipeline
@@ -83,10 +77,16 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 			map[string]any{"path": path})
 	}
 
+	// The wrapper's single inner item lives in its schema-declared content field
+	// (E4-S1) — `content` for the built-in block, any property name for a custom
+	// wrapper. Index-time validation guarantees a wrapper carries a non-empty
+	// contentField naming a real config property, so this is never empty here.
+	contentField := rt.ContentField()
+
 	// Enforce the wrapper's own-shape invariants and split its config into the inner
 	// content instance and the wrapper's own concerns, BEFORE any interpolation, so
 	// a malformed wrapper fails fast on the authored document.
-	inner, ownConfig, err := extractBlockContent(inst.Config, path)
+	inner, ownConfig, err := extractBlockContent(inst.Config, contentField, path)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 	for k, v := range interpolatedOwn {
 		fullConfig[k] = v
 	}
-	fullConfig[blockContentKey] = inst.Config[blockContentKey]
+	fullConfig[contentField] = inst.Config[contentField]
 	if err := r.validateConfig(rt, fullConfig, path); err != nil {
 		return nil, err
 	}
@@ -151,11 +151,11 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 	if err := r.linkInnerType(g, inner); err != nil {
 		return nil, err
 	}
-	innerRaw, err := rawInstanceFromContent(inst.Config[blockContentKey].(map[string]any), path)
+	innerRaw, err := rawInstanceFromContent(inst.Config[contentField].(map[string]any), path)
 	if err != nil {
 		return nil, err
 	}
-	innerPath := path + "." + blockContentKey
+	innerPath := path + "." + contentField
 	resolvedInner, err := r.resolveInstance(g, inner, innerPath, env, innerRaw, overrides)
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 // wrapper config with `content` removed (the wrapper's own concerns, to be
 // interpolated and validated on their own — the content is resolved separately so
 // it stays pure and is not duplicated on the wrapper node).
-func extractBlockContent(config map[string]any, path string) (inner *schema.Instance, ownConfig map[string]any, err error) {
+func extractBlockContent(config map[string]any, contentField, path string) (inner *schema.Instance, ownConfig map[string]any, err error) {
 	// Defense-in-depth over the schema's required `id` (minLength 1): also reject a
 	// present-but-whitespace id, which carries no stable anchor.
 	id, _ := config[blockIDKey].(string)
@@ -182,11 +182,11 @@ func extractBlockContent(config map[string]any, path string) (inner *schema.Inst
 			map[string]any{"path": path})
 	}
 
-	// A block wraps EXACTLY ONE content item. The schema models `content` as a
-	// single instance object, so a structurally-valid block reaches here with one
+	// A block wraps EXACTLY ONE content item. The schema models the content field as
+	// a single instance object, so a structurally-valid block reaches here with one
 	// object; the guard catches an absent/null content (zero) and any non-object
 	// shape (e.g. an array, which would mean !=1) fail-fast.
-	raw, present := config[blockContentKey]
+	raw, present := config[contentField]
 	if !present || raw == nil {
 		return nil, nil, errors.NewCodedErrorWithDetails(errors.WRAPPER_CHILD_COUNT_INVALID,
 			"block wrapper must wrap exactly one content item, but declares none",
@@ -211,7 +211,7 @@ func extractBlockContent(config map[string]any, path string) (inner *schema.Inst
 	// and validated without touching the inner item.
 	ownConfig = make(map[string]any, len(config))
 	for k, v := range config {
-		if k == blockContentKey {
+		if k == contentField {
 			continue
 		}
 		ownConfig[k] = v

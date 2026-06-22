@@ -42,10 +42,12 @@ package resolver
 // (via ResolvedType.IsPositional); a region's child rule is selected by its
 // `latticeBehavior.childPolicy` keyword (via ResolvedType.ChildPolicy, E3-S3), NOT
 // by item-type name — so the collapsed `form` and any custom `widgets` region get
-// the right rule for free; "wrapper" is the block item-type name; "variable widget"
+// the right rule for free; "wrapper" reads the `latticeBehavior.role == "wrapper"`
+// keyword (via ResolvedType.Role, E4-S1) against the graph's type table — see
+// isWrapper — so a custom wrapper is recognized, not just `block`; "variable widget"
 // reads the `latticeBehavior.role == "widget"` keyword (via ResolvedType.Role,
 // E2-S1) against the graph's type table — see isVariableWidget in widget.go. The
-// widget judgment is now schema-keyword driven, no name list.
+// node-kind judgments are now schema-keyword driven, no name list.
 //
 // The pass runs AFTER the instance walk because it needs the whole assembled tree
 // and each node's resolved type identity. It is fail-fast: the FIRST violation
@@ -120,8 +122,8 @@ func checkRegionsOrWrappersRegion(g *schema.ResolvedGraph, region *ResolvedInsta
 			if err := checkRegion(g, child, childPath); err != nil {
 				return err
 			}
-		case isWrapper(child):
-			if err := checkWrapper(child, childPath); err != nil {
+		case isWrapper(g, child):
+			if err := checkWrapper(g, child, childPath); err != nil {
 				return err
 			}
 		default:
@@ -156,10 +158,10 @@ func checkWidgetsRegion(g *schema.ResolvedGraph, region *ResolvedInstance, path 
 // exactly one inner CONTENT leaf (the exactly-one count is guaranteed by the block
 // pass before this runs), and that inner node must not itself be a wrapper. The
 // inner content is a plain leaf, so there is nothing further to recurse into.
-func checkWrapper(wrapper *ResolvedInstance, path string) error {
+func checkWrapper(g *schema.ResolvedGraph, wrapper *ResolvedInstance, path string) error {
 	for i, child := range wrapper.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		if isWrapper(child) {
+		if isWrapper(g, child) {
 			return errors.NewCodedErrorWithDetails(errors.GRAMMAR_WRAPPER_NESTED,
 				"a block wrapper holds exactly one content leaf and may not wrap another wrapper",
 				map[string]any{"path": childPath})
@@ -207,9 +209,16 @@ func regionChildPolicy(g *schema.ResolvedGraph, inst *ResolvedInstance) schema.C
 	return g.Types[inst.Type.ID].ChildPolicy()
 }
 
-// isWrapper reports whether a resolved node is a block wrapper (by item-type
-// name). Wrappers are the only content carriers under a container and the only
-// nodes the no-recursion rule applies to.
-func isWrapper(inst *ResolvedInstance) bool {
-	return inst.Type.Name == blockTypeName
+// isWrapper reports whether a resolved node's item type carries the
+// `latticeBehavior.role == "wrapper"` keyword (E4-S1, via ResolvedType.Role),
+// read O(1) from the graph's already-built type table — the same source as
+// isPositionalRegion. Keying on the keyword rather than the `block` name means a
+// CUSTOM wrapper is recognized by the "regions-or-wrappers" rule and the
+// no-recursion rule for free. Wrappers are the only content carriers under such a
+// region and the only nodes the no-recursion rule applies to.
+func isWrapper(g *schema.ResolvedGraph, inst *ResolvedInstance) bool {
+	if g == nil {
+		return false
+	}
+	return g.Types[inst.Type.ID].Role() == schema.RoleWrapper
 }

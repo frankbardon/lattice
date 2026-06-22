@@ -316,8 +316,6 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			"instance has no resolved item type", map[string]any{"path": path, "ref": inst.Ref})
 	}
 
-	isBlock := rt.Name == blockTypeName
-
 	// A REGION (E3-S1, keyword-driven via `latticeBehavior.role == "region"` —
 	// container, variable-box, the flow-packing form, and any future region type)
 	// positions its children, so it bears a `children` array. Reading the role
@@ -357,12 +355,14 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			})
 	}
 
-	// E1-S2: a block is a WRAPPER — it carries its own per-block concerns and wraps
-	// exactly one inner content item declared in its `content` config field. Resolve
-	// it on a dedicated path: validate the wrapper's own concerns, then resolve the
-	// inner content as a SEPARATE node (identically to how it would resolve
-	// unwrapped) emitted as the wrapper's single child. See block.go.
-	if isBlock {
+	// E1-S2/E4-S1: a WRAPPER (keyword-driven via `latticeBehavior.role == "wrapper"`
+	// — `block` and any future custom wrapper) carries its own per-instance concerns
+	// and wraps exactly one inner content item declared in its schema's
+	// `latticeBehavior.contentField`. Resolve it on a dedicated path: validate the
+	// wrapper's own concerns, then resolve the inner content as a SEPARATE node
+	// (identically to how it would resolve unwrapped) emitted as the wrapper's single
+	// child. See block.go.
+	if rt.Role() == schema.RoleWrapper {
 		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides)
 	}
 
