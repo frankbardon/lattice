@@ -5,6 +5,11 @@
   "description": "The form item type: a container-like type that groups variable-widget children and arranges them via one of two MODES selected by the `layout.mode` discriminator. In `flow` mode (E2-S1) widgets pack into compact label+control cells (optionally split into N columns) and never declare or consume a main-grid placement. In `grid` mode (E2-S2) the form arranges its widget children on a weighted grid identical in shape to `container` — relative-weight column/row track lists plus a relative gap — and each child carries an explicit 1-indexed `placement`; the resolver reuses the SAME layout.Block path as `container`, so placement bounds reuse LAYOUT_PLACEMENT_*. Like container, form is structurally special — it may carry `children` — but flow and grid are two modes of the one `form` type, not two types. A form rejects non-widget children fail-fast (LAYOUT_FORM_CHILD_INVALID); an out-of-range flow column count fails LAYOUT_FORM_COLUMNS_INVALID. NO CSS keywords or absolute units appear anywhere — flow columns is a unitless count and grid weights are unitless relative weights.",
   "type": "object",
   "additionalProperties": false,
+  "latticeBehavior": {
+    "role": "region",
+    "childPolicy": "widgets",
+    "layout": "flow"
+  },
   "configurable": {
     "layout": {
       "type": "array",

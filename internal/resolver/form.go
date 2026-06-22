@@ -44,7 +44,8 @@ const gridMode = "grid"
 // non-widget children (LAYOUT_FORM_CHILD_INVALID), then dispatches on the
 // form's `layout.mode` discriminator: flow mode attaches a layout.Flow, grid
 // mode attaches a layout.Block via the same weighted-grid path container uses.
-// Caller guarantees node is a form.
+// Invoked for any `latticeBehavior.layout == "flow"` region (the form); keyed on
+// the layout keyword, not a type name.
 func (r *Resolver) resolveForm(g *schema.ResolvedGraph, node *ResolvedInstance, path string) error {
 	// Form children must be variable widgets: a form is a control surface, not a
 	// general grouping container. Reject anything else fail-fast so both flow and

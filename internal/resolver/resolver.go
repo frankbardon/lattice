@@ -35,14 +35,6 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// formTypeName is the form item-type name (E2-S1): a container-like type that
-// packs variable-widget children into a compact flow layout (label+control rows,
-// optionally split into N columns) rather than the weighted-grid Block. A form
-// may carry children but is NOT a grid container — its children resolve into a
-// parallel layout.Flow attached to the node, and they do not consume main-grid
-// placements.
-const formTypeName = "form"
-
 // Resolver validates dashboard documents and emits resolved trees. It wraps the
 // schema loader (which links every instance $ref to its item-type schema) and
 // adds the two validation passes plus tree assembly.
@@ -324,30 +316,38 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			"instance has no resolved item type", map[string]any{"path": path, "ref": inst.Ref})
 	}
 
-	isForm := rt.Name == formTypeName
 	isBlock := rt.Name == blockTypeName
 
 	// A REGION (E3-S1, keyword-driven via `latticeBehavior.role == "region"` —
-	// container, variable-box, and any future region type) positions its children,
-	// so it bears a `children` array. Reading the role keyword rather than a name
-	// list keeps the children-bearing region set extensible without editing here;
-	// the E3-S2 grammar pass then enforces WHICH children each region may hold.
+	// container, variable-box, the flow-packing form, and any future region type)
+	// positions its children, so it bears a `children` array. Reading the role
+	// keyword rather than a name list keeps the children-bearing region set
+	// extensible without editing here; the grammar pass then enforces WHICH
+	// children each region may hold (form's `childPolicy: widgets`).
 	isRegion := rt.Role() == schema.RoleRegion
 
 	// A grid region (`latticeBehavior.layout == "grid"` — the weighted-grid
 	// container) drives the weighted-grid layout pass and surfaces the backward-
 	// compatible Container flag on the resolved node. The flag is now DERIVED from
 	// the layout keyword rather than a hardcoded type name, so any future grid
-	// region carries it for free.
+	// region carries it for free. A form is `layout: flow`, so Container is false
+	// for it exactly as before its collapse into a region.
 	isContainer := rt.Layout() == schema.LayoutGrid
 
+	// A flow region (`latticeBehavior.layout == "flow"` — the form) packs its
+	// widget children into a parallel flow layout rather than the weighted grid.
+	// Keyed on the layout keyword rather than a hardcoded type name, so any future
+	// flow region runs the same pass. (resolveForm still honors its own
+	// `layout.mode` sub-discriminator to offer a grid arrangement of those widgets.)
+	isFlowRegion := rt.Layout() == schema.LayoutFlow
+
 	// Children-allowed rule: children are permitted only on the structurally
-	// special types — regions (the weighted-grid container, the variable-box, and
-	// any future `role: region` type) and the flow-packing form. A child on any
-	// other type fails fast. A block wraps its single inner item via its `content`
-	// config field, not the `children` array, so authored children on a block are
-	// rejected here like any other leaf.
-	if len(inst.Children) > 0 && !isRegion && !isForm {
+	// special types — regions (the weighted-grid container, the variable-box, the
+	// flow-packing form, and any future `role: region` type). A child on any other
+	// type fails fast. A block wraps its single inner item via its `content` config
+	// field, not the `children` array, so authored children on a block are rejected
+	// here like any other leaf.
+	if len(inst.Children) > 0 && !isRegion {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{
@@ -430,10 +430,11 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		return nil, err
 	}
 
-	// E2-S1: a form packs its widget children into a parallel flow layout
-	// (label+control rows, optionally split into N columns) instead of the
-	// weighted grid. No-op for non-forms. See form.go.
-	if isForm {
+	// E2-S1: a flow region (the form) packs its widget children into a parallel
+	// flow layout (label+control rows, optionally split into N columns) instead of
+	// the weighted grid. Invoked generically for any `layout: flow` region; no-op
+	// for other regions. See form.go.
+	if isFlowRegion {
 		if err := r.resolveForm(g, node, path); err != nil {
 			return nil, err
 		}
