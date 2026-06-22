@@ -31,6 +31,11 @@ single variable it sets. Two rules the resolver enforces fail-fast:
   *type* it may bind. Binding a variable whose declared `type` the family forbids
   fails `WIDGET_TYPE_MISMATCH` (it names the path, widget, variable, and type).
 
+Every widget here is a built-in member of the **widget** behavior category (a leaf
+that sets one variable); `variable-box` is a **region**. A downstream server can
+publish its own widget type into this family by keyword, inheriting the same
+binding contract — see **custom-item-types**.
+
 The **variable owns the value**: the widget declares only the binding and its
 presentation; the variable's declaration (in a `variables` array) supplies the
 authoritative default, and at resolve time *override beats default*. A widget's
@@ -183,5 +188,7 @@ guess them from this table.
 - **items-layout** — `container` (a standalone widget's grid cell) and how regions
   nest; `variable-box` is the positional region introduced there.
 - **placement-grid** — placing a `variable-box` (or a standalone widget) on a grid.
+- **custom-item-types** — publishing your own widget type by keyword, inheriting
+  the same `binds` type-compatibility contract.
 - **session-bootstrap** — source layering: why per-type field grammar stays in
   `get_schema`.

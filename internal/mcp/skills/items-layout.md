@@ -28,6 +28,11 @@ A `container` *arranges*; a `block` *arranges nothing* — it holds one leaf and
 applies cross-cutting concerns to it. They are deliberately distinct: keep them
 unconflated.
 
+These two are the built-in members of two behavior categories: `container` is a
+**region** (it holds and positions children) and `block` is a **wrapper** (it
+wraps one inner item). A downstream server can publish its own region or wrapper
+types into this family by keyword — see **custom-item-types**.
+
 ## How layout nests (the tree shape)
 
 The document `root` and every region are **containers** (or another positional
@@ -119,5 +124,7 @@ you need arbitrary grid nesting.
   wraps.
 - **variables** — `variable-box`, the *other* positional region (widgets held
   directly, not block-wrapped).
+- **custom-item-types** — publishing your own region or wrapper type by keyword,
+  joining this family alongside `container` and `block`.
 - **session-bootstrap** — source layering: why the per-type field grammar stays in
   `get_schema`.
