@@ -67,7 +67,7 @@ const blockIDKey = "id"
 // the raw authored config. The `theme` override rides through the wrapper's own
 // config validation (validated against the theme vocabulary, E2-S3) and is attached
 // VERBATIM — NO cascade/merge here; the default and override are side-by-side.
-func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, rt *schema.ResolvedType, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides) (*ResolvedInstance, error) {
+func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, rt *schema.ResolvedType, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides, isRoot bool) (*ResolvedInstance, error) {
 	// A block must declare a config (it carries its required id + content there). A
 	// config-less block is missing both invariants; surface the id one first to
 	// match the field order the schema checks.
@@ -128,6 +128,17 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 		return nil, err
 	}
 
+	// E1-S2: the wrapper's element metadata stays on the WRAPPER envelope and is
+	// NOT lifted with the inner content — the wrapper carries its own per-block
+	// concerns, metadata among them. A wrapper is always metadata-eligible
+	// (role == wrapper); the scalar rule is still enforced. The inner content
+	// resolves on its own generic pass below, so its own metadata (if any) is
+	// eligibility-checked against ITS type, never inherited from the wrapper.
+	metadata, err := resolveMetadata(rt, inst.Metadata, path, isRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	// The resolved wrapper node carries ONLY its own concerns: the content is lifted
 	// out (it becomes a separate child node), so a consumer reads the inner item
 	// once, as a node, never duplicated inside the wrapper's config.
@@ -141,6 +152,7 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 		},
 		Config:    interpolatedOwn,
 		Placement: inst.Placement,
+		Metadata:  metadata,
 		VarEnv:    env,
 	}
 
@@ -156,7 +168,7 @@ func (r *Resolver) resolveBlock(g *schema.ResolvedGraph, inst *schema.Instance, 
 		return nil, err
 	}
 	innerPath := path + "." + contentField
-	resolvedInner, err := r.resolveInstance(g, inner, innerPath, env, innerRaw, overrides)
+	resolvedInner, err := r.resolveInstance(g, inner, innerPath, env, innerRaw, overrides, false)
 	if err != nil {
 		return nil, err
 	}

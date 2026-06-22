@@ -30,6 +30,32 @@ const (
 	RESOLVE_CHILDREN_NOT_ALLOWED Code = "RESOLVE_CHILDREN_NOT_ALLOWED"
 )
 
+// METADATA domain - Element metadata (element-metadata E1): freeform,
+// passthrough annotation maps carried on eligible resolved nodes. The dashboard
+// schema opens a `metadata` slot on every instance and at the document top level,
+// but two rules are the RESOLVER's to enforce: which node kinds may carry
+// metadata (eligibility) and that every value is a scalar. Both fail fast with the
+// offending node path named, and are returned verbatim (never flattened to a
+// string).
+const (
+	// METADATA_NOT_ELIGIBLE indicates a node that is NOT eligible to carry
+	// element metadata declared a non-empty `metadata` map. Only the document
+	// root, grid/regions-or-wrappers containers, and block wrappers are eligible
+	// — eligibility is keyed on the `latticeBehavior` role/childPolicy accessors
+	// (role == wrapper, or role == region && childPolicy == regions-or-wrappers),
+	// never a hardcoded type name. Forms, variable-boxes, configurators, content
+	// leaves, and widgets are ineligible. The offending node's instance path and
+	// resolved item-type name are reported in Details["path"]/["type"].
+	METADATA_NOT_ELIGIBLE Code = "METADATA_NOT_ELIGIBLE"
+
+	// METADATA_VALUE_NOT_SCALAR indicates an element-metadata map (on an eligible
+	// node or the document root) carries a NON-scalar value: an object or array.
+	// Metadata values must be scalars (string, number, boolean, or null); nesting
+	// is rejected. The offending node's instance path and the offending key are
+	// reported in Details["path"]/["key"].
+	METADATA_VALUE_NOT_SCALAR Code = "METADATA_VALUE_NOT_SCALAR"
+)
+
 // SCHEMA domain - Type-schema catalog loading and JSON Schema validation.
 const (
 	// SCHEMA_NOT_FOUND indicates a referenced schema could not be located.

@@ -90,6 +90,18 @@ type ResolvedInstance struct {
 	// Nil when the instance declared no placement.
 	Placement map[string]any `json:"placement,omitempty"`
 
+	// Metadata is this node's verbatim, passthrough element metadata
+	// (element-metadata E1): a freeform map of non-empty keys to SCALAR values
+	// (string | number | boolean | null), carried through unchanged. The
+	// resolver never branches on its content — it only enforces that the node is
+	// ELIGIBLE to carry metadata (the document root, a grid/regions-or-wrappers
+	// container, or a block wrapper — keyed on `latticeBehavior` role/childPolicy,
+	// never a type name) and that every value is scalar. On the tree ROOT this
+	// also carries the top-level document `metadata` (sibling of manifest). Nil
+	// when the node declared no metadata, so a metadata-free document resolves
+	// byte-identically to before.
+	Metadata map[string]any `json:"metadata,omitempty"`
+
 	// Layout is the normalized, renderer-agnostic grid layout for a container
 	// node (E2-S1): fractional track sizes plus each child's validated, 1-indexed
 	// placement. Non-nil only for container nodes; nil for leaf item types.
