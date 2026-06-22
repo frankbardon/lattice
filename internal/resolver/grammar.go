@@ -14,14 +14,16 @@ package resolver
 //     region type needs no edit here. A content leaf or a block wrapper directly
 //     under root fails (GRAMMAR_ROOT_CHILD_INVALID).
 //
-//   - a `container` region may nest other positional regions OR hold block
-//     wrappers; a bare (unwrapped) content leaf under a container fails
-//     (GRAMMAR_REGION_CHILD_INVALID) — content must be block-wrapped.
+//   - a region whose `latticeBehavior.childPolicy` is `regions-or-wrappers` may
+//     nest other positional regions OR hold block wrappers; a bare (unwrapped)
+//     content leaf under such a region fails (GRAMMAR_REGION_CHILD_INVALID) —
+//     content must be block-wrapped. `container` is the built-in example.
 //
-//   - a `variable-box` region holds ONLY variable widgets, DIRECTLY (not wrapped,
-//     not nested in a region). Any non-widget child fails
-//     (GRAMMAR_VARIABLE_BOX_CHILD_INVALID). The variable-box decision (E3-S1) is
-//     that the box, not a per-widget wrapper, supplies the grouped presentation.
+//   - a region whose `latticeBehavior.childPolicy` is `widgets` holds ONLY
+//     variable widgets, DIRECTLY (not wrapped, not nested in a region). Any
+//     non-widget child fails (GRAMMAR_VARIABLE_BOX_CHILD_INVALID). The built-in
+//     `variable-box` and the collapsed `form` (E3-S2) both declare this policy;
+//     the box/form, not a per-widget wrapper, supplies the grouped presentation.
 //
 //   - a block `wrapper` holds exactly one CONTENT leaf and never re-wraps a
 //     wrapper. The exactly-one-content invariant is already enforced fail-fast by
@@ -37,10 +39,13 @@ package resolver
 //
 // Node-kind identity is taken from the catalog/type metadata, NOT a hardcoded type
 // list where avoidable: "positional region" reads the E3-S1 `positional` marker
-// (via ResolvedType.IsPositional); "wrapper" is the block item-type name; "variable
-// widget" reads the `latticeBehavior.role == "widget"` keyword (via
-// ResolvedType.Role, E2-S1) against the graph's type table — see isVariableWidget
-// in widget.go. The widget judgment is now schema-keyword driven, no name list.
+// (via ResolvedType.IsPositional); a region's child rule is selected by its
+// `latticeBehavior.childPolicy` keyword (via ResolvedType.ChildPolicy, E3-S3), NOT
+// by item-type name — so the collapsed `form` and any custom `widgets` region get
+// the right rule for free; "wrapper" is the block item-type name; "variable widget"
+// reads the `latticeBehavior.role == "widget"` keyword (via ResolvedType.Role,
+// E2-S1) against the graph's type table — see isVariableWidget in widget.go. The
+// widget judgment is now schema-keyword driven, no name list.
 //
 // The pass runs AFTER the instance walk because it needs the whole assembled tree
 // and each node's resolved type identity. It is fail-fast: the FIRST violation
@@ -56,13 +61,6 @@ import (
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/schema"
 )
-
-// variableBoxTypeName is the variable-box positional-region item-type name
-// (E3-S1, schemas/items/variable-box). It is a positional region (marker-driven)
-// like container, but with a STRICTER child rule: it holds only variable widgets,
-// directly. The grammar pass dispatches on this name to apply the widget-only rule
-// rather than the container's region/wrapper rule.
-const variableBoxTypeName = "variable-box"
 
 // themeKey is the reserved config field a positional region must NOT carry. Only
 // block wrappers declare a theme override (block.go's reserved keys); a region is
@@ -96,24 +94,25 @@ func resolveGrammar(g *schema.ResolvedGraph, root *ResolvedInstance) error {
 }
 
 // checkRegion validates one positional region node and recurses. It dispatches on
-// the region's identity: a variable-box accepts only variable widgets held
-// directly; any other region (container and future positional types) accepts
-// nested regions or block wrappers. A region carries no theme of its own.
+// the region's `latticeBehavior.childPolicy` (E3-S3), NOT its item-type name: a
+// region declaring `widgets` accepts only variable widgets held directly; one
+// declaring `regions-or-wrappers` accepts nested regions or block wrappers. A
+// region carries no theme of its own.
 func checkRegion(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
 	if err := checkRegionNoTheme(region, path); err != nil {
 		return err
 	}
-	if region.Type.Name == variableBoxTypeName {
-		return checkVariableBox(g, region, path)
+	if regionChildPolicy(g, region) == schema.ChildPolicyWidgets {
+		return checkWidgetsRegion(g, region, path)
 	}
-	return checkContainerRegion(g, region, path)
+	return checkRegionsOrWrappersRegion(g, region, path)
 }
 
-// checkContainerRegion validates a container region's children: each must be
-// another positional region (a nested sub-layout) OR a block wrapper. A bare
-// content leaf fails — content must be block-wrapped. Recurses into nested regions
-// and into wrappers.
-func checkContainerRegion(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
+// checkRegionsOrWrappersRegion validates a `regions-or-wrappers` region's children:
+// each must be another positional region (a nested sub-layout) OR a block wrapper.
+// A bare content leaf fails — content must be block-wrapped. Recurses into nested
+// regions and into wrappers. `container` is the built-in example.
+func checkRegionsOrWrappersRegion(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
 	for i, child := range region.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
 		switch {
@@ -134,11 +133,14 @@ func checkContainerRegion(g *schema.ResolvedGraph, region *ResolvedInstance, pat
 	return nil
 }
 
-// checkVariableBox validates a variable-box region's children: every child must be
-// a variable widget held directly (not wrapped, not a nested region). A
-// variable-box is the dedicated, leaf-only home for the widget family; widgets are
-// leaves and carry no children of their own, so there is nothing to recurse into.
-func checkVariableBox(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
+// checkWidgetsRegion validates a `widgets`-policy region's children: every child
+// must be a variable widget held directly (not wrapped, not a nested region). Such
+// a region (built-in `variable-box`, collapsed `form`) is the dedicated, leaf-only
+// home for the widget family; widgets are leaves and carry no children of their
+// own, so there is nothing to recurse into. The error code is unchanged
+// (GRAMMAR_VARIABLE_BOX_CHILD_INVALID) — it now fires for any `widgets` region, not
+// only variable-box.
+func checkWidgetsRegion(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
 	for i, child := range region.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
 		if !isVariableWidget(g, child) {
@@ -191,6 +193,18 @@ func isPositionalRegion(g *schema.ResolvedGraph, inst *ResolvedInstance) bool {
 		return false
 	}
 	return g.Types[inst.Type.ID].IsPositional()
+}
+
+// regionChildPolicy reports a region node's declared child-admission policy
+// (E3-S3), read O(1) from the graph's already-built type table by the node's
+// canonical type id — the same source as isPositionalRegion. This selects the
+// region's grammar rule WITHOUT a name check, so the collapsed form and any custom
+// region inherit the right rule from their schema's `latticeBehavior.childPolicy`.
+func regionChildPolicy(g *schema.ResolvedGraph, inst *ResolvedInstance) schema.ChildPolicy {
+	if g == nil {
+		return schema.ChildPolicyNone
+	}
+	return g.Types[inst.Type.ID].ChildPolicy()
 }
 
 // isWrapper reports whether a resolved node is a block wrapper (by item-type
