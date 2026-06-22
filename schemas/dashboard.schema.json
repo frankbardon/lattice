@@ -14,6 +14,10 @@
       "$ref": "#/$defs/instance",
       "description": "The root item instance. Conventionally a container, but the container-only-children rule is enforced by the resolver (E1-S4), not the schema."
     },
+    "metadata": {
+      "description": "Optional document-level metadata (E1-S1): a freeform map of non-empty keys to scalar values (string | number | boolean | null). Sibling to manifest, this holds open-ended document-scope annotations distinct from the manifest's fixed fields. The slot is opened here only; which node types may carry metadata is an eligibility concern enforced by the resolver (E1-S2), not the schema.",
+      "$ref": "#/$defs/scalarMetadata"
+    },
     "variables": {
       "description": "Document-scope variable declarations. Visible to every node unless shadowed by a same-named declaration on a descendant container (E3-S1).",
       "type": "array",
@@ -251,7 +255,22 @@
           "items": {
             "$ref": "#/$defs/varDeclaration"
           }
+        },
+        "metadata": {
+          "description": "Optional per-element metadata (E1-S1): a freeform map of non-empty keys to scalar values (string | number | boolean | null). Structurally permitted on every instance because the envelope is shared across all item types; which node types may actually carry metadata is an eligibility concern enforced by the resolver (E1-S2), not the schema.",
+          "$ref": "#/$defs/scalarMetadata"
         }
+      }
+    },
+    "scalarMetadata": {
+      "title": "Scalar Metadata Map",
+      "description": "A freeform metadata object: non-empty keys mapping to scalar values only (string | number | boolean | null). No nesting — array and object values are rejected. Shared by both the document-level and per-instance metadata slots (E1-S1) so the two cannot drift.",
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "type": ["string", "number", "boolean", "null"]
       }
     }
   }
