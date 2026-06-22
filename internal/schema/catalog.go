@@ -80,13 +80,20 @@ func (c *Catalog) loadFile(p string) error {
 		return errors.NewCodedErrorWithDetails(errors.SCHEMA_INVALID,
 			"schema file is missing required $id", map[string]any{"file": p})
 	}
-	c.index(&ResolvedType{
+	rt := &ResolvedType{
 		ID:      sch.ID,
 		Name:    nameOf(sch.ID),
 		Version: versionOf(sch.ID),
 		Schema:  sch,
 		Source:  p,
-	})
+	}
+	// Validate the `latticeBehavior` keyword (if present) once, at index time, so
+	// a custom-type author finds an incoherent role/subkey combination here rather
+	// than at resolve time. A schema with no behavior block validates cleanly.
+	if err := rt.validateBehavior(); err != nil {
+		return err
+	}
+	c.index(rt)
 	return nil
 }
 
@@ -129,15 +136,26 @@ func (c *Catalog) Lookup(id string) *ResolvedType {
 // no type list is hardcoded anywhere.
 const positionalKey = "positional"
 
-// IsPositional reports whether the resolved item-type schema is marked as a
-// positional region (via the schema-level `positional: true` keyword). It is the
-// exported accessor the grammar pass (E3-S2) consumes to decide, without any
-// hardcoded type list, whether a type may appear as a root or container child.
-// A type that omits the marker, sets it to a non-true value, or carries no
-// schema reports false.
+// IsPositional reports whether the resolved item-type schema is a positional
+// region. It is the exported accessor the grammar pass (E3-S2) consumes to
+// decide, without any hardcoded type list, whether a type may appear as a root
+// or container child.
+//
+// Positional-ness has TWO equivalent spellings, both honored here so the fold-in
+// of `positional` into the `latticeBehavior` vocabulary (see behavior.go) does
+// not break either authoring style downstream this story:
+//   - the legacy schema-level `positional: true` keyword, and
+//   - the generalized `latticeBehavior.role == "region"`.
+//
+// Callers migrate to reading Role() directly in E3; until then IsPositional()
+// remains the stable bridge. A type that declares neither, or carries no schema,
+// reports false.
 func (rt *ResolvedType) IsPositional() bool {
 	if rt == nil || rt.Schema == nil || rt.Schema.Extra == nil {
 		return false
+	}
+	if rt.Role() == RoleRegion {
+		return true
 	}
 	v, ok := rt.Schema.Extra[positionalKey].(bool)
 	return ok && v
@@ -147,6 +165,45 @@ func (rt *ResolvedType) IsPositional() bool {
 // $id is marked as a positional region. Unknown ids report false.
 func (c *Catalog) IsPositional(id string) bool {
 	return c.byID[id].IsPositional()
+}
+
+// WidgetNames returns the set of catalogued item-type names whose schema declares
+// the widget role (`latticeBehavior.role == "widget"`). It is the keyword-derived
+// replacement for the old hardcoded widget name list: callers that must validate a
+// widget reference BY NAME (e.g. a configurable surface's `rendering` hint) consult
+// it, so "what is a widget" stays sourced from the schemas, never a copy. A name
+// with at least one widget-role version is included.
+func (c *Catalog) WidgetNames() map[string]bool {
+	out := make(map[string]bool)
+	for name, versions := range c.byName {
+		for _, rt := range versions {
+			if rt.Role() == RoleWidget {
+				out[name] = true
+				break
+			}
+		}
+	}
+	return out
+}
+
+// WrapperNames returns the set of catalogued item-type names whose schema declares
+// the wrapper role (`latticeBehavior.role == "wrapper"`). It is the keyword-derived
+// replacement for the old hardcoded "block" name check: callers that must decide,
+// BY NAME, whether a node is a wrapper (e.g. the service node view delegating a
+// wrapper's editable surface to its inner content) consult it, so "what is a
+// wrapper" stays sourced from the schemas, never a copy. A name with at least one
+// wrapper-role version is included. Mirrors WidgetNames.
+func (c *Catalog) WrapperNames() map[string]bool {
+	out := make(map[string]bool)
+	for name, versions := range c.byName {
+		for _, rt := range versions {
+			if rt.Role() == RoleWrapper {
+				out[name] = true
+				break
+			}
+		}
+	}
+	return out
 }
 
 // hasName reports whether any version of the named item type is catalogued.

@@ -476,7 +476,7 @@ func TestBlockChildCountGuardDirect(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, ownConfig, err := extractBlockContent(tc.config, "root.children[0]")
+			_, ownConfig, err := extractBlockContent(tc.config, "content", "root.children[0]")
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

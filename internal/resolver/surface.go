@@ -25,7 +25,8 @@ package resolver
 //   - a field name is not a real config property of the item type,
 //   - a field's `type` is not one of the variable type set, or
 //   - a `rendering` hint names a widget item-type the catalog does not know
-//     (validated against widgetFamilies, the widget catalog).
+//     (validated against the set of catalogued widget-role types — see
+//     Catalog.WidgetNames).
 //
 // The validated surface is attached to the ResolvedInstance (see tree.go's
 // Surface field) so downstream epics read it without re-parsing the schema.
@@ -126,21 +127,21 @@ const (
 // item type declares a `configurable` surface, validates the declaration and
 // attaches the resolved surface to the node. Non-declaring nodes are left
 // untouched. It is fail-fast: the first malformed surface stops the walk.
-func resolveSurfaces(g *schema.ResolvedGraph, root *ResolvedInstance) error {
-	return checkSurface(g, root, "root")
+func resolveSurfaces(g *schema.ResolvedGraph, root *ResolvedInstance, isWidget map[string]bool) error {
+	return checkSurface(g, root, isWidget, "root")
 }
 
 // checkSurface validates one node's configurable surface (if its item type
 // declares one) and recurses into children.
-func checkSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string) error {
-	surface, err := resolveSurface(g, inst, path)
+func checkSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, isWidget map[string]bool, path string) error {
+	surface, err := resolveSurface(g, inst, isWidget, path)
 	if err != nil {
 		return err
 	}
 	inst.Surface = surface
 	for i, child := range inst.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		if err := checkSurface(g, child, childPath); err != nil {
+		if err := checkSurface(g, child, isWidget, childPath); err != nil {
 			return err
 		}
 	}
@@ -156,14 +157,15 @@ func checkSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string) 
 //   - every declared field must be a real config property of the item type
 //     (present in the item-type schema's properties),
 //   - each field's `type` must be one of the variable type set, and
-//   - any `rendering` hint must name a registered widget family.
-func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string) ([]ConfigurableField, error) {
+//   - any `rendering` hint must name a known widget (a catalogued widget-role
+//     item type, supplied as the isWidget set).
+func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, isWidget map[string]bool, path string) ([]ConfigurableField, error) {
 	decl, ok := configurableFor(g, inst.Type.ID)
 	if !ok {
 		return nil, nil
 	}
 
-	return buildSurface(decl, sortedFields(decl), itemProps(g, inst.Type.ID), inst.Type.Name, path)
+	return buildSurface(decl, sortedFields(decl), itemProps(g, inst.Type.ID), isWidget, inst.Type.Name, path)
 }
 
 // buildSurface validates a `configurable`-shaped declaration (field -> descriptor)
@@ -189,8 +191,10 @@ func resolveSurface(g *schema.ResolvedGraph, inst *ResolvedInstance, path string
 //     fields for a document scope), so a surface can never offer an editor for a
 //     field the owner cannot accept;
 //   - each field's `type` must be one of the variable type set;
-//   - any `rendering` hint must name a registered widget family.
-func buildSurface(decl map[string]any, fields []string, props propLookup, typeName, path string) ([]ConfigurableField, error) {
+//   - any `rendering` hint must name a known widget (a catalogued item type whose
+//     schema declares the widget role), supplied as the isWidget predicate so the
+//     "what is a widget" judgment stays sourced from the schemas, not a copy.
+func buildSurface(decl map[string]any, fields []string, props propLookup, isWidget map[string]bool, typeName, path string) ([]ConfigurableField, error) {
 	out := make([]ConfigurableField, 0, len(decl))
 	for _, field := range fields {
 		entry, ok := decl[field].(map[string]any)
@@ -222,7 +226,7 @@ func buildSurface(decl map[string]any, fields []string, props propLookup, typeNa
 		// An optional rendering hint must name a widget the catalog knows.
 		rendering, _ := entry[surfaceRenderingKey].(string)
 		if rendering != "" {
-			if _, isWidget := widgetFamilies[rendering]; !isWidget {
+			if !isWidget[rendering] {
 				return nil, errors.NewCodedErrorWithDetails(errors.CONFIGURABLE_SURFACE_INVALID,
 					"configurable surface rendering hint names an unknown widget item-type",
 					map[string]any{"path": path, "type": typeName, "field": field, surfaceRenderingKey: rendering})

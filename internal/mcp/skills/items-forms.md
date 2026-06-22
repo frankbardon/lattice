@@ -27,10 +27,15 @@ copy here would rot (see **session-bootstrap** → source layering).
 
 ## `form` — group authored widgets
 
-`form` is, like `container`, **structurally special**: it is the *other* item
-type permitted to carry `children`. Unlike `container`, a form may hold **only
-variable widgets** — a non-widget child (a container, a table, …) fails fast with
-`LAYOUT_FORM_CHILD_INVALID`, naming the offending child. A form keeps a cluster of
+`form` is, like `container`, a positional **region** — it holds and positions
+children. Under the hood it is exactly `role: region` with a flow layout and a
+*widgets-only* child policy: the same behavior category as `container` and
+`variable-box`, differing only in those two attributes (this is the "form
+collapse" — `form` is no longer a name-special case, just another region). A form
+therefore may hold **only variable widgets** — a non-widget child (a container, a
+table, …) fails fast with `LAYOUT_FORM_CHILD_INVALID`, naming the offending child.
+A downstream server can publish its own region/wrapper/widget types into these
+families by keyword — see **custom-item-types**. A form keeps a cluster of
 controls together as one compact unit; the form instance itself carries a
 `placement` for where it sits in its **parent** container's grid.
 
@@ -147,5 +152,7 @@ controls drive *document variables* rather than one item's config.
 - **placement-grid** — the grid mechanics grid-mode `form` shares with `container`.
 - **patch-authoring** — the durable counterpart to a configurator's ephemeral
   override (a changeset gated by the same surface).
+- **custom-item-types** — `form` as a `region` behavior, and publishing your own
+  region/widget types by keyword.
 - **session-bootstrap** — source layering: why per-type field grammar stays in
   `get_schema`.

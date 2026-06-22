@@ -62,6 +62,11 @@ Rules that fall out of this:
 - **`validate_patch` is the proof step.** Before suggesting a change be written,
   run it through `validate_patch` and report what it resolved to (or the coded
   error it produced). Do not claim an edit is correct on inspection alone.
+- **The catalog is open.** The item types `get_schema` knows are not a fixed
+  built-in set — a downstream server can publish *first-class custom types* by
+  tagging a schema with the `latticeBehavior` keyword, and they appear in
+  `get_manifest` / `list_schemas` like any built-in. Never assume the catalog from
+  memory; read it. How to author one is **custom-item-types**.
 
 ## Frontmatter schema
 

@@ -1,0 +1,77 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "form-mixed-widgets",
+    "title": "Form With Mixed Widgets",
+    "description": "E1-S3 golden baseline: a root container holds a body region whose grid places a block-wrapped form (proving BOTH block-wrapping-a-form AND a form with mixed widgets in one fixture). The form is in flow mode with two columns and holds widgets drawn from several families — text-input (string), number-field (number, with range config), toggle (boolean), select (enum, with options), and tag-input (array, freeform). Captures the CURRENT pre-migration resolved-tree shape of a flow-layout form and its block wrapper so the dogfood migration can be proven byte-identical."
+  },
+  "variables": [
+    { "name": "title", "type": "string", "default": "Untitled" },
+    { "name": "limit", "type": "integer", "default": 10 },
+    { "name": "published", "type": "boolean", "default": false },
+    { "name": "category", "type": "enum", "default": "news", "options": ["news", "blog"] },
+    { "name": "keywords", "type": "array", "default": [] }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1], "rows": [1], "gap": 1 } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "settings-block",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "id": "settings-block",
+              "title": "Settings",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                "id": "settings-form",
+                "config": { "layout": { "mode": "flow", "columns": 2 } },
+                "children": [
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                    "id": "f-title",
+                    "config": { "label": "Title", "variable": "title" }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
+                    "id": "f-limit",
+                    "config": { "label": "Limit", "variable": "limit", "min": 1, "max": 100, "step": 1 }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                    "id": "f-published",
+                    "config": { "label": "Published", "variable": "published" }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                    "id": "f-category",
+                    "config": {
+                      "label": "Category",
+                      "variable": "category",
+                      "options": [
+                        { "value": "news", "label": "News" },
+                        { "value": "blog", "label": "Blog" }
+                      ]
+                    }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+                    "id": "f-keywords",
+                    "config": { "label": "Keywords", "variable": "keywords" }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

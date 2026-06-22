@@ -35,19 +35,6 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// containerTypeName is the weighted-grid container item-type name. It and the
-// form item-type are the structurally-special types permitted to carry children
-// (see schemas/items/container and schemas/items/form).
-const containerTypeName = "container"
-
-// formTypeName is the form item-type name (E2-S1): a container-like type that
-// packs variable-widget children into a compact flow layout (label+control rows,
-// optionally split into N columns) rather than the weighted-grid Block. A form
-// may carry children but is NOT a grid container — its children resolve into a
-// parallel layout.Flow attached to the node, and they do not consume main-grid
-// placements.
-const formTypeName = "form"
-
 // Resolver validates dashboard documents and emits resolved trees. It wraps the
 // schema loader (which links every instance $ref to its item-type schema) and
 // adds the two validation passes plus tree assembly.
@@ -89,6 +76,18 @@ func New(fs afero.Fs, dashboardSchema *jsonschema.Schema, catalogDirs []string, 
 // write.
 func (r *Resolver) SchemaFS() afero.Fs {
 	return r.fs
+}
+
+// WrapperNames returns the set of catalogued item-type names whose schema declares
+// the wrapper role (`latticeBehavior.role == "wrapper"`). It exposes the catalog's
+// keyword-derived wrapper set to the facade so the service node view can decide, by
+// resolved type name, whether a node is a wrapper without hardcoding "block". This
+// mirrors how the surface pass already consumes Catalog.WidgetNames internally.
+func (r *Resolver) WrapperNames() map[string]bool {
+	if r.cat == nil {
+		return nil
+	}
+	return r.cat.WrapperNames()
 }
 
 // Resolve loads, validates (two passes), and assembles the resolved tree for the
@@ -214,7 +213,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// walk because it reads each node's scoped variable environment to resolve the
 	// bound variable and check its declared type. Fail-fast, same machinery as the
 	// other passes. See widget.go.
-	if err := resolveWidgets(root); err != nil {
+	if err := resolveWidgets(g, root); err != nil {
 		return nil, err
 	}
 
@@ -225,7 +224,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// auto-gen) can read it. Runs after the instance walk because it reads each
 	// node's resolved type identity. Fail-fast, same machinery as the other
 	// passes. See surface.go.
-	if err := resolveSurfaces(g, root); err != nil {
+	if err := resolveSurfaces(g, root, r.cat.WidgetNames()); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +244,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// pass so a configurator targeting a reserved `$`-scope generates a document-level
 	// editor form from that scope's surface (reusing the item form-generation path).
 	// The resolver applies no change — generation only. See document_scope.go.
-	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat))
+	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat), r.cat.WidgetNames())
 	if err != nil {
 		return nil, err
 	}
@@ -329,25 +328,36 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			"instance has no resolved item type", map[string]any{"path": path, "ref": inst.Ref})
 	}
 
-	isContainer := rt.Name == containerTypeName
-	isForm := rt.Name == formTypeName
-	isBlock := rt.Name == blockTypeName
+	// A REGION (E3-S1, keyword-driven via `latticeBehavior.role == "region"` —
+	// container, variable-box, the flow-packing form, and any future region type)
+	// positions its children, so it bears a `children` array. Reading the role
+	// keyword rather than a name list keeps the children-bearing region set
+	// extensible without editing here; the grammar pass then enforces WHICH
+	// children each region may hold (form's `childPolicy: widgets`).
+	isRegion := rt.Role() == schema.RoleRegion
 
-	// A positional REGION (E3-S1, marker-driven via the schema-level `positional`
-	// keyword — container, variable-box, and any future region type) positions its
-	// children, so it bears a `children` array. Reading the marker rather than a
-	// name list keeps the children-bearing region set extensible without editing
-	// here; the E3-S2 grammar pass then enforces WHICH children each region may
-	// hold. (container is itself positional, so isContainer is a subset of this.)
-	isRegion := rt.IsPositional()
+	// A grid region (`latticeBehavior.layout == "grid"` — the weighted-grid
+	// container) drives the weighted-grid layout pass and surfaces the backward-
+	// compatible Container flag on the resolved node. The flag is now DERIVED from
+	// the layout keyword rather than a hardcoded type name, so any future grid
+	// region carries it for free. A form is `layout: flow`, so Container is false
+	// for it exactly as before its collapse into a region.
+	isContainer := rt.Layout() == schema.LayoutGrid
+
+	// A flow region (`latticeBehavior.layout == "flow"` — the form) packs its
+	// widget children into a parallel flow layout rather than the weighted grid.
+	// Keyed on the layout keyword rather than a hardcoded type name, so any future
+	// flow region runs the same pass. (resolveForm still honors its own
+	// `layout.mode` sub-discriminator to offer a grid arrangement of those widgets.)
+	isFlowRegion := rt.Layout() == schema.LayoutFlow
 
 	// Children-allowed rule: children are permitted only on the structurally
-	// special types — positional regions (the weighted-grid container, the
-	// variable-box, and any future region) and the flow-packing form. A child on
-	// any other type fails fast. A block wraps its single inner item via its
-	// `content` config field, not the `children` array, so authored children on a
-	// block are rejected here like any other leaf.
-	if len(inst.Children) > 0 && !isRegion && !isForm {
+	// special types — regions (the weighted-grid container, the variable-box, the
+	// flow-packing form, and any future `role: region` type). A child on any other
+	// type fails fast. A block wraps its single inner item via its `content` config
+	// field, not the `children` array, so authored children on a block are rejected
+	// here like any other leaf.
+	if len(inst.Children) > 0 && !isRegion {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
 			map[string]any{
@@ -357,12 +367,14 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			})
 	}
 
-	// E1-S2: a block is a WRAPPER — it carries its own per-block concerns and wraps
-	// exactly one inner content item declared in its `content` config field. Resolve
-	// it on a dedicated path: validate the wrapper's own concerns, then resolve the
-	// inner content as a SEPARATE node (identically to how it would resolve
-	// unwrapped) emitted as the wrapper's single child. See block.go.
-	if isBlock {
+	// E1-S2/E4-S1: a WRAPPER (keyword-driven via `latticeBehavior.role == "wrapper"`
+	// — `block` and any future custom wrapper) carries its own per-instance concerns
+	// and wraps exactly one inner content item declared in its schema's
+	// `latticeBehavior.contentField`. Resolve it on a dedicated path: validate the
+	// wrapper's own concerns, then resolve the inner content as a SEPARATE node
+	// (identically to how it would resolve unwrapped) emitted as the wrapper's single
+	// child. See block.go.
+	if rt.Role() == schema.RoleWrapper {
 		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides)
 	}
 
@@ -430,11 +442,12 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		return nil, err
 	}
 
-	// E2-S1: a form packs its widget children into a parallel flow layout
-	// (label+control rows, optionally split into N columns) instead of the
-	// weighted grid. No-op for non-forms. See form.go.
-	if isForm {
-		if err := r.resolveForm(node, path); err != nil {
+	// E2-S1: a flow region (the form) packs its widget children into a parallel
+	// flow layout (label+control rows, optionally split into N columns) instead of
+	// the weighted grid. Invoked generically for any `layout: flow` region; no-op
+	// for other regions. See form.go.
+	if isFlowRegion {
+		if err := r.resolveForm(g, node, path); err != nil {
 			return nil, err
 		}
 	}

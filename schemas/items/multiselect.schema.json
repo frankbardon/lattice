@@ -8,6 +8,11 @@
     "variable"
   ],
   "additionalProperties": false,
+  "latticeBehavior": {
+    "role": "widget",
+    "binds": ["array"],
+    "requireOptions": true
+  },
   "configurable": {
     "label": {
       "type": "string",

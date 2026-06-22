@@ -9,15 +9,6 @@ import (
 	"github.com/frankbardon/lattice/internal/changeset"
 )
 
-// blockTypeName is the resolved item-type name of a block WRAPPER. A block is the
-// patch/target anchor downstream tools address: its single inner content item
-// lives physically at the wrapper's /config/content (a config field, not a child
-// slot) and is modeled as the block node's single child in the resolved tree. The
-// node view surfaces the CONTENT item's editable fields when the addressed node is
-// a block, so it detects a block by this resolved type name (the same signal the
-// resolver grammar uses). See internal/resolver block handling.
-const blockTypeName = "block"
-
 // NodeView is the targeted-read result of NodeView: the STORED JSON subtree for a
 // single addressed node (the shape a changeset patches), its editable surface, and
 // the document's current revision. It is the value the get_node MCP tool returns.
@@ -102,7 +93,11 @@ func (s *Service) NodeView(id, nodeID string) (*NodeView, error) {
 	if err != nil {
 		return nil, err
 	}
-	view.Surface = surfaceForNode(tree.Root, nodeID)
+	// "Is this node a wrapper?" is sourced from the schema catalog by resolved
+	// type name (Resolver.WrapperNames → Catalog.WrapperNames, keyed on
+	// latticeBehavior.role == "wrapper"), so a CUSTOM wrapper delegates its surface
+	// exactly like the built-in block — no hardcoded "block" name check.
+	view.Surface = surfaceForNode(tree.Root, nodeID, s.resolver.WrapperNames())
 
 	// Revision is best-effort: a store lacking the RevisionedStore capability
 	// reports STORAGE_CAPABILITY_UNSUPPORTED. The node view is still useful without
@@ -115,18 +110,23 @@ func (s *Service) NodeView(id, nodeID string) (*NodeView, error) {
 }
 
 // surfaceForNode returns the editable surface for the node with the given id
-// within the resolved tree rooted at root. For a BLOCK wrapper it returns the
-// surface of the block's single inner content node (the block delegates its
+// within the resolved tree rooted at root. For a WRAPPER node it returns the
+// surface of the wrapper's single inner content node (the wrapper delegates its
 // editable knobs to what it wraps); for any other node it returns the node's own
 // Surface. It returns nil when no node with the id is found or the node (or its
 // content) declares no surface.
-func surfaceForNode(root *ResolvedInstance, id string) []ConfigurableField {
+//
+// "Is this node a wrapper?" is decided by behavior, not by a literal type name:
+// isWrapper is the catalog's keyword-derived wrapper-name set (Catalog.WrapperNames,
+// keyed on latticeBehavior.role == "wrapper"), so the built-in block and any custom
+// wrapper delegate identically. A nil isWrapper set treats every node as non-wrapper.
+func surfaceForNode(root *ResolvedInstance, id string, isWrapper map[string]bool) []ConfigurableField {
 	inst := findInstance(root, id)
 	if inst == nil {
 		return nil
 	}
-	if inst.Type.Name == blockTypeName && len(inst.Children) == 1 && inst.Children[0] != nil {
-		// A block's inner content is its single child in the resolved tree; surface
+	if isWrapper[inst.Type.Name] && len(inst.Children) == 1 && inst.Children[0] != nil {
+		// A wrapper's inner content is its single child in the resolved tree; surface
 		// the CONTENT item's editable fields.
 		return inst.Children[0].Surface
 	}

@@ -43,7 +43,7 @@ func TestResolveSurfaceValid(t *testing.T) {
 	g := newSurfaceGraph(t, decl)
 	inst := &ResolvedInstance{Type: ResolvedTypeRef{ID: surfaceTypeID, Name: "gauge"}}
 
-	got, err := resolveSurface(g, inst, "root")
+	got, err := resolveSurface(g, inst, surfaceTestWidgets, "root")
 	if err != nil {
 		t.Fatalf("resolveSurface: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestResolveSurfaceAttached(t *testing.T) {
 		},
 	}
 
-	if err := resolveSurfaces(g, root); err != nil {
+	if err := resolveSurfaces(g, root, surfaceTestWidgets); err != nil {
 		t.Fatalf("resolveSurfaces: %v", err)
 	}
 	if len(root.Surface) != 1 || root.Surface[0].Field != "min" {
@@ -115,7 +115,7 @@ func TestResolveSurfaceNoDeclaration(t *testing.T) {
 	g := newSurfaceGraph(t, nil) // nil decl => no `configurable` keyword
 	inst := &ResolvedInstance{Type: ResolvedTypeRef{ID: surfaceTypeID, Name: "gauge"}}
 
-	got, err := resolveSurface(g, inst, "root")
+	got, err := resolveSurface(g, inst, surfaceTestWidgets, "root")
 	if err != nil {
 		t.Fatalf("resolveSurface: %v", err)
 	}
@@ -170,7 +170,7 @@ func TestResolveSurfaceInvalid(t *testing.T) {
 			g := newSurfaceGraph(t, tc.decl)
 			inst := &ResolvedInstance{Type: ResolvedTypeRef{ID: surfaceTypeID, Name: "gauge"}}
 
-			_, err := resolveSurface(g, inst, "root.children[0]")
+			_, err := resolveSurface(g, inst, surfaceTestWidgets, "root.children[0]")
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
@@ -189,6 +189,26 @@ func TestResolveSurfaceInvalid(t *testing.T) {
 			}
 		})
 	}
+}
+
+// surfaceTestWidgets is the widget-name set the surface tests validate `rendering`
+// hints against — the real catalogued widget names a configurable surface may name
+// (post-E2-S1, sourced from Catalog.WidgetNames in production). A hint outside this
+// set (e.g. "dial") is rejected CONFIGURABLE_SURFACE_INVALID.
+var surfaceTestWidgets = map[string]bool{
+	"text-input":     true,
+	"textarea":       true,
+	"number-field":   true,
+	"slider":         true,
+	"stepper":        true,
+	"toggle":         true,
+	"checkbox":       true,
+	"select":         true,
+	"radio-group":    true,
+	"segmented":      true,
+	"multiselect":    true,
+	"checkbox-group": true,
+	"tag-input":      true,
 }
 
 // newSurfaceGraph builds a minimal ResolvedGraph whose single item type declares
