@@ -170,7 +170,7 @@ func (rt *ResolvedType) RangeCheck() bool { return rt.behavior().rangeCheck }
 // bindKinds is the set of variable-value kinds a widget may legally bind to. A
 // widget's `binds` list must be non-empty and every member must appear here. The
 // kinds mirror the variable type vocabulary (string/number/integer/boolean/enum/
-// array) — the permitted-type set that supersedes the old widgetFamilies map.
+// array) — the permitted-type set that supersedes the former name-keyed family map.
 var bindKinds = map[string]bool{
 	"string":  true,
 	"number":  true,

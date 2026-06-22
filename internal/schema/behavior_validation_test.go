@@ -51,7 +51,7 @@ func TestValidateBehaviorRejectsMalformed(t *testing.T) {
 	}{
 		{
 			name: "unknown role",
-			raw: `{` + idLine + `"type":"object","latticeBehavior":{"role":"gadget"}}`,
+			raw:  `{` + idLine + `"type":"object","latticeBehavior":{"role":"gadget"}}`,
 		},
 		{
 			name: "missing role",

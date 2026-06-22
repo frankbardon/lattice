@@ -50,7 +50,7 @@ func widgetType(g *schema.ResolvedGraph, inst *ResolvedInstance) *schema.Resolve
 
 // isVariableWidget reports whether a resolved node's item type declares the
 // widget role (`latticeBehavior.role == "widget"`). It is the schema-keyword
-// replacement for the old name-membership test against the widgetFamilies map.
+// replacement for the old name-membership test against the former family map.
 func isVariableWidget(g *schema.ResolvedGraph, inst *ResolvedInstance) bool {
 	rt := widgetType(g, inst)
 	return rt != nil && rt.Role() == schema.RoleWidget
