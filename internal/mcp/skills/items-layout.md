@@ -121,6 +121,13 @@ annotations to a region or block (ownership, provenance, tags) that no fixed
 field models. For the exact shape and the allowed value kinds, call
 `get_schema` — the grammar is not restated here.
 
+A node's `metadata` is **surfaced in `get_outline`** alongside its id, type, and
+placement — present on the skeleton node only where the node carries it, omitted
+otherwise — so you see a node's correlations while navigating, without pulling the
+whole document (see **session-bootstrap** → Structure). To set or change it, patch
+`/<id>/metadata` (it is ungated by the config surface, validated by re-resolve);
+see **patch-authoring**.
+
 ## Inline example reference
 
 `examples/minimal-dashboard.json` is the canonical legal shape and the best

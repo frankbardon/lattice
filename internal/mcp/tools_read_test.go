@@ -67,6 +67,115 @@ func newTestSession(t *testing.T) *sdkmcp.ClientSession {
 	return clientSession
 }
 
+// metadataFixtureID is the manifest.id of the metadata-carrying fixture seeded by
+// newMetadataTestSession.
+const metadataFixtureID = "example-metadata"
+
+// metadataFixtureDoc is a legal dashboard that attaches freeform element metadata
+// (element-metadata) to two of the eligible node kinds — the document root
+// container and a block wrapper — while leaving the body container and the bare
+// table leaves metadata-free. It exercises the read surface's per-node metadata
+// exposure (present where carried, omitted where absent) without touching the
+// shared minimal fixture.
+const metadataFixtureDoc = `{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "example-metadata",
+    "title": "Metadata Example Dashboard",
+    "author": "Lattice"
+  },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "metadata": { "owner": "platform-team", "revision": 7 },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1, 1], "rows": [1], "gap": 1 } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "fruits-block",
+            "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "metadata": { "source": "produce-api" },
+            "config": {
+              "id": "fruits-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "fruits",
+                "config": {
+                  "title": "Fruits",
+                  "columns": [ { "header": "Name" } ],
+                  "rows": [ ["Apple"] ]
+                }
+              }
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "metrics-block",
+            "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+            "config": {
+              "id": "metrics-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "metrics",
+                "config": {
+                  "title": "Metrics",
+                  "columns": [ { "header": "Metric" } ],
+                  "rows": [ ["Requests"] ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}`
+
+// newMetadataTestSession stands up the MCP server over an in-memory store seeded
+// with metadataFixtureDoc (rather than the minimal example), returning a connected
+// client session closed via t.Cleanup. It mirrors newTestSession but seeds the
+// metadata-carrying document.
+func newMetadataTestSession(t *testing.T) *sdkmcp.ClientSession {
+	t.Helper()
+
+	store, err := service.NewStore(service.BackendFS, afero.NewMemMapFs(), "docs")
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	if err := store.Save([]byte(metadataFixtureDoc)); err != nil {
+		t.Fatalf("store.Save: %v", err)
+	}
+	res, err := service.NewResolver(os.DirFS("../../schemas"))
+	if err != nil {
+		t.Fatalf("NewResolver: %v", err)
+	}
+	svc := service.New(store, res)
+
+	srv := mcp.NewServer(svc, "test")
+
+	ctx := context.Background()
+	clientT, serverT := sdkmcp.NewInMemoryTransports()
+	serverSession, err := srv.Connect(ctx, serverT, nil)
+	if err != nil {
+		t.Fatalf("server Connect: %v", err)
+	}
+	t.Cleanup(func() { _ = serverSession.Close() })
+
+	client := sdkmcp.NewClient(&sdkmcp.Implementation{Name: "test-client", Version: "v0"}, nil)
+	clientSession, err := client.Connect(ctx, clientT, nil)
+	if err != nil {
+		t.Fatalf("client Connect: %v", err)
+	}
+	t.Cleanup(func() { _ = clientSession.Close() })
+
+	return clientSession
+}
+
 // TestToolsListed asserts both read tools appear in the host's tool list with
 // reflection-generated input schemas.
 func TestToolsListed(t *testing.T) {
@@ -155,6 +264,63 @@ func TestGetDocumentRaw(t *testing.T) {
 	}
 	if len(out.Resolved) != 0 {
 		t.Errorf("resolved present without the resolved flag: %s", out.Resolved)
+	}
+}
+
+// TestGetDocumentMetadataRoundTrip asserts get_document's RAW output carries the
+// stored element metadata through unchanged (element-metadata E2-S2): the bytes a
+// host reads back are the bytes that were stored, so the metadata rides along for
+// free. It re-parses the returned raw document and confirms the seeded root and
+// block metadata are present verbatim, and that the resolved tree (with
+// resolved=true) carries them too.
+func TestGetDocumentMetadataRoundTrip(t *testing.T) {
+	cs := newMetadataTestSession(t)
+
+	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{
+		Name:      "get_document",
+		Arguments: map[string]any{"id": metadataFixtureID, "resolved": true},
+	})
+	if err != nil {
+		t.Fatalf("CallTool get_document: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("get_document returned tool error: %v", res.Content)
+	}
+
+	var out struct {
+		Document json.RawMessage `json:"document"`
+		Resolved *struct {
+			Root map[string]any `json:"root"`
+		} `json:"resolved"`
+	}
+	decodeStructured(t, res, &out)
+
+	// Raw round-trip: the returned document re-parses to the stored metadata.
+	var doc struct {
+		Root struct {
+			Metadata map[string]any    `json:"metadata"`
+			Children []json.RawMessage `json:"children"`
+		} `json:"root"`
+	}
+	if err := json.Unmarshal(out.Document, &doc); err != nil {
+		t.Fatalf("unmarshal returned raw document: %v", err)
+	}
+	if got, want := doc.Root.Metadata["owner"], "platform-team"; got != want {
+		t.Errorf("raw root metadata owner = %v, want %v", got, want)
+	}
+	// The block's metadata must survive verbatim too (it is two levels down under
+	// body); confirm via a substring of the raw bytes.
+	if !contains(string(out.Document), "produce-api") {
+		t.Errorf("raw document dropped the block metadata value %q:\n%s", "produce-api", out.Document)
+	}
+
+	// Resolved tree carries the root metadata too.
+	if out.Resolved == nil {
+		t.Fatalf("resolved tree absent with resolved=true")
+	}
+	rootMeta, _ := out.Resolved.Root["metadata"].(map[string]any)
+	if rootMeta == nil || rootMeta["owner"] != "platform-team" {
+		t.Errorf("resolved root metadata = %v, want owner=platform-team", out.Resolved.Root["metadata"])
 	}
 }
 
