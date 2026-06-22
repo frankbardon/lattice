@@ -99,6 +99,15 @@ type outlineNode struct {
 	// a SUMMARY, not the verbatim placement config object.
 	Placement string `json:"placement,omitempty" jsonschema:"compact summary of the node's grid placement, when placed"`
 
+	// Metadata is the node's verbatim, passthrough element metadata
+	// (element-metadata E1), surfaced here so the editing LLM sees a node's
+	// correlations from the skeleton without fetching the full document. It is a
+	// flat map of scalar values (the resolver enforces eligibility + scalar-only),
+	// so it does NOT trip the reflective output-schema generator's recursive-type
+	// panic. Emitted ONLY for nodes that carry non-empty metadata (the eligible
+	// kinds — document root, region containers, block wrappers); omitted otherwise.
+	Metadata map[string]any `json:"metadata,omitempty" jsonschema:"the node's freeform passthrough metadata, present only when the node carries it"`
+
 	// Children are the node's child skeletons (each an *outlineNode), in document
 	// order. Omitted for leaf nodes. Typed `any` to avoid the reflective
 	// output-schema generator's recursive-type panic.
@@ -156,6 +165,12 @@ func outlineFromInstance(inst *service.ResolvedInstance) *outlineNode {
 		Title:     configTitle(inst.Config),
 		Container: inst.Container,
 		Placement: placementSummary(inst.Placement),
+	}
+	// Surface metadata only when the (eligible) node actually carries some, so a
+	// metadata-free skeleton is byte-identical to before. The resolver has already
+	// gated eligibility and scalar-only values; the outline passes the map through.
+	if len(inst.Metadata) > 0 {
+		node.Metadata = inst.Metadata
 	}
 	if len(inst.Children) > 0 {
 		children := make([]*outlineNode, 0, len(inst.Children))

@@ -169,9 +169,32 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// Pass 2 + assembly: per node, layer variables, interpolate config, validate
 	// the interpolated config, enforce the container-only-children rule, and build
 	// the resolved node, all in one walk.
-	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, varOverrides)
+	root, err := r.resolveInstance(g, g.Document.Root, "root", docEnv, rawRoot, varOverrides, true)
 	if err != nil {
 		return nil, err
+	}
+
+	// Element metadata (E1-S2): carry the TOP-LEVEL document `metadata` (sibling
+	// of manifest) onto the tree root. The root node was resolved as always-eligible
+	// above, so its own instance metadata (if any) is already attached; the
+	// document-scope metadata is layered on here, taking precedence per-key over a
+	// same-keyed root-instance entry. Both are scalar-checked. Absent document
+	// metadata leaves the root's Metadata untouched (nil/byte-identical when also
+	// absent on the root instance).
+	docMeta, err := documentMetadata(data)
+	if err != nil {
+		return nil, err
+	}
+	if len(docMeta) > 0 {
+		if err := checkScalarMetadata(docMeta, "doc"); err != nil {
+			return nil, err
+		}
+		if root.Metadata == nil {
+			root.Metadata = make(map[string]any, len(docMeta))
+		}
+		for k, v := range docMeta {
+			root.Metadata[k] = v
+		}
 	}
 
 	// Grammar pass (E3-S2): enforce the dashboard tree shape over the assembled
@@ -318,7 +341,7 @@ func (r *Resolver) validateDocument(data []byte, source string) error {
 // resolveInstance runs Pass 2 for a single node and recurses. path is the
 // human-readable JSON-ish path to this node (e.g. "root.children[2]"), reported
 // in errors so an author can locate the offending instance.
-func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides) (*ResolvedInstance, error) {
+func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instance, path string, parentEnv variables.Environment, raw *rawInstance, overrides variables.Overrides, isRoot bool) (*ResolvedInstance, error) {
 	typeID := g.Refs[inst]
 	rt := g.Types[typeID]
 	if rt == nil {
@@ -375,7 +398,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	// (identically to how it would resolve unwrapped) emitted as the wrapper's single
 	// child. See block.go.
 	if rt.Role() == schema.RoleWrapper {
-		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides)
+		return r.resolveBlock(g, inst, rt, path, parentEnv, raw, overrides, isRoot)
 	}
 
 	// E3-S1: layer this node's own variable declarations onto the inherited
@@ -409,6 +432,16 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		return nil, err
 	}
 
+	// E1-S2: carry this node's element metadata, enforcing eligibility (the root,
+	// a container, or a wrapper — keyed on the behavior keyword) and the scalar
+	// rule. A wrapper takes the dedicated block path above, so a node reaching here
+	// is the root, a region, or a plain leaf; an ineligible leaf/widget/form with
+	// metadata fails fast. Pure passthrough otherwise.
+	metadata, err := resolveMetadata(rt, inst.Metadata, path, isRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	node := &ResolvedInstance{
 		ID: inst.ID,
 		Type: ResolvedTypeRef{
@@ -420,6 +453,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		Container: isContainer,
 		Config:    cfg,
 		Placement: inst.Placement,
+		Metadata:  metadata,
 		VarEnv:    env,
 	}
 
@@ -429,7 +463,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 		if raw != nil && i < len(raw.Children) {
 			rawChild = raw.Children[i]
 		}
-		resolvedChild, err := r.resolveInstance(g, child, childPath, env, rawChild, overrides)
+		resolvedChild, err := r.resolveInstance(g, child, childPath, env, rawChild, overrides, false)
 		if err != nil {
 			return nil, err
 		}

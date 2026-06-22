@@ -1,0 +1,439 @@
+{
+  "manifest": {
+    "description": "A hand-written fixture proving element metadata (E1) is carried verbatim onto the resolved tree: the top-level document `metadata` lands on the root, a regions-or-wrappers container carries its own scalar metadata, and a block wrapper carries metadata on its envelope (NOT lifted onto the wrapped content). Every value is a scalar (string | number | boolean | null) and passes through unchanged. Conforms to https://lattice.dev/schemas/dashboard/1.0.0.",
+    "formatVersion": "1.0.0",
+    "id": "element-metadata",
+    "title": "Element Metadata Example"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "metadata": {
+      "owner": "platform",
+      "pinned": true,
+      "rootKey": "rootVal",
+      "version": 3
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "body",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
+          "version": "1.0.0"
+        },
+        "container": true,
+        "config": {
+          "grid": {
+            "columns": [
+              1
+            ]
+          }
+        },
+        "metadata": {
+          "count": 7,
+          "flagged": false,
+          "note": null,
+          "team": "growth"
+        },
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 0,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "revenue-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "revenue-block",
+              "title": "Revenue"
+            },
+            "metadata": {
+              "rev": 2,
+              "source": "warehouse"
+            },
+            "children": [
+              {
+                "id": "revenue",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/table/1.0.0",
+                  "name": "table",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "columns": [
+                    {
+                      "header": "Name"
+                    }
+                  ],
+                  "title": "Revenue"
+                },
+                "surface": [
+                  {
+                    "field": "columns",
+                    "type": "array",
+                    "label": "Columns",
+                    "constraints": {
+                      "description": "The table's column definitions (E3-S2 surface). Editable at runtime to control which columns are shown and in what order. Each entry is a column object with a required header label.",
+                      "items": {
+                        "properties": {
+                          "header": {
+                            "minLength": 1,
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "header"
+                        ],
+                        "type": "object"
+                      }
+                    }
+                  },
+                  {
+                    "field": "query",
+                    "type": "array",
+                    "label": "Query parameters",
+                    "constraints": {
+                      "description": "The query parameters passed to the table's bound connection (E3-S2 surface). Editable at runtime to re-parameterize the fetch. Requires a connectionId; parameter values may reference variables via $var / ${} bindings, filled by the resolver's interpolation pass before binding."
+                    }
+                  },
+                  {
+                    "field": "title",
+                    "type": "string",
+                    "label": "Title",
+                    "constraints": {
+                      "description": "The heading rendered above the table — editable at runtime."
+                    },
+                    "rendering": "text-input"
+                  }
+                ]
+              }
+            ],
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "field": "grid.columns",
+            "path": [
+              "grid",
+              "columns"
+            ],
+            "type": "array",
+            "label": "Column tracks",
+            "constraints": {
+              "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+            }
+          },
+          {
+            "field": "grid.gap",
+            "path": [
+              "grid",
+              "gap"
+            ],
+            "type": "number",
+            "label": "Track gap",
+            "constraints": {
+              "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "grid.rows",
+            "path": [
+              "grid",
+              "rows"
+            ],
+            "type": "array",
+            "label": "Row tracks",
+            "constraints": {
+              "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+            }
+          }
+        ]
+      }
+    ],
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+        }
+      }
+    ]
+  },
+  "scopeSurfaces": {
+    "$connections": [],
+    "$manifest": [
+      {
+        "field": "description",
+        "type": "string",
+        "label": "Description",
+        "constraints": {
+          "description": "An optional longer-form description of the dashboard."
+        },
+        "rendering": "textarea"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "label": "Title",
+        "constraints": {
+          "description": "The dashboard's human-readable title."
+        },
+        "rendering": "text-input"
+      }
+    ],
+    "$root": [],
+    "$theme": [
+      {
+        "field": "border",
+        "type": "enum",
+        "label": "Border Weight",
+        "constraints": {
+          "description": "How present a separating edge is around the styled surface.",
+          "enum": [
+            "none",
+            "hairline",
+            "standard"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "density",
+        "type": "enum",
+        "label": "Density",
+        "constraints": {
+          "description": "How tightly repeated/listed content is packed.",
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "emphasis",
+        "type": "enum",
+        "label": "Emphasis",
+        "constraints": {
+          "description": "How prominent the styled element appears.",
+          "enum": [
+            "none",
+            "low",
+            "high"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "radius",
+        "type": "enum",
+        "label": "Corner Radius",
+        "constraints": {
+          "description": "How softened the corners of the styled surface are.",
+          "enum": [
+            "none",
+            "subtle",
+            "rounded"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "spacing",
+        "type": "enum",
+        "label": "Spacing",
+        "constraints": {
+          "description": "The relative amount of internal/outer breathing room.",
+          "enum": [
+            "compact",
+            "cosy",
+            "roomy"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "tone",
+        "type": "enum",
+        "label": "Tone",
+        "constraints": {
+          "description": "The semantic colour intent, expressed by meaning.",
+          "enum": [
+            "neutral",
+            "accent",
+            "positive",
+            "caution",
+            "critical"
+          ]
+        },
+        "rendering": "select"
+      }
+    ],
+    "$variables": []
+  }
+}

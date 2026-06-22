@@ -61,12 +61,13 @@ func TestGetOutlineListed(t *testing.T) {
 // outlineNode mirrors the tool's config-free skeleton for decoding. Children is
 // decoded recursively; the tool emits children as a nested array.
 type outlineNode struct {
-	ID        string        `json:"id"`
-	Type      string        `json:"type"`
-	Title     string        `json:"title"`
-	Container bool          `json:"container"`
-	Placement string        `json:"placement"`
-	Children  []outlineNode `json:"children"`
+	ID        string         `json:"id"`
+	Type      string         `json:"type"`
+	Title     string         `json:"title"`
+	Container bool           `json:"container"`
+	Placement string         `json:"placement"`
+	Metadata  map[string]any `json:"metadata"`
+	Children  []outlineNode  `json:"children"`
 }
 
 // TestGetOutline asserts the outline mirrors the fixture tree (ids + shape),
@@ -184,6 +185,80 @@ func TestGetOutline(t *testing.T) {
 		if strings.Contains(raw, leak) {
 			t.Errorf("outline leaked config body %q:\n%s", leak, raw)
 		}
+	}
+}
+
+// TestGetOutlineMetadata asserts the outline surfaces a node's freeform metadata
+// (element-metadata E2-S2) ONLY for the eligible nodes that carry it, and omits it
+// elsewhere. The seeded document attaches metadata to the root container and one
+// block wrapper; the body container and the bare tables carry none.
+func TestGetOutlineMetadata(t *testing.T) {
+	cs := newMetadataTestSession(t)
+
+	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{
+		Name:      "get_outline",
+		Arguments: map[string]any{"id": metadataFixtureID},
+	})
+	if err != nil {
+		t.Fatalf("CallTool get_outline: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("get_outline returned tool error: %v", res.Content)
+	}
+
+	var out struct {
+		Root *outlineNode `json:"root"`
+	}
+	decodeStructured(t, res, &out)
+	if out.Root == nil {
+		t.Fatalf("root is nil")
+	}
+
+	// Index every node by id so eligibility/presence can be asserted per node.
+	nodes := map[string]*outlineNode{}
+	var walk func(n *outlineNode)
+	walk = func(n *outlineNode) {
+		if n.ID != "" {
+			nodes[n.ID] = n
+		}
+		for i := range n.Children {
+			walk(&n.Children[i])
+		}
+	}
+	walk(out.Root)
+
+	// Root (eligible) carries its metadata.
+	root := nodes["root"]
+	if root == nil {
+		t.Fatalf("root node not in outline")
+	}
+	if got, want := root.Metadata["owner"], "platform-team"; got != want {
+		t.Errorf("root metadata owner = %v, want %v", got, want)
+	}
+
+	// The block wrapper (eligible) carries its metadata.
+	block := nodes["fruits-block"]
+	if block == nil {
+		t.Fatalf("fruits-block node not in outline")
+	}
+	if got, want := block.Metadata["source"], "produce-api"; got != want {
+		t.Errorf("fruits-block metadata source = %v, want %v", got, want)
+	}
+
+	// Nodes that declared no metadata omit the field entirely (nil decoded map).
+	for _, id := range []string{"body", "fruits", "metrics-block", "metrics"} {
+		if n := nodes[id]; n != nil && n.Metadata != nil {
+			t.Errorf("node %q unexpectedly carries metadata %v, want omitted", id, n.Metadata)
+		}
+	}
+
+	// The omitempty discipline must hold on the wire: the raw structured result
+	// must NOT contain a "metadata" key for any metadata-free node. We assert the
+	// metadata-free body container's surrounding shape carries no metadata by
+	// confirming the only metadata values present are the two we seeded.
+	raw := marshalStructured(t, res)
+	if !strings.Contains(raw, "platform-team") || !strings.Contains(raw, "produce-api") {
+		t.Errorf("outline did not carry the seeded metadata values:\n%s", raw)
 	}
 }
 

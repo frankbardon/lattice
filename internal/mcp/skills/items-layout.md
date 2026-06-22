@@ -105,6 +105,29 @@ leaf concerns. The full wrapper↔content split, how `get_node` surfaces the
 in a patch live in **blocks**. For the wrapper's own field grammar, call
 `get_schema block`.
 
+## Freeform `metadata` (intent)
+
+Both layout types — and only a handful of node kinds — may carry an optional,
+freeform **`metadata`** map of open-ended scalar annotations (e.g. an owner, a
+source system, a revision number), kept distinct from the type's own config and
+chrome. Eligibility is narrow: the **document root**, **containers** (regions),
+and **block** wrappers may carry it; widgets, forms, and bare content leaves may
+**not** — metadata on an ineligible node fails fast (`METADATA_NOT_ELIGIBLE`).
+A block's metadata stays on the **wrapper** envelope; it is *not* lifted onto the
+content leaf it wraps.
+
+**Reach for `metadata` when** you want to attach open-ended, non-rendered
+annotations to a region or block (ownership, provenance, tags) that no fixed
+field models. For the exact shape and the allowed value kinds, call
+`get_schema` — the grammar is not restated here.
+
+A node's `metadata` is **surfaced in `get_outline`** alongside its id, type, and
+placement — present on the skeleton node only where the node carries it, omitted
+otherwise — so you see a node's correlations while navigating, without pulling the
+whole document (see **session-bootstrap** → Structure). To set or change it, patch
+`/<id>/metadata` (it is ungated by the config surface, validated by re-resolve);
+see **patch-authoring**.
+
 ## Inline example reference
 
 `examples/minimal-dashboard.json` is the canonical legal shape and the best

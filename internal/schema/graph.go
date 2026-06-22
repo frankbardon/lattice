@@ -86,6 +86,13 @@ type Instance struct {
 	// Placement is optional layout hints, opaque at this stage.
 	Placement map[string]any `json:"placement,omitempty"`
 
+	// Metadata is the optional per-element metadata map (element-metadata E1):
+	// a freeform map of non-empty keys to SCALAR values. Structurally permitted
+	// on every instance (the envelope is shared), but the resolver enforces both
+	// eligibility (which node kinds may carry it) and the scalar-value rule. Nil
+	// when the instance declared no metadata.
+	Metadata map[string]any `json:"metadata,omitempty"`
+
 	// Children are nested instances. Structurally allowed on any node; the
 	// container-only-children rule is enforced by E1-S4.
 	Children []*Instance `json:"children,omitempty"`

@@ -44,7 +44,7 @@ When you need grammar, call the tool.
 | Source | Authoritative for | Use it when |
 |---|---|---|
 | `get_schema` (+ `list_schemas`) | **Grammar** — the JSON Schema for an item type: its fields, types, enums, required keys | You need to know what a node's config may legally contain |
-| `get_outline` | **Structure** — the document's node skeleton: ids, types, nesting | You need to navigate or locate a node |
+| `get_outline` | **Structure** — the document's node skeleton: ids, types, nesting, and a node's freeform `metadata` where it carries it | You need to navigate or locate a node |
 | `get_node` | **Editable surface** — a single node's current config + which fields are settable | You are about to edit one node and need its present state |
 | `validate_patch` | **Truth / simulate** — applies a proposed RFC 6902 changeset in a dry run and reports the resolved result or the coded error; never persists | You want to confirm an edit is valid *before* it touches anything |
 | `POST /api/patch` (HTTP, not MCP) | **The only write** — the sole path that persists a change | The human commits a validated change |

@@ -125,6 +125,17 @@ var BuiltinGoldenBaselineCases = []BuiltinGoldenCase{
 		Golden: filepath.Join(testdataValid, "form-grid-layout.golden.json"),
 		Covers: []string{"container", "block", "form", "form-grid", "text-input", "stepper"},
 	},
+	{
+		// E1-S3: regression-locks element metadata carried verbatim onto the
+		// eligible nodes — the document root (merging the top-level document
+		// `metadata` with the root instance's own), a regions-or-wrappers
+		// container, and a block wrapper — with every scalar value intact and
+		// NOT lifted onto the block's wrapped content.
+		Name:   "element-metadata-on-eligible-nodes",
+		Doc:    filepath.Join(testdataValid, "element-metadata.json"),
+		Golden: filepath.Join(testdataValid, "element-metadata.golden.json"),
+		Covers: []string{"container", "block", "table", "metadata"},
+	},
 }
 
 // AssertBuiltinGolden resolves c.Doc against the real repo schema catalog and
