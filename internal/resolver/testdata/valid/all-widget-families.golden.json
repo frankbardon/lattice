@@ -1,0 +1,2391 @@
+{
+  "manifest": {
+    "description": "E1-S3 golden baseline: a root container holding a variable-box that holds at least one widget from every family — string (text-input, textarea), number (number-field, slider, stepper, the latter two carrying min/max/step range config), boolean (toggle, checkbox), enum (select, radio-group, segmented, each with an option set), and array (multiselect + checkbox-group with option sets, tag-input freeform). The box's widget children are held directly (not block-wrapped). Captures the CURRENT pre-migration resolved-tree shape of every built-in variable-widget type so the dogfood migration can be proven byte-identical.",
+    "formatVersion": "1.0.0",
+    "id": "all-widget-families",
+    "title": "All Widget Families"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "controls",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+          "id": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+          "name": "variable-box",
+          "version": "1.0.0"
+        },
+        "container": false,
+        "config": {
+          "arrangement": "stacked"
+        },
+        "children": [
+          {
+            "id": "w-text-input",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+              "id": "https://lattice.dev/schemas/items/text-input/1.0.0",
+              "name": "text-input",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Name",
+              "placeholder": "Your name",
+              "variable": "name"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "placeholder",
+                "type": "string",
+                "label": "Placeholder",
+                "constraints": {
+                  "description": "Placeholder text shown in the empty control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
+          },
+          {
+            "id": "w-textarea",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/textarea/1.0.0",
+              "id": "https://lattice.dev/schemas/items/textarea/1.0.0",
+              "name": "textarea",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Bio",
+              "variable": "bio"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "placeholder",
+                "type": "string",
+                "label": "Placeholder",
+                "constraints": {
+                  "description": "Placeholder text shown in the empty control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
+          },
+          {
+            "id": "w-number-field",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
+              "id": "https://lattice.dev/schemas/items/number-field/1.0.0",
+              "name": "number-field",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Count",
+              "max": 10,
+              "min": 0,
+              "step": 1,
+              "variable": "count"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "max",
+                "type": "number",
+                "label": "Maximum",
+                "constraints": {
+                  "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "min",
+                "type": "number",
+                "label": "Minimum",
+                "constraints": {
+                  "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "step",
+                "type": "number",
+                "label": "Step",
+                "constraints": {
+                  "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                },
+                "rendering": "number-field"
+              }
+            ]
+          },
+          {
+            "id": "w-slider",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/slider/1.0.0",
+              "id": "https://lattice.dev/schemas/items/slider/1.0.0",
+              "name": "slider",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Ratio",
+              "max": 1,
+              "min": 0,
+              "step": 0.1,
+              "variable": "ratio"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "max",
+                "type": "number",
+                "label": "Maximum",
+                "constraints": {
+                  "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "min",
+                "type": "number",
+                "label": "Minimum",
+                "constraints": {
+                  "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "step",
+                "type": "number",
+                "label": "Step",
+                "constraints": {
+                  "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                },
+                "rendering": "number-field"
+              }
+            ]
+          },
+          {
+            "id": "w-stepper",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
+              "id": "https://lattice.dev/schemas/items/stepper/1.0.0",
+              "name": "stepper",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Level",
+              "max": 9,
+              "min": 1,
+              "step": 1,
+              "variable": "level"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "max",
+                "type": "number",
+                "label": "Maximum",
+                "constraints": {
+                  "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "min",
+                "type": "number",
+                "label": "Minimum",
+                "constraints": {
+                  "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                },
+                "rendering": "number-field"
+              },
+              {
+                "field": "step",
+                "type": "number",
+                "label": "Step",
+                "constraints": {
+                  "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                },
+                "rendering": "number-field"
+              }
+            ]
+          },
+          {
+            "id": "w-toggle",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+              "id": "https://lattice.dev/schemas/items/toggle/1.0.0",
+              "name": "toggle",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Active",
+              "variable": "active"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
+          },
+          {
+            "id": "w-checkbox",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/checkbox/1.0.0",
+              "id": "https://lattice.dev/schemas/items/checkbox/1.0.0",
+              "name": "checkbox",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Agreed",
+              "variable": "agreed"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
+          },
+          {
+            "id": "w-select",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+              "id": "https://lattice.dev/schemas/items/select/1.0.0",
+              "name": "select",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Region",
+              "options": [
+                {
+                  "label": "United States",
+                  "value": "us"
+                },
+                {
+                  "label": "Europe",
+                  "value": "eu"
+                },
+                {
+                  "label": "Asia-Pacific",
+                  "value": "apac"
+                }
+              ],
+              "variable": "region"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
+          },
+          {
+            "id": "w-radio-group",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/radio-group/1.0.0",
+              "id": "https://lattice.dev/schemas/items/radio-group/1.0.0",
+              "name": "radio-group",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Tier",
+              "options": [
+                {
+                  "label": "Free",
+                  "value": "free"
+                },
+                {
+                  "label": "Pro",
+                  "value": "pro"
+                }
+              ],
+              "variable": "tier"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
+          },
+          {
+            "id": "w-segmented",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/segmented/1.0.0",
+              "id": "https://lattice.dev/schemas/items/segmented/1.0.0",
+              "name": "segmented",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "View",
+              "options": [
+                {
+                  "label": "Grid",
+                  "value": "grid"
+                },
+                {
+                  "label": "List",
+                  "value": "list"
+                }
+              ],
+              "variable": "view"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
+          },
+          {
+            "id": "w-multiselect",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/multiselect/1.0.0",
+              "id": "https://lattice.dev/schemas/items/multiselect/1.0.0",
+              "name": "multiselect",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Tags",
+              "options": [
+                {
+                  "label": "Alpha",
+                  "value": "alpha"
+                },
+                {
+                  "label": "Beta",
+                  "value": "beta"
+                }
+              ],
+              "variable": "tags"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
+          },
+          {
+            "id": "w-checkbox-group",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/checkbox-group/1.0.0",
+              "id": "https://lattice.dev/schemas/items/checkbox-group/1.0.0",
+              "name": "checkbox-group",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Permissions",
+              "options": [
+                {
+                  "label": "Read",
+                  "value": "read"
+                },
+                {
+                  "label": "Write",
+                  "value": "write"
+                }
+              ],
+              "variable": "perms"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "sort",
+                "type": "enum",
+                "label": "Option sort",
+                "constraints": {
+                  "description": "How the option set is ordered for display — editable at runtime.",
+                  "enum": [
+                    "declared",
+                    "label",
+                    "value"
+                  ]
+                },
+                "rendering": "select"
+              }
+            ]
+          },
+          {
+            "id": "w-tag-input",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+              "id": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+              "name": "tag-input",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "label": "Labels",
+              "placeholder": "Add a label",
+              "variable": "labels"
+            },
+            "varEnv": {
+              "active": {
+                "name": "active",
+                "type": "boolean",
+                "default": true,
+                "declaredAt": "doc"
+              },
+              "agreed": {
+                "name": "agreed",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "bio": {
+                "name": "bio",
+                "type": "string",
+                "default": "Engineer",
+                "declaredAt": "doc"
+              },
+              "count": {
+                "name": "count",
+                "type": "integer",
+                "default": 3,
+                "declaredAt": "doc"
+              },
+              "labels": {
+                "name": "labels",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "level": {
+                "name": "level",
+                "type": "integer",
+                "default": 5,
+                "declaredAt": "doc"
+              },
+              "name": {
+                "name": "name",
+                "type": "string",
+                "default": "Ada",
+                "declaredAt": "doc"
+              },
+              "perms": {
+                "name": "perms",
+                "type": "array",
+                "default": [
+                  "read"
+                ],
+                "declaredAt": "doc"
+              },
+              "ratio": {
+                "name": "ratio",
+                "type": "number",
+                "default": 0.5,
+                "declaredAt": "doc"
+              },
+              "region": {
+                "name": "region",
+                "type": "enum",
+                "default": "us",
+                "options": [
+                  "us",
+                  "eu",
+                  "apac"
+                ],
+                "declaredAt": "doc"
+              },
+              "tags": {
+                "name": "tags",
+                "type": "array",
+                "default": [
+                  "alpha"
+                ],
+                "declaredAt": "doc"
+              },
+              "tier": {
+                "name": "tier",
+                "type": "enum",
+                "default": "free",
+                "options": [
+                  "free",
+                  "pro"
+                ],
+                "declaredAt": "doc"
+              },
+              "view": {
+                "name": "view",
+                "type": "enum",
+                "default": "grid",
+                "options": [
+                  "grid",
+                  "list"
+                ],
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "disabled",
+                "type": "boolean",
+                "label": "Disabled",
+                "constraints": {
+                  "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                },
+                "rendering": "toggle"
+              },
+              {
+                "field": "label",
+                "type": "string",
+                "label": "Label",
+                "constraints": {
+                  "description": "The human label rendered beside the control — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "placeholder",
+                "type": "string",
+                "label": "Placeholder",
+                "constraints": {
+                  "description": "Placeholder text shown in the empty control — editable at runtime."
+                },
+                "rendering": "text-input"
+              }
+            ]
+          }
+        ],
+        "varEnv": {
+          "active": {
+            "name": "active",
+            "type": "boolean",
+            "default": true,
+            "declaredAt": "doc"
+          },
+          "agreed": {
+            "name": "agreed",
+            "type": "boolean",
+            "default": false,
+            "declaredAt": "doc"
+          },
+          "bio": {
+            "name": "bio",
+            "type": "string",
+            "default": "Engineer",
+            "declaredAt": "doc"
+          },
+          "count": {
+            "name": "count",
+            "type": "integer",
+            "default": 3,
+            "declaredAt": "doc"
+          },
+          "labels": {
+            "name": "labels",
+            "type": "array",
+            "default": [],
+            "declaredAt": "doc"
+          },
+          "level": {
+            "name": "level",
+            "type": "integer",
+            "default": 5,
+            "declaredAt": "doc"
+          },
+          "name": {
+            "name": "name",
+            "type": "string",
+            "default": "Ada",
+            "declaredAt": "doc"
+          },
+          "perms": {
+            "name": "perms",
+            "type": "array",
+            "default": [
+              "read"
+            ],
+            "declaredAt": "doc"
+          },
+          "ratio": {
+            "name": "ratio",
+            "type": "number",
+            "default": 0.5,
+            "declaredAt": "doc"
+          },
+          "region": {
+            "name": "region",
+            "type": "enum",
+            "default": "us",
+            "options": [
+              "us",
+              "eu",
+              "apac"
+            ],
+            "declaredAt": "doc"
+          },
+          "tags": {
+            "name": "tags",
+            "type": "array",
+            "default": [
+              "alpha"
+            ],
+            "declaredAt": "doc"
+          },
+          "tier": {
+            "name": "tier",
+            "type": "enum",
+            "default": "free",
+            "options": [
+              "free",
+              "pro"
+            ],
+            "declaredAt": "doc"
+          },
+          "view": {
+            "name": "view",
+            "type": "enum",
+            "default": "grid",
+            "options": [
+              "grid",
+              "list"
+            ],
+            "declaredAt": "doc"
+          }
+        },
+        "surface": [
+          {
+            "field": "arrangement",
+            "type": "enum",
+            "label": "Arrangement",
+            "constraints": {
+              "description": "How the box arranges its variable widgets — editable at runtime. `stacked` lays them out one per row; `inline` flows them along a single row. Semantic and renderer-agnostic: NO CSS units or keywords."
+            },
+            "rendering": "segmented"
+          }
+        ]
+      }
+    ],
+    "varEnv": {
+      "active": {
+        "name": "active",
+        "type": "boolean",
+        "default": true,
+        "declaredAt": "doc"
+      },
+      "agreed": {
+        "name": "agreed",
+        "type": "boolean",
+        "default": false,
+        "declaredAt": "doc"
+      },
+      "bio": {
+        "name": "bio",
+        "type": "string",
+        "default": "Engineer",
+        "declaredAt": "doc"
+      },
+      "count": {
+        "name": "count",
+        "type": "integer",
+        "default": 3,
+        "declaredAt": "doc"
+      },
+      "labels": {
+        "name": "labels",
+        "type": "array",
+        "default": [],
+        "declaredAt": "doc"
+      },
+      "level": {
+        "name": "level",
+        "type": "integer",
+        "default": 5,
+        "declaredAt": "doc"
+      },
+      "name": {
+        "name": "name",
+        "type": "string",
+        "default": "Ada",
+        "declaredAt": "doc"
+      },
+      "perms": {
+        "name": "perms",
+        "type": "array",
+        "default": [
+          "read"
+        ],
+        "declaredAt": "doc"
+      },
+      "ratio": {
+        "name": "ratio",
+        "type": "number",
+        "default": 0.5,
+        "declaredAt": "doc"
+      },
+      "region": {
+        "name": "region",
+        "type": "enum",
+        "default": "us",
+        "options": [
+          "us",
+          "eu",
+          "apac"
+        ],
+        "declaredAt": "doc"
+      },
+      "tags": {
+        "name": "tags",
+        "type": "array",
+        "default": [
+          "alpha"
+        ],
+        "declaredAt": "doc"
+      },
+      "tier": {
+        "name": "tier",
+        "type": "enum",
+        "default": "free",
+        "options": [
+          "free",
+          "pro"
+        ],
+        "declaredAt": "doc"
+      },
+      "view": {
+        "name": "view",
+        "type": "enum",
+        "default": "grid",
+        "options": [
+          "grid",
+          "list"
+        ],
+        "declaredAt": "doc"
+      }
+    },
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+        }
+      }
+    ]
+  },
+  "scopeSurfaces": {
+    "$connections": [],
+    "$manifest": [
+      {
+        "field": "description",
+        "type": "string",
+        "label": "Description",
+        "constraints": {
+          "description": "An optional longer-form description of the dashboard."
+        },
+        "rendering": "textarea"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "label": "Title",
+        "constraints": {
+          "description": "The dashboard's human-readable title."
+        },
+        "rendering": "text-input"
+      }
+    ],
+    "$root": [],
+    "$theme": [
+      {
+        "field": "border",
+        "type": "enum",
+        "label": "Border Weight",
+        "constraints": {
+          "description": "How present a separating edge is around the styled surface.",
+          "enum": [
+            "none",
+            "hairline",
+            "standard"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "density",
+        "type": "enum",
+        "label": "Density",
+        "constraints": {
+          "description": "How tightly repeated/listed content is packed.",
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "emphasis",
+        "type": "enum",
+        "label": "Emphasis",
+        "constraints": {
+          "description": "How prominent the styled element appears.",
+          "enum": [
+            "none",
+            "low",
+            "high"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "radius",
+        "type": "enum",
+        "label": "Corner Radius",
+        "constraints": {
+          "description": "How softened the corners of the styled surface are.",
+          "enum": [
+            "none",
+            "subtle",
+            "rounded"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "spacing",
+        "type": "enum",
+        "label": "Spacing",
+        "constraints": {
+          "description": "The relative amount of internal/outer breathing room.",
+          "enum": [
+            "compact",
+            "cosy",
+            "roomy"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "tone",
+        "type": "enum",
+        "label": "Tone",
+        "constraints": {
+          "description": "The semantic colour intent, expressed by meaning.",
+          "enum": [
+            "neutral",
+            "accent",
+            "positive",
+            "caution",
+            "critical"
+          ]
+        },
+        "rendering": "select"
+      }
+    ],
+    "$variables": []
+  }
+}

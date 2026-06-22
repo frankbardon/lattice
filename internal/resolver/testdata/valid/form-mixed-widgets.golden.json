@@ -1,0 +1,1019 @@
+{
+  "manifest": {
+    "description": "E1-S3 golden baseline: a root container holds a body region whose grid places a block-wrapped form (proving BOTH block-wrapping-a-form AND a form with mixed widgets in one fixture). The form is in flow mode with two columns and holds widgets drawn from several families — text-input (string), number-field (number, with range config), toggle (boolean), select (enum, with options), and tag-input (array, freeform). Captures the CURRENT pre-migration resolved-tree shape of a flow-layout form and its block wrapper so the dogfood migration can be proven byte-identical.",
+    "formatVersion": "1.0.0",
+    "id": "form-mixed-widgets",
+    "title": "Form With Mixed Widgets"
+  },
+  "root": {
+    "id": "root",
+    "type": {
+      "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+      "id": "https://lattice.dev/schemas/items/container/1.0.0",
+      "name": "container",
+      "version": "1.0.0"
+    },
+    "container": true,
+    "config": {
+      "grid": {
+        "columns": [
+          1
+        ]
+      }
+    },
+    "layout": {
+      "columns": [
+        1
+      ],
+      "rows": [
+        1
+      ],
+      "gap": 0,
+      "placements": [
+        {
+          "colStart": 1,
+          "colSpan": 1,
+          "rowStart": 1,
+          "rowSpan": 1
+        }
+      ]
+    },
+    "children": [
+      {
+        "id": "body",
+        "type": {
+          "ref": "https://lattice.dev/schemas/items/container/1.0.0",
+          "id": "https://lattice.dev/schemas/items/container/1.0.0",
+          "name": "container",
+          "version": "1.0.0"
+        },
+        "container": true,
+        "config": {
+          "grid": {
+            "columns": [
+              1
+            ],
+            "gap": 1,
+            "rows": [
+              1
+            ]
+          }
+        },
+        "layout": {
+          "columns": [
+            1
+          ],
+          "rows": [
+            1
+          ],
+          "gap": 1,
+          "placements": [
+            {
+              "colStart": 1,
+              "colSpan": 1,
+              "rowStart": 1,
+              "rowSpan": 1
+            }
+          ]
+        },
+        "children": [
+          {
+            "id": "settings-block",
+            "type": {
+              "ref": "https://lattice.dev/schemas/items/block/1.0.0",
+              "id": "https://lattice.dev/schemas/items/block/1.0.0",
+              "name": "block",
+              "version": "1.0.0"
+            },
+            "container": false,
+            "config": {
+              "id": "settings-block",
+              "title": "Settings"
+            },
+            "placement": {
+              "colSpan": 1,
+              "colStart": 1,
+              "rowSpan": 1,
+              "rowStart": 1
+            },
+            "children": [
+              {
+                "id": "settings-form",
+                "type": {
+                  "ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                  "id": "https://lattice.dev/schemas/items/form/1.0.0",
+                  "name": "form",
+                  "version": "1.0.0"
+                },
+                "container": false,
+                "config": {
+                  "layout": {
+                    "columns": 2,
+                    "mode": "flow"
+                  }
+                },
+                "flow": {
+                  "mode": "flow",
+                  "columns": 2,
+                  "cells": [
+                    {
+                      "column": 1,
+                      "row": 1
+                    },
+                    {
+                      "column": 2,
+                      "row": 1
+                    },
+                    {
+                      "column": 1,
+                      "row": 2
+                    },
+                    {
+                      "column": 2,
+                      "row": 2
+                    },
+                    {
+                      "column": 1,
+                      "row": 3
+                    }
+                  ]
+                },
+                "children": [
+                  {
+                    "id": "f-title",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                      "name": "text-input",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "label": "Title",
+                      "variable": "title"
+                    },
+                    "varEnv": {
+                      "category": {
+                        "name": "category",
+                        "type": "enum",
+                        "default": "news",
+                        "options": [
+                          "news",
+                          "blog"
+                        ],
+                        "declaredAt": "doc"
+                      },
+                      "keywords": {
+                        "name": "keywords",
+                        "type": "array",
+                        "default": [],
+                        "declaredAt": "doc"
+                      },
+                      "limit": {
+                        "name": "limit",
+                        "type": "integer",
+                        "default": 10,
+                        "declaredAt": "doc"
+                      },
+                      "published": {
+                        "name": "published",
+                        "type": "boolean",
+                        "default": false,
+                        "declaredAt": "doc"
+                      },
+                      "title": {
+                        "name": "title",
+                        "type": "string",
+                        "default": "Untitled",
+                        "declaredAt": "doc"
+                      }
+                    },
+                    "surface": [
+                      {
+                        "field": "disabled",
+                        "type": "boolean",
+                        "label": "Disabled",
+                        "constraints": {
+                          "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                        },
+                        "rendering": "toggle"
+                      },
+                      {
+                        "field": "label",
+                        "type": "string",
+                        "label": "Label",
+                        "constraints": {
+                          "description": "The human label rendered beside the control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      },
+                      {
+                        "field": "placeholder",
+                        "type": "string",
+                        "label": "Placeholder",
+                        "constraints": {
+                          "description": "Placeholder text shown in the empty control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f-limit",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/number-field/1.0.0",
+                      "name": "number-field",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "label": "Limit",
+                      "max": 100,
+                      "min": 1,
+                      "step": 1,
+                      "variable": "limit"
+                    },
+                    "varEnv": {
+                      "category": {
+                        "name": "category",
+                        "type": "enum",
+                        "default": "news",
+                        "options": [
+                          "news",
+                          "blog"
+                        ],
+                        "declaredAt": "doc"
+                      },
+                      "keywords": {
+                        "name": "keywords",
+                        "type": "array",
+                        "default": [],
+                        "declaredAt": "doc"
+                      },
+                      "limit": {
+                        "name": "limit",
+                        "type": "integer",
+                        "default": 10,
+                        "declaredAt": "doc"
+                      },
+                      "published": {
+                        "name": "published",
+                        "type": "boolean",
+                        "default": false,
+                        "declaredAt": "doc"
+                      },
+                      "title": {
+                        "name": "title",
+                        "type": "string",
+                        "default": "Untitled",
+                        "declaredAt": "doc"
+                      }
+                    },
+                    "surface": [
+                      {
+                        "field": "disabled",
+                        "type": "boolean",
+                        "label": "Disabled",
+                        "constraints": {
+                          "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                        },
+                        "rendering": "toggle"
+                      },
+                      {
+                        "field": "label",
+                        "type": "string",
+                        "label": "Label",
+                        "constraints": {
+                          "description": "The human label rendered beside the control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      },
+                      {
+                        "field": "max",
+                        "type": "number",
+                        "label": "Maximum",
+                        "constraints": {
+                          "description": "Inclusive upper bound for the entered value — editable at runtime. Must not be less than min."
+                        },
+                        "rendering": "number-field"
+                      },
+                      {
+                        "field": "min",
+                        "type": "number",
+                        "label": "Minimum",
+                        "constraints": {
+                          "description": "Inclusive lower bound for the entered value — editable at runtime. Must not exceed max."
+                        },
+                        "rendering": "number-field"
+                      },
+                      {
+                        "field": "step",
+                        "type": "number",
+                        "label": "Step",
+                        "constraints": {
+                          "description": "Increment between selectable values — editable at runtime. Must be a positive number."
+                        },
+                        "rendering": "number-field"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f-published",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/toggle/1.0.0",
+                      "name": "toggle",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "label": "Published",
+                      "variable": "published"
+                    },
+                    "varEnv": {
+                      "category": {
+                        "name": "category",
+                        "type": "enum",
+                        "default": "news",
+                        "options": [
+                          "news",
+                          "blog"
+                        ],
+                        "declaredAt": "doc"
+                      },
+                      "keywords": {
+                        "name": "keywords",
+                        "type": "array",
+                        "default": [],
+                        "declaredAt": "doc"
+                      },
+                      "limit": {
+                        "name": "limit",
+                        "type": "integer",
+                        "default": 10,
+                        "declaredAt": "doc"
+                      },
+                      "published": {
+                        "name": "published",
+                        "type": "boolean",
+                        "default": false,
+                        "declaredAt": "doc"
+                      },
+                      "title": {
+                        "name": "title",
+                        "type": "string",
+                        "default": "Untitled",
+                        "declaredAt": "doc"
+                      }
+                    },
+                    "surface": [
+                      {
+                        "field": "disabled",
+                        "type": "boolean",
+                        "label": "Disabled",
+                        "constraints": {
+                          "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                        },
+                        "rendering": "toggle"
+                      },
+                      {
+                        "field": "label",
+                        "type": "string",
+                        "label": "Label",
+                        "constraints": {
+                          "description": "The human label rendered beside the control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f-category",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/select/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/select/1.0.0",
+                      "name": "select",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "label": "Category",
+                      "options": [
+                        {
+                          "label": "News",
+                          "value": "news"
+                        },
+                        {
+                          "label": "Blog",
+                          "value": "blog"
+                        }
+                      ],
+                      "variable": "category"
+                    },
+                    "varEnv": {
+                      "category": {
+                        "name": "category",
+                        "type": "enum",
+                        "default": "news",
+                        "options": [
+                          "news",
+                          "blog"
+                        ],
+                        "declaredAt": "doc"
+                      },
+                      "keywords": {
+                        "name": "keywords",
+                        "type": "array",
+                        "default": [],
+                        "declaredAt": "doc"
+                      },
+                      "limit": {
+                        "name": "limit",
+                        "type": "integer",
+                        "default": 10,
+                        "declaredAt": "doc"
+                      },
+                      "published": {
+                        "name": "published",
+                        "type": "boolean",
+                        "default": false,
+                        "declaredAt": "doc"
+                      },
+                      "title": {
+                        "name": "title",
+                        "type": "string",
+                        "default": "Untitled",
+                        "declaredAt": "doc"
+                      }
+                    },
+                    "surface": [
+                      {
+                        "field": "disabled",
+                        "type": "boolean",
+                        "label": "Disabled",
+                        "constraints": {
+                          "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                        },
+                        "rendering": "toggle"
+                      },
+                      {
+                        "field": "label",
+                        "type": "string",
+                        "label": "Label",
+                        "constraints": {
+                          "description": "The human label rendered beside the control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      },
+                      {
+                        "field": "sort",
+                        "type": "enum",
+                        "label": "Option sort",
+                        "constraints": {
+                          "description": "How the option set is ordered for display — editable at runtime.",
+                          "enum": [
+                            "declared",
+                            "label",
+                            "value"
+                          ]
+                        },
+                        "rendering": "select"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "f-keywords",
+                    "type": {
+                      "ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+                      "id": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+                      "name": "tag-input",
+                      "version": "1.0.0"
+                    },
+                    "container": false,
+                    "config": {
+                      "label": "Keywords",
+                      "variable": "keywords"
+                    },
+                    "varEnv": {
+                      "category": {
+                        "name": "category",
+                        "type": "enum",
+                        "default": "news",
+                        "options": [
+                          "news",
+                          "blog"
+                        ],
+                        "declaredAt": "doc"
+                      },
+                      "keywords": {
+                        "name": "keywords",
+                        "type": "array",
+                        "default": [],
+                        "declaredAt": "doc"
+                      },
+                      "limit": {
+                        "name": "limit",
+                        "type": "integer",
+                        "default": 10,
+                        "declaredAt": "doc"
+                      },
+                      "published": {
+                        "name": "published",
+                        "type": "boolean",
+                        "default": false,
+                        "declaredAt": "doc"
+                      },
+                      "title": {
+                        "name": "title",
+                        "type": "string",
+                        "default": "Untitled",
+                        "declaredAt": "doc"
+                      }
+                    },
+                    "surface": [
+                      {
+                        "field": "disabled",
+                        "type": "boolean",
+                        "label": "Disabled",
+                        "constraints": {
+                          "description": "When true the control is rendered read-only — editable at runtime to gate the input."
+                        },
+                        "rendering": "toggle"
+                      },
+                      {
+                        "field": "label",
+                        "type": "string",
+                        "label": "Label",
+                        "constraints": {
+                          "description": "The human label rendered beside the control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      },
+                      {
+                        "field": "placeholder",
+                        "type": "string",
+                        "label": "Placeholder",
+                        "constraints": {
+                          "description": "Placeholder text shown in the empty control — editable at runtime."
+                        },
+                        "rendering": "text-input"
+                      }
+                    ]
+                  }
+                ],
+                "varEnv": {
+                  "category": {
+                    "name": "category",
+                    "type": "enum",
+                    "default": "news",
+                    "options": [
+                      "news",
+                      "blog"
+                    ],
+                    "declaredAt": "doc"
+                  },
+                  "keywords": {
+                    "name": "keywords",
+                    "type": "array",
+                    "default": [],
+                    "declaredAt": "doc"
+                  },
+                  "limit": {
+                    "name": "limit",
+                    "type": "integer",
+                    "default": 10,
+                    "declaredAt": "doc"
+                  },
+                  "published": {
+                    "name": "published",
+                    "type": "boolean",
+                    "default": false,
+                    "declaredAt": "doc"
+                  },
+                  "title": {
+                    "name": "title",
+                    "type": "string",
+                    "default": "Untitled",
+                    "declaredAt": "doc"
+                  }
+                },
+                "surface": [
+                  {
+                    "field": "layout",
+                    "type": "array",
+                    "label": "Form layout",
+                    "constraints": {
+                      "description": "The form's layout declaration (E3-S3 surface). Editable at runtime: the layout `mode` (flow vs grid) and, in flow mode, the unitless `columns` count children pack into; in grid mode the relative-weight `columns`/`rows` track lists and `gap`. All unitless and relative — NO CSS units or keywords. Declared with the array variable type per the top-level-only surface limitation (the layout is an object whose editable sub-fields are described here, matching the container `grid` surface convention).",
+                      "fields": {
+                        "columns": {
+                          "description": "Flow mode: a unitless integer column count (1–12). Grid mode: a positive-number relative-weight track array."
+                        },
+                        "gap": {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        "mode": {
+                          "enum": [
+                            "flow",
+                            "grid"
+                          ],
+                          "type": "string"
+                        },
+                        "rows": {
+                          "items": {
+                            "exclusiveMinimum": 0,
+                            "type": "number"
+                          },
+                          "type": "array"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            ],
+            "varEnv": {
+              "category": {
+                "name": "category",
+                "type": "enum",
+                "default": "news",
+                "options": [
+                  "news",
+                  "blog"
+                ],
+                "declaredAt": "doc"
+              },
+              "keywords": {
+                "name": "keywords",
+                "type": "array",
+                "default": [],
+                "declaredAt": "doc"
+              },
+              "limit": {
+                "name": "limit",
+                "type": "integer",
+                "default": 10,
+                "declaredAt": "doc"
+              },
+              "published": {
+                "name": "published",
+                "type": "boolean",
+                "default": false,
+                "declaredAt": "doc"
+              },
+              "title": {
+                "name": "title",
+                "type": "string",
+                "default": "Untitled",
+                "declaredAt": "doc"
+              }
+            },
+            "surface": [
+              {
+                "field": "title",
+                "type": "string",
+                "label": "Title",
+                "constraints": {
+                  "description": "The block's human heading/label — editable at runtime."
+                },
+                "rendering": "text-input"
+              },
+              {
+                "field": "visibility",
+                "type": "boolean",
+                "label": "Visible",
+                "constraints": {
+                  "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
+                },
+                "rendering": "toggle"
+              }
+            ]
+          }
+        ],
+        "varEnv": {
+          "category": {
+            "name": "category",
+            "type": "enum",
+            "default": "news",
+            "options": [
+              "news",
+              "blog"
+            ],
+            "declaredAt": "doc"
+          },
+          "keywords": {
+            "name": "keywords",
+            "type": "array",
+            "default": [],
+            "declaredAt": "doc"
+          },
+          "limit": {
+            "name": "limit",
+            "type": "integer",
+            "default": 10,
+            "declaredAt": "doc"
+          },
+          "published": {
+            "name": "published",
+            "type": "boolean",
+            "default": false,
+            "declaredAt": "doc"
+          },
+          "title": {
+            "name": "title",
+            "type": "string",
+            "default": "Untitled",
+            "declaredAt": "doc"
+          }
+        },
+        "surface": [
+          {
+            "field": "grid",
+            "type": "array",
+            "label": "Grid tracks",
+            "constraints": {
+              "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+              "fields": {
+                "columns": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "gap": {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                "rows": {
+                  "items": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              }
+            }
+          },
+          {
+            "field": "grid.columns",
+            "path": [
+              "grid",
+              "columns"
+            ],
+            "type": "array",
+            "label": "Column tracks",
+            "constraints": {
+              "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+            }
+          },
+          {
+            "field": "grid.gap",
+            "path": [
+              "grid",
+              "gap"
+            ],
+            "type": "number",
+            "label": "Track gap",
+            "constraints": {
+              "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+            },
+            "rendering": "number-field"
+          },
+          {
+            "field": "grid.rows",
+            "path": [
+              "grid",
+              "rows"
+            ],
+            "type": "array",
+            "label": "Row tracks",
+            "constraints": {
+              "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+            }
+          }
+        ]
+      }
+    ],
+    "varEnv": {
+      "category": {
+        "name": "category",
+        "type": "enum",
+        "default": "news",
+        "options": [
+          "news",
+          "blog"
+        ],
+        "declaredAt": "doc"
+      },
+      "keywords": {
+        "name": "keywords",
+        "type": "array",
+        "default": [],
+        "declaredAt": "doc"
+      },
+      "limit": {
+        "name": "limit",
+        "type": "integer",
+        "default": 10,
+        "declaredAt": "doc"
+      },
+      "published": {
+        "name": "published",
+        "type": "boolean",
+        "default": false,
+        "declaredAt": "doc"
+      },
+      "title": {
+        "name": "title",
+        "type": "string",
+        "default": "Untitled",
+        "declaredAt": "doc"
+      }
+    },
+    "surface": [
+      {
+        "field": "grid",
+        "type": "array",
+        "label": "Grid tracks",
+        "constraints": {
+          "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
+          "fields": {
+            "columns": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "gap": {
+              "minimum": 0,
+              "type": "number"
+            },
+            "rows": {
+              "items": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "minItems": 1,
+              "type": "array"
+            }
+          }
+        }
+      },
+      {
+        "field": "grid.columns",
+        "path": [
+          "grid",
+          "columns"
+        ],
+        "type": "array",
+        "label": "Column tracks",
+        "constraints": {
+          "description": "The container grid's column track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the row tracks or the gap. NO CSS units or keywords."
+        }
+      },
+      {
+        "field": "grid.gap",
+        "path": [
+          "grid",
+          "gap"
+        ],
+        "type": "number",
+        "label": "Track gap",
+        "constraints": {
+          "description": "The container grid's inter-track gap (E2-S1 nested surface): a non-negative, unitless number in the same relative space as the track weights, editable on its own without touching the column/row tracks. NO CSS units or keywords."
+        },
+        "rendering": "number-field"
+      },
+      {
+        "field": "grid.rows",
+        "path": [
+          "grid",
+          "rows"
+        ],
+        "type": "array",
+        "label": "Row tracks",
+        "constraints": {
+          "description": "The container grid's row track weights (E2-S1 nested surface): a positive-number array the resolver normalizes to fractions summing to 1, editable on its own without touching the column tracks or the gap. NO CSS units or keywords."
+        }
+      }
+    ]
+  },
+  "scopeSurfaces": {
+    "$connections": [],
+    "$manifest": [
+      {
+        "field": "description",
+        "type": "string",
+        "label": "Description",
+        "constraints": {
+          "description": "An optional longer-form description of the dashboard."
+        },
+        "rendering": "textarea"
+      },
+      {
+        "field": "title",
+        "type": "string",
+        "label": "Title",
+        "constraints": {
+          "description": "The dashboard's human-readable title."
+        },
+        "rendering": "text-input"
+      }
+    ],
+    "$root": [],
+    "$theme": [
+      {
+        "field": "border",
+        "type": "enum",
+        "label": "Border Weight",
+        "constraints": {
+          "description": "How present a separating edge is around the styled surface.",
+          "enum": [
+            "none",
+            "hairline",
+            "standard"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "density",
+        "type": "enum",
+        "label": "Density",
+        "constraints": {
+          "description": "How tightly repeated/listed content is packed.",
+          "enum": [
+            "comfortable",
+            "compact"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "emphasis",
+        "type": "enum",
+        "label": "Emphasis",
+        "constraints": {
+          "description": "How prominent the styled element appears.",
+          "enum": [
+            "none",
+            "low",
+            "high"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "radius",
+        "type": "enum",
+        "label": "Corner Radius",
+        "constraints": {
+          "description": "How softened the corners of the styled surface are.",
+          "enum": [
+            "none",
+            "subtle",
+            "rounded"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "spacing",
+        "type": "enum",
+        "label": "Spacing",
+        "constraints": {
+          "description": "The relative amount of internal/outer breathing room.",
+          "enum": [
+            "compact",
+            "cosy",
+            "roomy"
+          ]
+        },
+        "rendering": "select"
+      },
+      {
+        "field": "tone",
+        "type": "enum",
+        "label": "Tone",
+        "constraints": {
+          "description": "The semantic colour intent, expressed by meaning.",
+          "enum": [
+            "neutral",
+            "accent",
+            "positive",
+            "caution",
+            "critical"
+          ]
+        },
+        "rendering": "select"
+      }
+    ],
+    "$variables": []
+  }
+}

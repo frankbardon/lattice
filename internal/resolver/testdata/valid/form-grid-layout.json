@@ -1,0 +1,52 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "form-grid-layout",
+    "title": "Form With Grid Layout",
+    "description": "E1-S3 golden baseline: a block-wrapped form in GRID mode (the second of the form's two layout modes), whose widget children each carry an explicit 1-indexed placement on the form's weighted grid (reusing the same layout.Block path as container). Complements form-mixed-widgets.json (flow mode) so both form layout modes are pinned. Captures the CURRENT pre-migration resolved-tree shape of a grid-layout form."
+  },
+  "variables": [
+    { "name": "name", "type": "string", "default": "" },
+    { "name": "size", "type": "integer", "default": 1 }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "grid-form-block",
+            "config": {
+              "id": "grid-form-block",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/form/1.0.0",
+                "id": "grid-form",
+                "config": { "layout": { "mode": "grid", "columns": [1, 1], "gap": 0.5 } },
+                "children": [
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+                    "id": "g-name",
+                    "placement": { "colStart": 1, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+                    "config": { "label": "Name", "variable": "name" }
+                  },
+                  {
+                    "$ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
+                    "id": "g-size",
+                    "placement": { "colStart": 2, "colSpan": 1, "rowStart": 1, "rowSpan": 1 },
+                    "config": { "label": "Size", "variable": "size", "min": 1, "max": 5 }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

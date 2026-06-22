@@ -1,0 +1,138 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "all-widget-families",
+    "title": "All Widget Families",
+    "description": "E1-S3 golden baseline: a root container holding a variable-box that holds at least one widget from every family — string (text-input, textarea), number (number-field, slider, stepper, the latter two carrying min/max/step range config), boolean (toggle, checkbox), enum (select, radio-group, segmented, each with an option set), and array (multiselect + checkbox-group with option sets, tag-input freeform). The box's widget children are held directly (not block-wrapped). Captures the CURRENT pre-migration resolved-tree shape of every built-in variable-widget type so the dogfood migration can be proven byte-identical."
+  },
+  "variables": [
+    { "name": "name", "type": "string", "default": "Ada" },
+    { "name": "bio", "type": "string", "default": "Engineer" },
+    { "name": "count", "type": "integer", "default": 3 },
+    { "name": "ratio", "type": "number", "default": 0.5 },
+    { "name": "level", "type": "integer", "default": 5 },
+    { "name": "active", "type": "boolean", "default": true },
+    { "name": "agreed", "type": "boolean", "default": false },
+    { "name": "region", "type": "enum", "default": "us", "options": ["us", "eu", "apac"] },
+    { "name": "tier", "type": "enum", "default": "free", "options": ["free", "pro"] },
+    { "name": "view", "type": "enum", "default": "grid", "options": ["grid", "list"] },
+    { "name": "tags", "type": "array", "default": ["alpha"] },
+    { "name": "perms", "type": "array", "default": ["read"] },
+    { "name": "labels", "type": "array", "default": [] }
+  ],
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/variable-box/1.0.0",
+        "id": "controls",
+        "config": { "arrangement": "stacked" },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/text-input/1.0.0",
+            "id": "w-text-input",
+            "config": { "label": "Name", "variable": "name", "placeholder": "Your name" }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/textarea/1.0.0",
+            "id": "w-textarea",
+            "config": { "label": "Bio", "variable": "bio" }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/number-field/1.0.0",
+            "id": "w-number-field",
+            "config": { "label": "Count", "variable": "count", "min": 0, "max": 10, "step": 1 }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/slider/1.0.0",
+            "id": "w-slider",
+            "config": { "label": "Ratio", "variable": "ratio", "min": 0, "max": 1, "step": 0.1 }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/stepper/1.0.0",
+            "id": "w-stepper",
+            "config": { "label": "Level", "variable": "level", "min": 1, "max": 9, "step": 1 }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/toggle/1.0.0",
+            "id": "w-toggle",
+            "config": { "label": "Active", "variable": "active" }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/checkbox/1.0.0",
+            "id": "w-checkbox",
+            "config": { "label": "Agreed", "variable": "agreed" }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/select/1.0.0",
+            "id": "w-select",
+            "config": {
+              "label": "Region",
+              "variable": "region",
+              "options": [
+                { "value": "us", "label": "United States" },
+                { "value": "eu", "label": "Europe" },
+                { "value": "apac", "label": "Asia-Pacific" }
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/radio-group/1.0.0",
+            "id": "w-radio-group",
+            "config": {
+              "label": "Tier",
+              "variable": "tier",
+              "options": [
+                { "value": "free", "label": "Free" },
+                { "value": "pro", "label": "Pro" }
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/segmented/1.0.0",
+            "id": "w-segmented",
+            "config": {
+              "label": "View",
+              "variable": "view",
+              "options": [
+                { "value": "grid", "label": "Grid" },
+                { "value": "list", "label": "List" }
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/multiselect/1.0.0",
+            "id": "w-multiselect",
+            "config": {
+              "label": "Tags",
+              "variable": "tags",
+              "options": [
+                { "value": "alpha", "label": "Alpha" },
+                { "value": "beta", "label": "Beta" }
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/checkbox-group/1.0.0",
+            "id": "w-checkbox-group",
+            "config": {
+              "label": "Permissions",
+              "variable": "perms",
+              "options": [
+                { "value": "read", "label": "Read" },
+                { "value": "write", "label": "Write" }
+              ]
+            }
+          },
+          {
+            "$ref": "https://lattice.dev/schemas/items/tag-input/1.0.0",
+            "id": "w-tag-input",
+            "config": { "label": "Labels", "variable": "labels", "placeholder": "Add a label" }
+          }
+        ]
+      }
+    ]
+  }
+}
