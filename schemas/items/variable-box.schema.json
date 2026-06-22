@@ -5,7 +5,11 @@
   "description": "A POSITIONAL REGION (E3-S1) dedicated to holding VARIABLE WIDGETS — the runtime-input leaf family from the variable-widgets effort (text-input, textarea, number-field, slider, stepper, toggle, checkbox, checkbox-group, radio-group, select, multiselect, segmented, tag-input). Like `container` it is layout-only: it positions its children and carries NO chrome/theme of its own (the schema-level `positional: true` marker designates it; the resolver grammar pass (E3-S2) reads that marker rather than any hardcoded type list, so the legal region set is extensible). It is DISTINCT from `container`: a container groups arbitrary items on a relative-weight grid, whereas a variable-box is the dedicated home for variable widgets and provides their distinct downstream styling as a group. Its variable-widget children are held DIRECTLY — they are NOT individually wrapped in a `block` (the box, not a per-widget wrapper, supplies their grouped presentation downstream). A variable-box is distinguishable from a container in resolved output by its item-type identity ($id / name `variable-box`). The container/variable-box-children grammar is enforced by the resolver (E3-S2), not by this schema; this schema declares only the box's own layout-only surface.",
   "type": "object",
   "additionalProperties": false,
-  "positional": true,
+  "latticeBehavior": {
+    "role": "region",
+    "childPolicy": "widgets",
+    "layout": "none"
+  },
   "configurable": {
     "arrangement": {
       "type": "enum",

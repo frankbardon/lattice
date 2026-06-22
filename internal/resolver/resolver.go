@@ -35,11 +35,6 @@ import (
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
-// containerTypeName is the weighted-grid container item-type name. It and the
-// form item-type are the structurally-special types permitted to carry children
-// (see schemas/items/container and schemas/items/form).
-const containerTypeName = "container"
-
 // formTypeName is the form item-type name (E2-S1): a container-like type that
 // packs variable-widget children into a compact flow layout (label+control rows,
 // optionally split into N columns) rather than the weighted-grid Block. A form
@@ -329,24 +324,29 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 			"instance has no resolved item type", map[string]any{"path": path, "ref": inst.Ref})
 	}
 
-	isContainer := rt.Name == containerTypeName
 	isForm := rt.Name == formTypeName
 	isBlock := rt.Name == blockTypeName
 
-	// A positional REGION (E3-S1, marker-driven via the schema-level `positional`
-	// keyword — container, variable-box, and any future region type) positions its
-	// children, so it bears a `children` array. Reading the marker rather than a
-	// name list keeps the children-bearing region set extensible without editing
-	// here; the E3-S2 grammar pass then enforces WHICH children each region may
-	// hold. (container is itself positional, so isContainer is a subset of this.)
-	isRegion := rt.IsPositional()
+	// A REGION (E3-S1, keyword-driven via `latticeBehavior.role == "region"` —
+	// container, variable-box, and any future region type) positions its children,
+	// so it bears a `children` array. Reading the role keyword rather than a name
+	// list keeps the children-bearing region set extensible without editing here;
+	// the E3-S2 grammar pass then enforces WHICH children each region may hold.
+	isRegion := rt.Role() == schema.RoleRegion
+
+	// A grid region (`latticeBehavior.layout == "grid"` — the weighted-grid
+	// container) drives the weighted-grid layout pass and surfaces the backward-
+	// compatible Container flag on the resolved node. The flag is now DERIVED from
+	// the layout keyword rather than a hardcoded type name, so any future grid
+	// region carries it for free.
+	isContainer := rt.Layout() == schema.LayoutGrid
 
 	// Children-allowed rule: children are permitted only on the structurally
-	// special types — positional regions (the weighted-grid container, the
-	// variable-box, and any future region) and the flow-packing form. A child on
-	// any other type fails fast. A block wraps its single inner item via its
-	// `content` config field, not the `children` array, so authored children on a
-	// block are rejected here like any other leaf.
+	// special types — regions (the weighted-grid container, the variable-box, and
+	// any future `role: region` type) and the flow-packing form. A child on any
+	// other type fails fast. A block wraps its single inner item via its `content`
+	// config field, not the `children` array, so authored children on a block are
+	// rejected here like any other leaf.
 	if len(inst.Children) > 0 && !isRegion && !isForm {
 		return nil, errors.NewCodedErrorWithDetails(errors.RESOLVE_CHILDREN_NOT_ALLOWED,
 			"children are only permitted on container item types",
