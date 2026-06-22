@@ -78,6 +78,18 @@ func (r *Resolver) SchemaFS() afero.Fs {
 	return r.fs
 }
 
+// WrapperNames returns the set of catalogued item-type names whose schema declares
+// the wrapper role (`latticeBehavior.role == "wrapper"`). It exposes the catalog's
+// keyword-derived wrapper set to the facade so the service node view can decide, by
+// resolved type name, whether a node is a wrapper without hardcoding "block". This
+// mirrors how the surface pass already consumes Catalog.WidgetNames internally.
+func (r *Resolver) WrapperNames() map[string]bool {
+	if r.cat == nil {
+		return nil
+	}
+	return r.cat.WrapperNames()
+}
+
 // Resolve loads, validates (two passes), and assembles the resolved tree for the
 // dashboard document at docPath. It returns the first error as a CodedError.
 func (r *Resolver) Resolve(docPath string) (*ResolvedTree, error) {

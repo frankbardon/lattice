@@ -186,6 +186,26 @@ func (c *Catalog) WidgetNames() map[string]bool {
 	return out
 }
 
+// WrapperNames returns the set of catalogued item-type names whose schema declares
+// the wrapper role (`latticeBehavior.role == "wrapper"`). It is the keyword-derived
+// replacement for the old hardcoded "block" name check: callers that must decide,
+// BY NAME, whether a node is a wrapper (e.g. the service node view delegating a
+// wrapper's editable surface to its inner content) consult it, so "what is a
+// wrapper" stays sourced from the schemas, never a copy. A name with at least one
+// wrapper-role version is included. Mirrors WidgetNames.
+func (c *Catalog) WrapperNames() map[string]bool {
+	out := make(map[string]bool)
+	for name, versions := range c.byName {
+		for _, rt := range versions {
+			if rt.Role() == RoleWrapper {
+				out[name] = true
+				break
+			}
+		}
+	}
+	return out
+}
+
 // hasName reports whether any version of the named item type is catalogued.
 func (c *Catalog) hasName(name string) bool {
 	_, ok := c.byName[name]
