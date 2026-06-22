@@ -1,0 +1,42 @@
+{
+  "manifest": {
+    "formatVersion": "1.0.0",
+    "id": "element-metadata",
+    "title": "Element Metadata Example",
+    "description": "A hand-written fixture proving element metadata (E1) is carried verbatim onto the resolved tree: the top-level document `metadata` lands on the root, a regions-or-wrappers container carries its own scalar metadata, and a block wrapper carries metadata on its envelope (NOT lifted onto the wrapped content). Every value is a scalar (string | number | boolean | null) and passes through unchanged. Conforms to https://lattice.dev/schemas/dashboard/1.0.0."
+  },
+  "metadata": { "owner": "platform", "version": 3 },
+  "root": {
+    "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+    "id": "root",
+    "config": { "grid": { "columns": [1] } },
+    "metadata": { "rootKey": "rootVal", "pinned": true },
+    "children": [
+      {
+        "$ref": "https://lattice.dev/schemas/items/container/1.0.0",
+        "id": "body",
+        "config": { "grid": { "columns": [1] } },
+        "metadata": { "team": "growth", "count": 7, "flagged": false, "note": null },
+        "children": [
+          {
+            "$ref": "https://lattice.dev/schemas/items/block/1.0.0",
+            "id": "revenue-block",
+            "config": {
+              "id": "revenue-block",
+              "title": "Revenue",
+              "content": {
+                "$ref": "https://lattice.dev/schemas/items/table/1.0.0",
+                "id": "revenue",
+                "config": {
+                  "title": "Revenue",
+                  "columns": [{ "header": "Name" }]
+                }
+              }
+            },
+            "metadata": { "source": "warehouse", "rev": 2 }
+          }
+        ]
+      }
+    ]
+  }
+}
