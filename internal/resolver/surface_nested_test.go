@@ -47,7 +47,7 @@ func TestResolveSurfaceNestedValid(t *testing.T) {
 	g := newNestedSurfaceGraph(t, decl)
 	inst := &ResolvedInstance{Type: ResolvedTypeRef{ID: nestedSurfaceTypeID, Name: "panel"}}
 
-	got, err := resolveSurface(g, inst, "root")
+	got, err := resolveSurface(g, inst, surfaceTestWidgets, "root")
 	if err != nil {
 		t.Fatalf("resolveSurface: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestResolveSurfaceNestedInvalid(t *testing.T) {
 			g := newNestedSurfaceGraph(t, tc.decl)
 			inst := &ResolvedInstance{Type: ResolvedTypeRef{ID: nestedSurfaceTypeID, Name: "panel"}}
 
-			_, err := resolveSurface(g, inst, "root.children[0]")
+			_, err := resolveSurface(g, inst, surfaceTestWidgets, "root.children[0]")
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}

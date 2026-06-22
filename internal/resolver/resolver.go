@@ -214,7 +214,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// walk because it reads each node's scoped variable environment to resolve the
 	// bound variable and check its declared type. Fail-fast, same machinery as the
 	// other passes. See widget.go.
-	if err := resolveWidgets(root); err != nil {
+	if err := resolveWidgets(g, root); err != nil {
 		return nil, err
 	}
 
@@ -225,7 +225,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// auto-gen) can read it. Runs after the instance walk because it reads each
 	// node's resolved type identity. Fail-fast, same machinery as the other
 	// passes. See surface.go.
-	if err := resolveSurfaces(g, root); err != nil {
+	if err := resolveSurfaces(g, root, r.cat.WidgetNames()); err != nil {
 		return nil, err
 	}
 
@@ -245,7 +245,7 @@ func (r *Resolver) resolveBytes(data []byte, source string, overrides variables.
 	// pass so a configurator targeting a reserved `$`-scope generates a document-level
 	// editor form from that scope's surface (reusing the item form-generation path).
 	// The resolver applies no change — generation only. See document_scope.go.
-	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat))
+	scopeSurfaces, err := documentScopeSurfaces(g.DashboardSchema, themeTokenProperties(r.cat), r.cat.WidgetNames())
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +434,7 @@ func (r *Resolver) resolveInstance(g *schema.ResolvedGraph, inst *schema.Instanc
 	// (label+control rows, optionally split into N columns) instead of the
 	// weighted grid. No-op for non-forms. See form.go.
 	if isForm {
-		if err := r.resolveForm(node, path); err != nil {
+		if err := r.resolveForm(g, node, path); err != nil {
 			return nil, err
 		}
 	}

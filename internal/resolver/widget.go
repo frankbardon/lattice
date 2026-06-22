@@ -6,11 +6,14 @@ package resolver
 // drives, and the resolver enforces widget↔variable TYPE COMPATIBILITY: a widget
 // may only bind a variable whose declared type its FAMILY permits.
 //
-// The compatibility rule is the reusable core. Each widget family registers its
-// item-type name(s) plus the set of variable types it accepts in widgetFamilies;
-// every subsequent family (number, boolean, enum, …) is one entry here and a pair
-// of schema files — no per-family resolver logic. The pass itself is generic over
-// the registry.
+// The compatibility rule is the reusable core, and it is now KEYWORD-DRIVEN
+// (E2-S1): a node is a widget iff its item type declares `latticeBehavior.role ==
+// "widget"`, the permitted variable-type set is the type's `binds` list, the
+// cross-field range check is gated by `rangeCheck`, and the non-empty options
+// check by `requireOptions`. The schema is the single source of truth — every
+// family (string, number, boolean, enum, array) is a pair of schema files
+// carrying the keyword, with NO per-family or name-keyed resolver registry. The
+// pass itself is generic over the behavior accessors in internal/schema.
 //
 // The pass runs AFTER the instance walk because it reads each node's scoped
 // variable environment (ResolvedInstance.VarEnv, computed during the walk) to
@@ -26,6 +29,7 @@ import (
 	"strconv"
 
 	"github.com/frankbardon/lattice/errors"
+	"github.com/frankbardon/lattice/internal/schema"
 	"github.com/frankbardon/lattice/internal/variables"
 )
 
@@ -34,85 +38,57 @@ import (
 // reads it generically.
 const widgetVariableKey = "variable"
 
-// widgetFamilies maps a widget item-type name to the set of variable types its
-// family permits. A node whose resolved item-type name appears here is treated as
-// a variable widget and type-checked against the bound variable's declared type.
-//
-// This is the single registration point: E1-S2/S3/S4 add their family by adding
-// an entry (e.g. "number-input"/"slider" → {VarTypeNumber, VarTypeInteger}). The
-// pass logic does not change.
-var widgetFamilies = map[string]map[variables.VarType]bool{
-	// String family (E1-S1): single-line and multi-line free-text controls bind a
-	// string variable.
-	"text-input": {variables.VarTypeString: true},
-	"textarea":   {variables.VarTypeString: true},
-
-	// Number family (E1-S2): free-entry field, draggable slider, and increment
-	// stepper bind a number or integer variable. Each carries optional
-	// min/max/step range config (validated below).
-	"number-field": {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
-	"slider":       {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
-	"stepper":      {variables.VarTypeNumber: true, variables.VarTypeInteger: true},
-
-	// Boolean family (E1-S2): on/off switch and checkbox bind a boolean variable.
-	"toggle":   {variables.VarTypeBoolean: true},
-	"checkbox": {variables.VarTypeBoolean: true},
-
-	// Enum family (E1-S3): single-choice dropdown, radio-button group, and
-	// segmented control bind an enum variable, exposing the option set plus
-	// ordering config. `select` is the canonical replacement for the retired
-	// `dropdown` item.
-	"select":      {variables.VarTypeEnum: true},
-	"radio-group": {variables.VarTypeEnum: true},
-	"segmented":   {variables.VarTypeEnum: true},
-
-	// Array family (E1-S4): multi-choice menu, checkbox group, and freeform tag
-	// entry bind an array variable. `multiselect` and `checkbox-group` are
-	// option-constrained (they require a bounded option set, checked below);
-	// `tag-input` is freeform and declares no options.
-	"multiselect":    {variables.VarTypeArray: true},
-	"checkbox-group": {variables.VarTypeArray: true},
-	"tag-input":      {variables.VarTypeArray: true},
+// widgetType resolves a node's item-type behavior from the graph's type table.
+// It returns nil when the graph is absent or the node's type is not catalogued —
+// callers treat a nil result as "not a widget".
+func widgetType(g *schema.ResolvedGraph, inst *ResolvedInstance) *schema.ResolvedType {
+	if g == nil {
+		return nil
+	}
+	return g.Types[inst.Type.ID]
 }
 
-// numberWidgets is the subset of widget families that accept the optional
-// min/max/step range config. Membership gates the semantic range check
-// (validateWidgetRange) — JSON Schema already enforces each value's type and a
-// positive step, but the cross-field min > max relationship is checked here.
-var numberWidgets = map[string]bool{
-	"number-field": true,
-	"slider":       true,
-	"stepper":      true,
+// isVariableWidget reports whether a resolved node's item type declares the
+// widget role (`latticeBehavior.role == "widget"`). It is the schema-keyword
+// replacement for the old name-membership test against the widgetFamilies map.
+func isVariableWidget(g *schema.ResolvedGraph, inst *ResolvedInstance) bool {
+	rt := widgetType(g, inst)
+	return rt != nil && rt.Role() == schema.RoleWidget
 }
 
-// optionConstrainedArrayWidgets is the subset of the array family that requires a
-// bounded option set. Membership gates the options-presence check
-// (validateWidgetOptions): a multiselect/checkbox-group with no declared options
-// has nothing for a viewer to choose from and fails RESOLVE_CONFIG_INVALID. The
-// freeform `tag-input` is deliberately absent — it resolves without options.
-var optionConstrainedArrayWidgets = map[string]bool{
-	"multiselect":    true,
-	"checkbox-group": true,
+// permitsVarType reports whether a widget type's declared `binds` set admits a
+// bound variable's declared type. The `binds` members use the same string
+// vocabulary as variables.VarType (string/number/integer/boolean/enum/array), so
+// the comparison is a direct match — superseding the old per-name permitted-type
+// map.
+func permitsVarType(rt *schema.ResolvedType, vt variables.VarType) bool {
+	for _, b := range rt.Binds() {
+		if variables.VarType(b) == vt {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveWidgets walks the assembled resolved tree and validates every variable
 // widget's binding: the named variable must be visible in the widget's scope
-// (else VAR_UNDEFINED) and its declared type must be one the widget's family
-// permits (else WIDGET_TYPE_MISMATCH). Non-widget nodes are left untouched. It is
-// fail-fast: the first offending widget stops the walk.
-func resolveWidgets(root *ResolvedInstance) error {
-	return checkWidget(root, "root")
+// (else VAR_UNDEFINED) and its declared type must be one the widget's `binds`
+// set permits (else WIDGET_TYPE_MISMATCH). Non-widget nodes are left untouched.
+// It is fail-fast: the first offending widget stops the walk. The graph supplies
+// each node's item-type behavior (role + binds + rangeCheck/requireOptions).
+func resolveWidgets(g *schema.ResolvedGraph, root *ResolvedInstance) error {
+	return checkWidget(g, root, "root")
 }
 
 // checkWidget validates one node's widget binding (if it is a widget) and
 // recurses into children.
-func checkWidget(inst *ResolvedInstance, path string) error {
-	if err := validateWidgetBinding(inst, path); err != nil {
+func checkWidget(g *schema.ResolvedGraph, inst *ResolvedInstance, path string) error {
+	if err := validateWidgetBinding(g, inst, path); err != nil {
 		return err
 	}
 	for i, child := range inst.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		if err := checkWidget(child, childPath); err != nil {
+		if err := checkWidget(g, child, childPath); err != nil {
 			return err
 		}
 	}
@@ -120,17 +96,18 @@ func checkWidget(inst *ResolvedInstance, path string) error {
 }
 
 // validateWidgetBinding enforces the widget↔variable type-compatibility contract
-// for a single node. It is a no-op for nodes whose item type is not a registered
-// widget family. For a widget it resolves the bound variable name from config,
+// for a single node. It is a no-op for nodes whose item type does not declare the
+// widget role. For a widget it resolves the bound variable name from config,
 // looks it up in the node's scoped environment, and checks the declared type
-// against the family's permitted set.
+// against the type's `binds` set; the `rangeCheck`/`requireOptions` behavior
+// flags then gate the optional cross-field checks.
 //
 // The `variable` key's presence and string shape are already guaranteed by the
 // widget item-type schema (required, minLength 1) validated in Pass 2, so this
 // pass only handles the semantic checks: visibility and type compatibility.
-func validateWidgetBinding(inst *ResolvedInstance, path string) error {
-	permitted, isWidget := widgetFamilies[inst.Type.Name]
-	if !isWidget {
+func validateWidgetBinding(g *schema.ResolvedGraph, inst *ResolvedInstance, path string) error {
+	rt := widgetType(g, inst)
+	if rt == nil || rt.Role() != schema.RoleWidget {
 		return nil
 	}
 
@@ -150,7 +127,7 @@ func validateWidgetBinding(inst *ResolvedInstance, path string) error {
 			map[string]any{"path": path, "variable": name, "widget": inst.Type.Name})
 	}
 
-	if !permitted[v.Type] {
+	if !permitsVarType(rt, v.Type) {
 		return errors.NewCodedErrorWithDetails(errors.WIDGET_TYPE_MISMATCH,
 			"widget is not compatible with the bound variable's declared type",
 			map[string]any{
@@ -161,13 +138,13 @@ func validateWidgetBinding(inst *ResolvedInstance, path string) error {
 			})
 	}
 
-	if numberWidgets[inst.Type.Name] {
+	if rt.RangeCheck() {
 		if err := validateWidgetRange(inst, path); err != nil {
 			return err
 		}
 	}
 
-	if optionConstrainedArrayWidgets[inst.Type.Name] {
+	if rt.RequireOptions() {
 		if err := validateWidgetOptions(inst, path); err != nil {
 			return err
 		}

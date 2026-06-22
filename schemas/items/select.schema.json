@@ -9,6 +9,10 @@
     "options"
   ],
   "additionalProperties": false,
+  "latticeBehavior": {
+    "role": "widget",
+    "binds": ["enum"]
+  },
   "configurable": {
     "label": {
       "type": "string",

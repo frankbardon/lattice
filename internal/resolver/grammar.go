@@ -38,9 +38,9 @@ package resolver
 // Node-kind identity is taken from the catalog/type metadata, NOT a hardcoded type
 // list where avoidable: "positional region" reads the E3-S1 `positional` marker
 // (via ResolvedType.IsPositional); "wrapper" is the block item-type name; "variable
-// widget" is the known widget family set (widget.go's widgetFamilies). The widget
-// family set is the one place still keyed by a name list — there is no schema-level
-// widget marker yet (a candidate future marker; see FOLLOWUPS).
+// widget" reads the `latticeBehavior.role == "widget"` keyword (via
+// ResolvedType.Role, E2-S1) against the graph's type table — see isVariableWidget
+// in widget.go. The widget judgment is now schema-keyword driven, no name list.
 //
 // The pass runs AFTER the instance walk because it needs the whole assembled tree
 // and each node's resolved type identity. It is fail-fast: the FIRST violation
@@ -141,7 +141,7 @@ func checkContainerRegion(g *schema.ResolvedGraph, region *ResolvedInstance, pat
 func checkVariableBox(g *schema.ResolvedGraph, region *ResolvedInstance, path string) error {
 	for i, child := range region.Children {
 		childPath := path + ".children[" + strconv.Itoa(i) + "]"
-		if !isVariableWidget(child) {
+		if !isVariableWidget(g, child) {
 			return errors.NewCodedErrorWithDetails(errors.GRAMMAR_VARIABLE_BOX_CHILD_INVALID,
 				"a variable-box holds only variable widgets, directly (not wrapped, not nested)",
 				map[string]any{"path": childPath, "type": child.Type.Name})
@@ -198,14 +198,4 @@ func isPositionalRegion(g *schema.ResolvedGraph, inst *ResolvedInstance) bool {
 // nodes the no-recursion rule applies to.
 func isWrapper(inst *ResolvedInstance) bool {
 	return inst.Type.Name == blockTypeName
-}
-
-// isVariableWidget reports whether a resolved node is a variable widget, i.e. its
-// item-type name is a registered widget family (widget.go's widgetFamilies). This
-// is the one node-kind decided from a name set rather than a schema marker — there
-// is no schema-level widget marker yet (see FOLLOWUPS); the widget registry is the
-// canonical source meanwhile.
-func isVariableWidget(inst *ResolvedInstance) bool {
-	_, ok := widgetFamilies[inst.Type.Name]
-	return ok
 }

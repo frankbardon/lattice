@@ -180,12 +180,14 @@ func TestBuiltinGoldenBaseline(t *testing.T) {
 }
 
 // TestBuiltinGoldenBaselineCoversEveryWidgetFamily is a meta-guard: it asserts the
-// baseline table's Covers union includes at least one widget type from every
-// family registered in the resolver (widgetFamilies). If a future widget type is
-// added to a family but no baseline fixture exercises it, this test fails,
-// forcing the baseline to keep spanning the full widget surface the migration
-// must preserve. (widgetFamilies is the resolver's own registration map — see
-// widget.go — so this stays in sync with the source of truth, not a copy.)
+// baseline table's Covers union includes every widget item type the repo catalog
+// knows. A widget is now defined by its schema (the `latticeBehavior.role ==
+// "widget"` keyword, E2-S1) rather than a hardcoded resolver map, so the guard
+// derives the full widget surface from the catalog — Catalog.WidgetNames() — which
+// reads that keyword. If a future widget type is catalogued but no baseline fixture
+// exercises it, this test fails, forcing the baseline to keep spanning the full
+// widget surface the migration must preserve. (The source of truth is the schemas,
+// not a copy.)
 func TestBuiltinGoldenBaselineCoversEveryWidgetFamily(t *testing.T) {
 	covered := map[string]bool{}
 	for _, c := range BuiltinGoldenBaselineCases {
@@ -193,9 +195,14 @@ func TestBuiltinGoldenBaselineCoversEveryWidgetFamily(t *testing.T) {
 			covered[item] = true
 		}
 	}
-	for widgetType := range widgetFamilies {
+	res := newRepoResolver(t)
+	widgets := res.cat.WidgetNames()
+	if len(widgets) == 0 {
+		t.Fatal("catalog reports no widget-role item types; expected the migrated widget schemas")
+	}
+	for widgetType := range widgets {
 		if !covered[widgetType] {
-			t.Errorf("widget type %q is in widgetFamilies but no baseline case covers it; add a fixture", widgetType)
+			t.Errorf("widget type %q declares the widget role but no baseline case covers it; add a fixture", widgetType)
 		}
 	}
 }

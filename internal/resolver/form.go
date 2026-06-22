@@ -24,6 +24,7 @@ package resolver
 import (
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/layout"
+	"github.com/frankbardon/lattice/internal/schema"
 )
 
 // formLayoutKey is the form config key carrying the layout declaration
@@ -44,12 +45,12 @@ const gridMode = "grid"
 // form's `layout.mode` discriminator: flow mode attaches a layout.Flow, grid
 // mode attaches a layout.Block via the same weighted-grid path container uses.
 // Caller guarantees node is a form.
-func (r *Resolver) resolveForm(node *ResolvedInstance, path string) error {
+func (r *Resolver) resolveForm(g *schema.ResolvedGraph, node *ResolvedInstance, path string) error {
 	// Form children must be variable widgets: a form is a control surface, not a
 	// general grouping container. Reject anything else fail-fast so both flow and
 	// grid modes stay a coherent set of widget cells.
 	for i, child := range node.Children {
-		if !isWidgetType(child.Type.Name) {
+		if !isVariableWidget(g, child) {
 			return errors.NewCodedErrorWithDetails(errors.LAYOUT_FORM_CHILD_INVALID,
 				"a form may only contain variable-widget children",
 				map[string]any{
@@ -168,14 +169,6 @@ func parseFormGrid(config map[string]any, path string) (layout.Grid, error) {
 		return g, flowConfigTypeError(path, formLayoutKey, raw)
 	}
 	return parseGridFrom(lm, path)
-}
-
-// isWidgetType reports whether an item-type name is a registered variable widget
-// family (the only children a form permits). It reuses the widget registry that
-// is the single source of truth for "what is a widget" (see widget.go).
-func isWidgetType(name string) bool {
-	_, ok := widgetFamilies[name]
-	return ok
 }
 
 // parseFlowConfig extracts the flow-layout declaration from a form's config into

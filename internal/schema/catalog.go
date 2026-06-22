@@ -167,6 +167,25 @@ func (c *Catalog) IsPositional(id string) bool {
 	return c.byID[id].IsPositional()
 }
 
+// WidgetNames returns the set of catalogued item-type names whose schema declares
+// the widget role (`latticeBehavior.role == "widget"`). It is the keyword-derived
+// replacement for the old hardcoded widget name list: callers that must validate a
+// widget reference BY NAME (e.g. a configurable surface's `rendering` hint) consult
+// it, so "what is a widget" stays sourced from the schemas, never a copy. A name
+// with at least one widget-role version is included.
+func (c *Catalog) WidgetNames() map[string]bool {
+	out := make(map[string]bool)
+	for name, versions := range c.byName {
+		for _, rt := range versions {
+			if rt.Role() == RoleWidget {
+				out[name] = true
+				break
+			}
+		}
+	}
+	return out
+}
+
 // hasName reports whether any version of the named item type is catalogued.
 func (c *Catalog) hasName(name string) bool {
 	_, ok := c.byName[name]

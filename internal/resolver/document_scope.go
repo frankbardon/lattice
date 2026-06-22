@@ -64,7 +64,7 @@ const documentScopesKey = "documentScopes"
 // natural property source (`$variables`, `$connections`, `$root`) accepts no
 // fields, so a non-empty surface for it is rejected — keeping every surface
 // honest about what its scope can actually tune.
-func documentScopeSurfaces(dash *jsonschema.Schema, themeTokens map[string]struct{}) (map[string][]ConfigurableField, error) {
+func documentScopeSurfaces(dash *jsonschema.Schema, themeTokens map[string]struct{}, isWidget map[string]bool) (map[string][]ConfigurableField, error) {
 	decls := documentScopeDecls(dash)
 	if len(decls) == 0 {
 		return nil, nil
@@ -81,7 +81,7 @@ func documentScopeSurfaces(dash *jsonschema.Schema, themeTokens map[string]struc
 			continue
 		}
 		props := scopeProperties(keyword, dash, themeTokens)
-		surface, err := buildSurface(decl, sortedFields(decl), flatProps(props), keyword, scopePath(keyword))
+		surface, err := buildSurface(decl, sortedFields(decl), flatProps(props), isWidget, keyword, scopePath(keyword))
 		if err != nil {
 			return nil, err
 		}

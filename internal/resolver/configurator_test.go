@@ -696,8 +696,8 @@ func TestConfiguratorOverTableThroughCatalog(t *testing.T) {
 		if w.Target != "tbl" {
 			t.Errorf("widget[%d].Target = %q, want tbl", i, w.Target)
 		}
-		if _, ok := widgetFamilies[w.Widget]; !ok {
-			t.Errorf("widget[%d].Widget = %q is not a registered widget family", i, w.Widget)
+		if !res.cat.WidgetNames()[w.Widget] {
+			t.Errorf("widget[%d].Widget = %q does not declare the widget role", i, w.Widget)
 		}
 	}
 
@@ -843,8 +843,8 @@ func TestConfiguratorThemeScopeThroughCatalog(t *testing.T) {
 		if w.Target != "$theme" {
 			t.Errorf("widget[%d].Target = %q, want $theme", i, w.Target)
 		}
-		if _, ok := widgetFamilies[w.Widget]; !ok {
-			t.Errorf("widget[%d].Widget = %q is not a registered widget family", i, w.Widget)
+		if !res.cat.WidgetNames()[w.Widget] {
+			t.Errorf("widget[%d].Widget = %q does not declare the widget role", i, w.Widget)
 		}
 		// Each token carries its option set in constraints (the guardrail enumerating
 		// the legal values for that scope field).
