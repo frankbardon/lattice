@@ -112,6 +112,17 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 			}
 			continue
 		}
+		// A METADATA edit (`/<id>/metadata[/<key>]`, `/$root/metadata[/<key>]`) is
+		// not a config-field edit, so the `metadata` envelope sibling is invisible to
+		// the configurable surface. It bypasses the surface check exactly as a
+		// structural edit does and is gated instead by RE-RESOLVE, which enforces
+		// node eligibility (METADATA_NOT_ELIGIBLE) and the scalar-value rule
+		// (METADATA_VALUE_NOT_SCALAR) over the mutated document (E1-S2). No apply-time
+		// check is owed here — unlike a structural add, a metadata write carries no id
+		// contract re-resolve cannot supply.
+		if isMetadataEdit(op) {
+			continue
+		}
 		if err := surfaces.checkOp(op, i); err != nil {
 			return nil, err
 		}

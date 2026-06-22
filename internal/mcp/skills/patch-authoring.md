@@ -1,6 +1,6 @@
 ---
 name: patch-authoring
-description: How to shape an id-rooted RFC 6902 JSON Patch against a lattice dashboard — the id-rooted pointer dialect ($-scopes and item ids), the field-vs-structural split and its surface gating (field edits gated by the get_node surface; structural edits planned via get_outline, not surface-gated), and a runnable example patch. Pairs with authoring-loop (the procedure) and get_schema (the grammar).
+description: How to shape an id-rooted RFC 6902 JSON Patch against a lattice dashboard — the id-rooted pointer dialect ($-scopes and item ids), the field-vs-structural-vs-metadata split and its gating (field edits gated by the get_node surface; structural and metadata edits ungated by the surface and validated by re-resolve, planned via get_outline), and a runnable example patch. Pairs with authoring-loop (the procedure) and get_schema (the grammar).
 type: guide
 kind: workflow
 applies_to: [validate_patch, get_node, get_outline, get_schema]
@@ -40,6 +40,9 @@ resolves; the remainder after it is literal RFC 6901.
 - **Move/copy** name the source by `from` and the destination by `path`, both
   id-rooted. A same-parent reorder is a `move` between two slots of one
   `children` array.
+- **Metadata** is the `metadata` envelope sibling (not config): edit the whole
+  object at `/<id>/metadata` or one key at `/<id>/metadata/<key>`; the document
+  root's metadata is `/$root/metadata[/<key>]`.
 
 The server is **stateless** — `validate_patch` takes the FULL cumulative patch
 every call. Ops apply sequentially (order matters), and **positional pointers
@@ -85,8 +88,20 @@ rule rejects the whole patch.
 - A cross-parent `move` **strips placement** (stale parent-grid coordinates); a
   same-parent reorder keeps it.
 
-In short: **field edit → check `get_node` surface; structural edit → plan from
-`get_outline`, let re-resolve validate.**
+### Metadata edits — NOT surface-gated; validated by re-resolve
+
+An edit of the `metadata` envelope sibling (`/<id>/metadata`, `/<id>/metadata/<key>`,
+or `/$root/metadata[/<key>]`) is **not** a config-field edit, so it bypasses the
+surface gate the same way a structural edit does — `metadata` never appears on a
+`get_node` surface. add / replace / remove all apply, for the whole object or one
+key. Legality is enforced by **re-resolve**, not the surface: only the document
+root, containers, and block wrappers may carry metadata (an ineligible target —
+a leaf or widget — rejects the patch), and every value must be a scalar (a
+non-scalar value rejects it). Plan eligible targets from `get_outline` (the node
+skeleton); do not look for metadata on the surface.
+
+In short: **field edit → check `get_node` surface; structural or metadata edit →
+plan from `get_outline`, let re-resolve validate.**
 
 ## Runnable example
 
