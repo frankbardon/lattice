@@ -78,10 +78,14 @@ The summary is for **navigation**; for the exact placement object to edit, call
 
 Placement edits split the same way every edit does (see **patch-authoring**):
 
-- **Set/adjust a placement coordinate** — a **field** edit on the node's config-
-  level placement. Address it id-rooted, e.g. `/<node-id>/placement/colStart`, and
-  confirm the leaf is legal before patching. To resize the grid itself, edit the
-  container's `config.grid` (e.g. `/<container-id>/config/grid/columns`).
+- **Set/adjust a placement coordinate** — an edit of the node's `placement`
+  envelope (a sibling of `config`, **not** a config field). Address it id-rooted —
+  the whole object at `/<node-id>/placement` or one coordinate at
+  `/<node-id>/placement/colStart` (also `colSpan`/`rowStart`/`rowSpan`). Like a
+  metadata or structural edit it is **not** surface-gated; re-resolve validates the
+  coordinates against the parent grid. To resize the grid itself, edit the
+  container's `config.grid` (e.g. `/<container-id>/config/grid/columns`) — that IS a
+  surface-gated config field.
 - **Place a *new* node** — a **structural** `add` into the parent container's
   `children` array (`/<container-id>/children/-`), with `placement` set on the added
   node. Plan the target from `get_outline`; a bare content leaf must be
@@ -92,10 +96,10 @@ Placement edits split the same way every edit does (see **patch-authoring**):
   coordinates are dropped), so re-set the node's `placement` for the new grid after
   moving.
 
-Structural edits are **not** surface-gated — the mutated tree is re-resolved, so an
-out-of-bounds placement or a grammar break (e.g. an unwrapped leaf) rejects the
-whole patch. Prove every placement change with `validate_patch` before the human
-commits.
+Placement and structural edits are **not** surface-gated — the mutated tree is
+re-resolved, so an out-of-bounds placement or a grammar break (e.g. an unwrapped
+leaf) rejects the whole patch. Prove every placement change with `validate_patch`
+before the human commits.
 
 ## Cross-links
 

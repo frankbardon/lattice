@@ -100,8 +100,12 @@ a leaf or widget — rejects the patch), and every value must be a scalar (a
 non-scalar value rejects it). Plan eligible targets from `get_outline` (the node
 skeleton); do not look for metadata on the surface.
 
-In short: **field edit → check `get_node` surface; structural or metadata edit →
-plan from `get_outline`, let re-resolve validate.**
+The `placement` envelope sibling (`/<id>/placement`, `/<id>/placement/colStart`,
+…) is gated the same way — **not** surface-gated; re-resolve validates the
+coordinates against the parent grid (`LAYOUT_PLACEMENT_*`). See **placement-grid**.
+
+In short: **field edit → check `get_node` surface; structural, metadata, or
+placement edit → plan from `get_outline`, let re-resolve validate.**
 
 ## Runnable example
 

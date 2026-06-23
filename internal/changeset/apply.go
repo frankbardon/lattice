@@ -123,6 +123,20 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 		if isMetadataEdit(op) {
 			continue
 		}
+		// A PLACEMENT edit (`/<id>/placement[/<coord>]`) is not a config-field edit:
+		// the `placement` envelope sibling is invisible to the configurable surface
+		// (the grid lives on the parent container's `config.grid`; a child's own
+		// placement is a plain envelope member). It bypasses the surface check exactly
+		// as a metadata or structural edit does and is gated instead by RE-RESOLVE,
+		// whose layout pass enforces the integer form (LAYOUT_PLACEMENT_INVALID) and
+		// grid bounds (LAYOUT_PLACEMENT_OUT_OF_BOUNDS) over the mutated document
+		// (internal/resolver/layout.go). No apply-time check is owed here — unlike a
+		// structural add, a placement write carries no id contract re-resolve cannot
+		// supply. This aligns the engine with placement-grid.md, which documents
+		// `/<node-id>/placement/colStart` as a valid edit.
+		if isPlacementEdit(op) {
+			continue
+		}
 		if err := surfaces.checkOp(op, i); err != nil {
 			return nil, err
 		}
