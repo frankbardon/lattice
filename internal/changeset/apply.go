@@ -137,6 +137,17 @@ func applyToBytes(docBytes []byte, cs *Changeset, tree *resolver.ResolvedTree) (
 		if isPlacementEdit(op) {
 			continue
 		}
+		// A VARIABLES edit (`/$variables[...]`) targets the document's
+		// variable-declaration array, which has no configurable surface (only
+		// `$manifest`/`$theme` are surfaced scopes). It bypasses the surface check
+		// exactly as a metadata/placement/structural edit does and is gated instead
+		// by RE-RESOLVE, whose variables pass (internal/variables) validates every
+		// declaration (VAR_DECLARATION_INVALID, duplicate names, bad default/option)
+		// over the mutated document. No apply-time check is owed — a variables edit
+		// supplies no id contract re-resolve cannot supply. See variables.go.
+		if isVariablesEdit(op) {
+			continue
+		}
 		if err := surfaces.checkOp(op, i); err != nil {
 			return nil, err
 		}
