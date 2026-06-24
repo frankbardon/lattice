@@ -238,6 +238,12 @@ func coerce(v any, t VarType) (any, error) {
 			return nil, fmt.Errorf("expected array, got %T", v)
 		}
 		return arr, nil
+	case VarTypeObject:
+		m, ok := v.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("expected object, got %T", v)
+		}
+		return m, nil
 	default:
 		return nil, fmt.Errorf("unsupported declared type %q", t)
 	}
