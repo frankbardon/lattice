@@ -156,6 +156,49 @@ func TestGetManifestDerivedFromCatalog(t *testing.T) {
 	}
 }
 
+// TestManifestCatalogIncludesReadTools is the E2-S5 corrective guarantee: the
+// derived manifest catalog now lists all 10 tools, and in particular the two read
+// tools (list_dashboards, get_document) the original plan omitted. It invokes
+// get_manifest and asserts both are present with the legacy descriptions, and that
+// the full catalog has exactly 10 entries (no drop, no duplication).
+func TestManifestCatalogIncludesReadTools(t *testing.T) {
+	svc := newTestService(t)
+	d := findDescriptor(t, "get_manifest")
+
+	raw, err := d.Invoke(context.Background(), svc, nil)
+	if err != nil {
+		t.Fatalf("Invoke get_manifest: %v", err)
+	}
+	var out manifestPayload
+	remarshal(t, raw, &out)
+
+	const wantCount = 10
+	if len(out.Tools) != wantCount {
+		t.Errorf("manifest catalog has %d tools, want %d", len(out.Tools), wantCount)
+	}
+
+	byName := map[string]string{}
+	for _, tool := range out.Tools {
+		byName[tool.Name] = tool.Description
+	}
+	for _, tc := range []struct {
+		name string
+		desc string
+	}{
+		{"list_dashboards", listDashboardsDescription},
+		{"get_document", getDocumentDescription},
+	} {
+		got, ok := byName[tc.name]
+		if !ok {
+			t.Errorf("manifest catalog is missing read tool %q", tc.name)
+			continue
+		}
+		if got != tc.desc {
+			t.Errorf("%s manifest description mismatch:\n got %q\nwant %q", tc.name, got, tc.desc)
+		}
+	}
+}
+
 // manifestHasTool reports whether the manifest tool catalog includes name.
 func manifestHasTool(p manifestPayload, name string) bool {
 	for _, tool := range p.Tools {

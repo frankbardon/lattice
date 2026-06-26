@@ -74,6 +74,15 @@ func Tools(cfg Config) []ToolDescriptor {
 	// callers must not have to nil-check before iterating.
 	descriptors := make([]ToolDescriptor, 0)
 
+	// Discover/read tools (E2-S5). list_dashboards enumerates stored documents;
+	// get_document is the whole-document escape hatch (raw + optional resolved).
+	// Names and descriptions match the legacy internal/mcp registrations so the
+	// downstream catalog text holds parity.
+	descriptors = append(descriptors,
+		NewTool("list_dashboards", listDashboardsDescription, listDashboards),
+		NewTool("get_document", getDocumentDescription, getDocument),
+	)
+
 	// Navigation/read tools (E2-S1). Names and descriptions match the legacy
 	// internal/mcp registrations so the downstream catalog text holds parity.
 	descriptors = append(descriptors,
