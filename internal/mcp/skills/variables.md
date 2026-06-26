@@ -22,7 +22,12 @@ A declaration is `{ name, type, default?|expr?, options? }`:
 { "name": "window", "type": "integer", "default": 24 }
 ```
 
-- `type` ∈ `string | number | integer | boolean | enum | array`.
+- `type` ∈ `string | number | integer | boolean | enum | array | object`.
+- `object` backs a **structured** value — a keyed map the item's own config schema
+  shapes (e.g. a container's `grid`, a panel `spec`). The variable type only checks
+  "it is an object"; the authoritative field-by-field structure is the item-type
+  config schema's re-validation, so a structured configurable surface declares its
+  sub-fields there, not here.
 - `default` and `expr` are **mutually exclusive**; a bare `{name, type}` is a valid
   value-less declaration.
 - `options` is **required for `enum`, forbidden otherwise**.

@@ -22,7 +22,7 @@ here would rot (see **session-bootstrap** → source layering).
 | Type | Role | Holds children in | Carries chrome? |
 |---|---|---|---|
 | `container` | Positional region — groups items and arranges them on a relative-weight grid | `children` array | No (layout-only) |
-| `block` | Mandatory wrapper — wraps **exactly one** content leaf, carries per-block concerns | `config.content` (one instance) | Yes (id, title, visibility, theme) |
+| `block` | Mandatory wrapper — wraps **exactly one** content leaf, carries per-block concerns | `config.content` (one instance) | Yes (id, title, visibility, theme, tone) |
 
 A `container` *arranges*; a `block` *arranges nothing* — it holds one leaf and
 applies cross-cutting concerns to it. They are deliberately distinct: keep them
@@ -67,7 +67,10 @@ on a region fails `GRAMMAR_REGION_THEME_FORBIDDEN`; chrome lives on blocks.
 The grid model, the `colStart/colSpan/rowStart/rowSpan` placement keys, and how
 `get_outline`'s compact `"col 2+1, row 1+1"` summary maps to the verbatim config
 are all covered in **placement-grid** — read it before placing or moving nodes.
-For the exact grid/placement field grammar, call `get_schema container`.
+For the exact grid/placement field grammar, call `get_schema container`. The grid
+is a **structured (object) configurable surface** — `get_node` surfaces the whole
+`grid` field plus its nested `grid.columns` / `grid.rows` / `grid.gap` sub-paths;
+see **variables** (the `object` type) for what "structured surface" means.
 
 **Pick `container` when** you need to group siblings and lay them out — a body
 region, a sidebar + main split, a panel of stacked rows, or a nested subgrid.
@@ -83,7 +86,9 @@ subgrid independent of its parent.
 A `block` wraps **exactly one** inner content item, held in **`config.content`**
 (not in a `children` array). It is the single, flat layer carrying every
 per-leaf cross-cutting concern — a required stable `id`, an optional `title`, a
-`visibility` flag, and an optional per-block `theme` override — so those concerns
+`visibility` flag, an optional per-block `theme` override, and a `tone` (the
+frame chrome drawn from the shared theme tone vocabulary; distinct from the nested
+`theme` override and settable on the configurable surface) — so those concerns
 live in one place instead of being duplicated across every leaf type. The
 resolver emits the wrapper and its inner leaf as **two separate nodes** (the
 content lifted out into the wrapper's single child).

@@ -157,10 +157,10 @@ func TestBlockEmitsWrapperAndInnerAsSeparateNodes(t *testing.T) {
 		t.Error("wrapper config still carries `content`; the inner item must be a separate node, not duplicated")
 	}
 
-	// The wrapper attaches its own configurable surface (title + visibility), like
-	// any item.
-	if len(wrapper.Surface) != 2 {
-		t.Fatalf("wrapper surface has %d fields, want 2 (title, visibility)", len(wrapper.Surface))
+	// The wrapper attaches its own configurable surface (title + tone + visibility),
+	// like any item.
+	if len(wrapper.Surface) != 3 {
+		t.Fatalf("wrapper surface has %d fields, want 3 (title, tone, visibility)", len(wrapper.Surface))
 	}
 
 	// The inner content is the wrapper's single child node.

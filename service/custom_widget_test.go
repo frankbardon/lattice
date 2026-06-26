@@ -19,20 +19,13 @@ package service_test
 // Schema) is a faithful first-class-surface test.
 
 import (
-	stderrors "errors"
-	"io"
 	"io/fs"
-	"os"
 	"testing"
-	"time"
+	"testing/fstest"
 
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/service"
 )
-
-// repoSchemasDir is the real on-disk catalog (dashboard schema + built-in item
-// types) the overlay layers the custom widgets on top of.
-const repoSchemasDir = "../schemas"
 
 // --- custom widget schemas (exist ONLY here, never in schemas/) --------------
 
@@ -98,160 +91,24 @@ const kpiSelectSchema = `{
   }
 }`
 
-// --- overlay fs.FS ------------------------------------------------------------
+// --- overlay schema fs.FS -----------------------------------------------------
 
-// overlaySchemaFS layers a set of extra item-type schema files (keyed by their
-// path within the items/ directory, e.g. "items/kpi-input.schema.json") over a
-// base fs.FS (the real schemas/ directory). EVERYTHING flows through Open,
-// because the afero.FromIOFS adapter the service wraps the FS in routes reads,
-// stats, and directory walks all through fs.FS.Open (its ReadFile/ReadDir/Stat
-// are implemented on top of Open). So:
-//
-//   - Open("items/<name>.schema.json") for an overlaid path -> the in-memory file
-//   - Open("items") -> a synthetic directory whose ReadDir/ReadDirFile MERGES the
-//     base directory entries with the overlaid files, so afero's Walk (catalog
-//     build) and the service's ListSchemas directory read both see the custom
-//     widgets
-//   - any other path falls through to base verbatim
-//
-// This is the robust overlay pattern: it composes the custom widgets with the
-// real dashboard schema + built-in item catalog without copying any base file.
-type overlaySchemaFS struct {
-	base  fs.FS
-	extra map[string][]byte // path within FS -> file bytes
-}
-
-func newOverlaySchemaFS(t *testing.T, extra map[string][]byte) overlaySchemaFS {
+// newOverlaySchemaFS overlays a set of extra item-type schema files (keyed by
+// their path within the catalog, e.g. "items/kpi-input.schema.json") over the
+// embedded core catalog via the PUBLIC service.OverlaySchemas / service.CoreSchemas
+// API — the exact composition a downstream consumer uses to add or override item
+// types without copying the core schemas. The extra files live in an in-memory
+// fstest.MapFS (never shipped in schemas/); MapFS synthesizes the parent "items"
+// directory entry, so the merged listing the catalog walk + ListSchemas see
+// includes the custom types. It is the shared overlay helper for the custom-type
+// service tests (widgets, regions, wrappers).
+func newOverlaySchemaFS(t *testing.T, extra map[string][]byte) fs.FS {
 	t.Helper()
-	return overlaySchemaFS{base: os.DirFS(repoSchemasDir), extra: extra}
-}
-
-func (o overlaySchemaFS) Open(name string) (fs.File, error) {
-	if b, ok := o.extra[name]; ok {
-		return newOverlayFile(pathBase(name), b), nil
+	m := make(fstest.MapFS, len(extra))
+	for p, b := range extra {
+		m[p] = &fstest.MapFile{Data: b}
 	}
-	base, err := o.base.Open(name)
-	if err != nil {
-		return nil, err
-	}
-	// If the opened path is a directory that has overlaid children, wrap it so
-	// its directory listing merges in the overlaid entries.
-	if extra := o.extraEntriesUnder(name); len(extra) > 0 {
-		return &overlayDir{base: base, extra: extra}, nil
-	}
-	return base, nil
-}
-
-// extraEntriesUnder returns the overlaid files that live DIRECTLY under dir
-// (e.g. dir "items" -> the custom items/*.schema.json), as dir entries.
-func (o overlaySchemaFS) extraEntriesUnder(dir string) []fs.DirEntry {
-	prefix := dir + "/"
-	var out []fs.DirEntry
-	for p, b := range o.extra {
-		if len(p) > len(prefix) && p[:len(prefix)] == prefix && !containsSlash(p[len(prefix):]) {
-			out = append(out, overlayDirEntry{overlayInfo{pathBase(p), int64(len(b))}})
-		}
-	}
-	return out
-}
-
-// overlayFile is an in-memory fs.File (also an io.ReaderAt/Seeker so the afero
-// adapter is satisfied) serving fixed bytes for an overlaid schema path.
-type overlayFile struct {
-	info overlayInfo
-	data []byte
-	off  int64
-}
-
-func newOverlayFile(name string, data []byte) *overlayFile {
-	cp := make([]byte, len(data))
-	copy(cp, data)
-	return &overlayFile{info: overlayInfo{name, int64(len(cp))}, data: cp}
-}
-
-func (f *overlayFile) Stat() (fs.FileInfo, error) { return f.info, nil }
-func (f *overlayFile) Close() error               { return nil }
-func (f *overlayFile) Read(p []byte) (int, error) {
-	if f.off >= int64(len(f.data)) {
-		return 0, io.EOF
-	}
-	n := copy(p, f.data[f.off:])
-	f.off += int64(n)
-	return n, nil
-}
-
-// overlayDir wraps a base directory fs.File and merges overlaid entries into its
-// listing. It implements fs.ReadDirFile so afero's Readdir adapter (and thus
-// afero.Walk + the service's ListSchemas) see the union.
-type overlayDir struct {
-	base  fs.File
-	extra []fs.DirEntry
-	read  bool
-}
-
-func (d *overlayDir) Stat() (fs.FileInfo, error) { return d.base.Stat() }
-func (d *overlayDir) Read([]byte) (int, error) {
-	return 0, stderrors.New("is a directory")
-}
-func (d *overlayDir) Close() error { return d.base.Close() }
-
-func (d *overlayDir) ReadDir(n int) ([]fs.DirEntry, error) {
-	if d.read {
-		return nil, io.EOF
-	}
-	d.read = true
-	var baseEntries []fs.DirEntry
-	if rdf, ok := d.base.(fs.ReadDirFile); ok {
-		es, err := rdf.ReadDir(-1)
-		if err != nil {
-			return nil, err
-		}
-		baseEntries = es
-	}
-	all := append(baseEntries, d.extra...)
-	_ = n // afero always requests -1; full listing is correct
-	return all, nil
-}
-
-// overlayInfo is the minimal fs.FileInfo the catalog walk + ReadDir need.
-type overlayInfo struct {
-	name string
-	size int64
-}
-
-func (i overlayInfo) Name() string       { return i.name }
-func (i overlayInfo) Size() int64        { return i.size }
-func (i overlayInfo) Mode() fs.FileMode  { return 0o644 }
-func (i overlayInfo) ModTime() time.Time { return time.Time{} }
-func (i overlayInfo) IsDir() bool        { return false }
-func (i overlayInfo) Sys() any           { return nil }
-
-// overlayDirEntry adapts overlayInfo to fs.DirEntry for the merged listing.
-type overlayDirEntry struct{ info overlayInfo }
-
-func (e overlayDirEntry) Name() string               { return e.info.name }
-func (e overlayDirEntry) IsDir() bool                { return false }
-func (e overlayDirEntry) Type() fs.FileMode          { return 0 }
-func (e overlayDirEntry) Info() (fs.FileInfo, error) { return e.info, nil }
-
-// pathBase returns the final path element of a slash-separated FS path.
-func pathBase(p string) string {
-	for i := len(p) - 1; i >= 0; i-- {
-		if p[i] == '/' {
-			return p[i+1:]
-		}
-	}
-	return p
-}
-
-// containsSlash reports whether s contains a path separator.
-func containsSlash(s string) bool {
-	for i := range s {
-		if s[i] == '/' {
-			return true
-		}
-	}
-	return false
+	return service.OverlaySchemas(service.CoreSchemas(), m)
 }
 
 // customSchemaFS builds the overlay carrying both custom widgets under items/.
