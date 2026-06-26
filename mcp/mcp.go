@@ -81,6 +81,15 @@ func Tools(cfg Config) []ToolDescriptor {
 		NewTool("get_node", getNodeDescription, getNode),
 	)
 
+	// Grammar + truth tools (E2-S2). list_schemas/get_schema expose the dashboard
+	// grammar catalog; validate_patch is the never-persists dry-run. Names and
+	// descriptions match the legacy internal/mcp registrations for catalog parity.
+	descriptors = append(descriptors,
+		NewTool("list_schemas", listSchemasDescription, listSchemas),
+		NewTool("get_schema", getSchemaDescription, getSchema),
+		NewTool("validate_patch", validatePatchDescription, validatePatch),
+	)
+
 	_ = cfg
 
 	return descriptors
