@@ -74,8 +74,13 @@ func Tools(cfg Config) []ToolDescriptor {
 	// callers must not have to nil-check before iterating.
 	descriptors := make([]ToolDescriptor, 0)
 
-	// E2 appends descriptors here, e.g.:
-	//   descriptors = append(descriptors, NewTool("get_outline", "...", getOutline))
+	// Navigation/read tools (E2-S1). Names and descriptions match the legacy
+	// internal/mcp registrations so the downstream catalog text holds parity.
+	descriptors = append(descriptors,
+		NewTool("get_outline", getOutlineDescription, getOutline),
+		NewTool("get_node", getNodeDescription, getNode),
+	)
+
 	_ = cfg
 
 	return descriptors
