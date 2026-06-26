@@ -24,7 +24,7 @@ import (
 //
 // Recursive Out fields MUST be typed `any` in their Go struct — the reflector
 // panics (via reflectSchema) on a type cycle, the same constraint the SDK's
-// reflector imposes (see reflectSchema and internal/mcp/tools_outline.go).
+// reflector imposes (see reflectSchema and tool_outline.go).
 func NewTool[In, Out any](name, desc string, h func(context.Context, *service.Service, In) (Out, error)) ToolDescriptor {
 	return ToolDescriptor{
 		Name:         name,

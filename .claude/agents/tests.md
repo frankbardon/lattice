@@ -8,13 +8,13 @@ You implement test/QA stories in the `lattice` repo. One responsibility: meaning
 
 ## Context discovery (inspect before editing)
 - Existing `*_test.go` next to the code under test — match their structure.
-- `internal/mcp/` tests — the skills-loader asserts "≥ session-bootstrap present / sorted / non-empty"; tool tests cover each registered tool.
+- `mcp/` tests — the skills-loader asserts "≥ session-bootstrap present / sorted / non-empty"; tool tests cover each catalog tool; `mcp/firewall_test.go` asserts the core never imports the go-sdk.
 - `Makefile` — `make test` runs `go test ./...`; `make cover` for coverage.
 
 ## Repo conventions (hard rules)
 - Table-driven tests, Go idiom, match neighbors' naming and helper patterns.
 - Adding skills must not break the loader assertions; if you add an exact-count assertion, keep it in sync with the real skill count.
-- After MCP changes run `go test ./internal/mcp/...` specifically.
+- After MCP changes run `go test ./mcp/...` specifically (includes the import-firewall test).
 - `CGO_ENABLED=0`, Go 1.26 — no cgo test deps.
 
 ## Self-review before returning

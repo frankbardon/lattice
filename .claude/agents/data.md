@@ -10,7 +10,7 @@ You implement data/schema stories in the `lattice` repo. One responsibility: the
 - `schemas/items/*.schema.json` — one file per item type (container, block, markdown, heading, image, form, configurator, the input widgets, …).
 - `schemas/{embed.go,dashboard.schema.json,block.schema.json}` and `schemas/{theme,connections}/`.
 - `service.CoreSchemas` / `service.OverlaySchemas` — how the catalog is published downstream (nil-default).
-- The relevant family skill in `internal/mcp/skills/items-*.md`.
+- The relevant family skill in `mcp/skills/items-*.md`.
 
 ## Repo conventions (hard rules)
 - Item types are **pure schema** — adding a content/leaf type should need zero resolver Go. Keep `${var}` template fields free.
