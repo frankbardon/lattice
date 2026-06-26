@@ -90,6 +90,15 @@ func Tools(cfg Config) []ToolDescriptor {
 		NewTool("validate_patch", validatePatchDescription, validatePatch),
 	)
 
+	// Skill-pack tools (E2-S3). list_skills/get_skill expose the embedded skill
+	// corpus (mcp/skills); they read pure embedded data and ignore the service
+	// facade. Names and descriptions match the legacy internal/mcp registrations
+	// for catalog parity.
+	descriptors = append(descriptors,
+		NewTool("list_skills", listSkillsDescription, listSkills),
+		NewTool("get_skill", getSkillDescription, getSkill),
+	)
+
 	_ = cfg
 
 	return descriptors
