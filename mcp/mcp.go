@@ -99,7 +99,11 @@ func Tools(cfg Config) []ToolDescriptor {
 		NewTool("get_skill", getSkillDescription, getSkill),
 	)
 
-	_ = cfg
+	// Bootstrap tool (E2-S4). get_manifest is appended LAST and on purpose: its
+	// handler advertises a tool catalog DERIVED from the descriptors above (plus its
+	// own entry), so tool/manifest drift is impossible — no hand-kept slice. It also
+	// reports the build version from cfg, retiring the legacy serverVersion global.
+	descriptors = append(descriptors, newManifestDescriptor(descriptors, cfg))
 
 	return descriptors
 }
