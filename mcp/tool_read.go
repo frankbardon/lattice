@@ -4,26 +4,18 @@ import (
 	"context"
 	"encoding/json"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/frankbardon/lattice/service"
 )
 
-// The two read tools registered here — list_dashboards and get_document — are the
+// The two read tools defined here — list_dashboards and get_document — are the
 // discover-and-read entry points an MCP host uses to enumerate stored dashboards
 // and pull a whole document (raw and, optionally, resolved). They call ONLY the
-// ./service facade and surface the facade's *errors.CodedError verbatim as MCP
-// tool errors (returning the error from a ToolHandlerFor packs it into the result
-// Content with IsError set; see the SDK's ToolHandlerFor contract), never as a
-// flattened plain string.
-
-func init() {
-	registrars = append(registrars, registerListDashboards, registerGetDocument)
-}
+// ./service facade and surface the facade's *errors.CodedError verbatim as a tool
+// error, never as a flattened plain string. Names and descriptions match the
+// legacy internal/mcp registrations so the downstream catalog text holds parity.
 
 // listDashboardsInput is the input for list_dashboards: it takes no arguments.
-// AddTool still requires an object-typed input schema, so this is an empty
-// struct.
+// NewTool still reflects an object-typed input schema, so this is an empty struct.
 type listDashboardsInput struct{}
 
 // dashboardSummary is one entry in the list_dashboards output: a stored
@@ -44,36 +36,34 @@ type listDashboardsOutput struct {
 	Dashboards []dashboardSummary `json:"dashboards" jsonschema:"the stored dashboards, each with its manifest id and optional title"`
 }
 
-// registerListDashboards registers the list_dashboards tool: it enumerates the
-// stored document ids via service.List and, for each, reads the manifest title
-// cheaply from the raw stored bytes (a manifest-only unmarshal — no resolution).
-// A document whose bytes cannot be read or whose manifest cannot be parsed for a
-// title is still listed by id with an empty title; the listing is best-effort on
-// the title and authoritative on the id set.
-func registerListDashboards(s *sdkmcp.Server, svc *service.Service) {
-	sdkmcp.AddTool(s, &sdkmcp.Tool{
-		Name:        "list_dashboards",
-		Description: "List the stored dashboard documents, each with its manifest id and (when available) title. The id is the key get_document accepts.",
-	}, func(_ context.Context, _ *sdkmcp.CallToolRequest, _ listDashboardsInput) (*sdkmcp.CallToolResult, listDashboardsOutput, error) {
-		ids, err := svc.List()
-		if err != nil {
-			// Surface the store's *errors.CodedError verbatim as a tool error.
-			return nil, listDashboardsOutput{}, err
-		}
+// listDashboardsDescription is the list_dashboards tool description, kept identical
+// to the legacy registration so downstream catalog text (get_manifest) holds parity.
+const listDashboardsDescription = "List the stored dashboard documents, each with its manifest id and (when available) title. The id is the key get_document accepts."
 
-		out := listDashboardsOutput{Dashboards: make([]dashboardSummary, 0, len(ids))}
-		for _, id := range ids {
-			summary := dashboardSummary{ID: id}
-			// Best-effort title: read the raw bytes and unmarshal only the
-			// manifest. A read/parse failure does not drop the document from the
-			// listing — the id is authoritative, the title is opportunistic.
-			if b, lerr := svc.Load(id); lerr == nil {
-				summary.Title = manifestTitle(b)
-			}
-			out.Dashboards = append(out.Dashboards, summary)
+// listDashboards enumerates the stored document ids via service.List and, for each,
+// reads the manifest title cheaply from the raw stored bytes (a manifest-only
+// unmarshal — no resolution). A document whose bytes cannot be read or whose
+// manifest cannot be parsed for a title is still listed by id with an empty title;
+// the listing is best-effort on the title and authoritative on the id set.
+func listDashboards(_ context.Context, svc *service.Service, _ listDashboardsInput) (listDashboardsOutput, error) {
+	ids, err := svc.List()
+	if err != nil {
+		// Surface the store's *errors.CodedError verbatim as a tool error.
+		return listDashboardsOutput{}, err
+	}
+
+	out := listDashboardsOutput{Dashboards: make([]dashboardSummary, 0, len(ids))}
+	for _, id := range ids {
+		summary := dashboardSummary{ID: id}
+		// Best-effort title: read the raw bytes and unmarshal only the manifest. A
+		// read/parse failure does not drop the document from the listing — the id is
+		// authoritative, the title is opportunistic.
+		if b, lerr := svc.Load(id); lerr == nil {
+			summary.Title = manifestTitle(b)
 		}
-		return nil, out, nil
-	})
+		out.Dashboards = append(out.Dashboards, summary)
+	}
+	return out, nil
 }
 
 // manifestTitle extracts manifest.title from raw document bytes without running
@@ -126,39 +116,38 @@ type getDocumentOutput struct {
 	Resolved any `json:"resolved,omitempty" jsonschema:"the resolved tree as JSON, present only when the resolved input flag is set"`
 }
 
-// registerGetDocument registers the get_document tool: the whole-document escape
-// hatch. It returns the raw stored bytes via service.Load and, when input.Resolved
-// is set, the resolved tree via service.Resolve(id, nil). An unknown id surfaces
-// the store's STORAGE_NOT_FOUND *errors.CodedError verbatim as a tool error.
-func registerGetDocument(s *sdkmcp.Server, svc *service.Service) {
-	sdkmcp.AddTool(s, &sdkmcp.Tool{
-		Name:        "get_document",
-		Description: "Fetch a whole dashboard document by manifest id. Returns the raw stored JSON and, when resolved is true, the resolved tree. This is the escape hatch — prefer the slicing tools for targeted reads.",
-	}, func(_ context.Context, _ *sdkmcp.CallToolRequest, input getDocumentInput) (*sdkmcp.CallToolResult, getDocumentOutput, error) {
-		raw, err := svc.Load(input.ID)
-		if err != nil {
-			// Unknown id surfaces STORAGE_NOT_FOUND verbatim as a tool error.
-			return nil, getDocumentOutput{}, err
-		}
+// getDocumentDescription is the get_document tool description, kept identical to the
+// legacy registration so downstream catalog text (get_manifest) holds parity.
+const getDocumentDescription = "Fetch a whole dashboard document by manifest id. Returns the raw stored JSON and, when resolved is true, the resolved tree. This is the escape hatch — prefer the slicing tools for targeted reads."
 
-		var document any
-		if err := json.Unmarshal(raw, &document); err != nil {
-			return nil, getDocumentOutput{}, err
-		}
-		out := getDocumentOutput{
-			ID:       input.ID,
-			Document: document,
-		}
+// getDocument is the whole-document escape hatch: it returns the raw stored bytes
+// via service.Load and, when in.Resolved is set, the resolved tree via
+// service.Resolve(id, nil). An unknown id surfaces the store's STORAGE_NOT_FOUND
+// *errors.CodedError verbatim as a tool error.
+func getDocument(_ context.Context, svc *service.Service, in getDocumentInput) (getDocumentOutput, error) {
+	raw, err := svc.Load(in.ID)
+	if err != nil {
+		// Unknown id surfaces STORAGE_NOT_FOUND verbatim as a tool error.
+		return getDocumentOutput{}, err
+	}
 
-		if input.Resolved {
-			tree, rerr := svc.Resolve(input.ID, nil)
-			if rerr != nil {
-				// Resolution failures (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim.
-				return nil, getDocumentOutput{}, rerr
-			}
-			out.Resolved = tree
-		}
+	var document any
+	if err := json.Unmarshal(raw, &document); err != nil {
+		return getDocumentOutput{}, err
+	}
+	out := getDocumentOutput{
+		ID:       in.ID,
+		Document: document,
+	}
 
-		return nil, out, nil
-	})
+	if in.Resolved {
+		tree, rerr := svc.Resolve(in.ID, nil)
+		if rerr != nil {
+			// Resolution failures (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim.
+			return getDocumentOutput{}, rerr
+		}
+		out.Resolved = tree
+	}
+
+	return out, nil
 }

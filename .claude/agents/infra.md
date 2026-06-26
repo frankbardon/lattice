@@ -14,7 +14,7 @@ You implement infra stories in the `lattice` repo. One responsibility: the build
 ## Repo conventions (hard rules)
 - `CGO_ENABLED=0` everywhere; static build, no cgo deps.
 - `lint` runs `staticcheck` via `go run`; keep that path working.
-- Build version wiring: keep `serverVersion` (set in `server.go`'s `NewServer`) threading intact — `get_manifest` reports it. No skill update needed for a version bump.
+- Build version wiring: the version flows as a parameter — `internal/cli/mcp.go` passes it to `gosdk.Register`, which threads it into `mcp.Config{Version}` so `get_manifest` reports it. There is no `serverVersion` global. No skill update needed for a version bump.
 - Mirror existing workflow style; don't introduce new CI services without flagging it.
 
 ## Self-review before returning

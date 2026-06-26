@@ -3,28 +3,22 @@ package mcp
 import (
 	"context"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/frankbardon/lattice/service"
 )
 
-// The get_node tool registered here is the drill-in read (E2-S2): given a document
-// id and a node's stable instance id it returns the STORED JSON subtree for that
-// node (the shape a raw patch edits), the node's editable SURFACE (the resolver's
-// per-node configurable fields, so the model knows which id-rooted patch paths are
-// valid), and the document's current revision. Block-vs-content addressing is
-// resolved server-side: when the node is a block wrapper the subtree is the whole
-// block (wrapper plus its config/content) and the surface is the CONTENT item's
-// editable fields, since a block delegates its knobs to what it wraps.
+// get_node is the drill-in read: given a document id and a node's stable instance
+// id it returns the STORED JSON subtree for that node (the shape a raw patch
+// edits), the node's editable SURFACE (the resolver's per-node configurable
+// fields, so the model knows which id-rooted patch paths are valid), and the
+// document's current revision. Block-vs-content addressing is resolved
+// server-side: when the node is a block wrapper the subtree is the whole block
+// (wrapper plus its config/content) and the surface is the CONTENT item's editable
+// fields, since a block delegates its knobs to what it wraps.
 //
 // Like the other tools it calls ONLY the ./service facade (NodeView) and surfaces
-// the facade's *errors.CodedError verbatim as an MCP tool error — an unknown
-// document id and an unknown node id give DISTINCT coded errors (STORAGE_NOT_FOUND
-// vs CHANGESET_TARGET_NOT_FOUND).
-
-func init() {
-	registrars = append(registrars, registerGetNode)
-}
+// the facade's *errors.CodedError verbatim as a tool error — an unknown document
+// id and an unknown node id give DISTINCT coded errors (STORAGE_NOT_FOUND vs
+// CHANGESET_TARGET_NOT_FOUND).
 
 // getNodeInput is the input for get_node: the document's manifest id and the
 // stable instance id of the node to drill into.
@@ -71,10 +65,10 @@ type getNodeOutput struct {
 
 	// Subtree is the STORED JSON subtree for the addressed node — the exact shape a
 	// raw id-rooted patch edits. For a block it is the whole block subtree (wrapper
-	// plus config/content). It is typed `any` so the reflective output-schema leaves
+	// plus config/content). It is typed `any` so the reflected output-schema leaves
 	// it unconstrained: the subtree's shape is governed by the item/document schemas,
-	// not this tool's contract (and the SDK's schema generator cannot represent the
-	// arbitrary, recursive document shape).
+	// not this tool's contract (and the reflector cannot represent the arbitrary,
+	// recursive document shape).
 	Subtree any `json:"subtree" jsonschema:"the stored JSON subtree for the node (the shape a patch edits)"`
 
 	// Surface is the node's editable surface as a flat {key, type} list. For a block
@@ -84,33 +78,32 @@ type getNodeOutput struct {
 	Surface []surfaceField `json:"surface" jsonschema:"the node's editable field surface as a flat key+type list; empty when none"`
 }
 
-// registerGetNode registers the get_node tool: it calls service.NodeView to fetch
-// the addressed node's stored subtree, editable surface, and current revision, and
-// projects the surface into a flat {key, type} list. An unknown document id
-// surfaces STORAGE_NOT_FOUND and an unknown node id surfaces
-// CHANGESET_TARGET_NOT_FOUND — distinct coded errors — verbatim as a tool error.
-func registerGetNode(s *sdkmcp.Server, svc *service.Service) {
-	sdkmcp.AddTool(s, &sdkmcp.Tool{
-		Name:        "get_node",
-		Description: "Drill into one node by document id + node id. Returns the STORED JSON subtree for that node (the exact shape a raw id-rooted patch edits), the node's editable field surface as a flat key+type list (so you know which field paths are valid to patch), and the current revision. Block addressing: naming a block returns the whole block subtree (wrapper + config/content) and surfaces the CONTENT item's editable fields. The surface gates FIELD edits only — structural edits (add/remove/move children) are NOT surface-gated; use get_outline to plan those.",
-	}, func(_ context.Context, _ *sdkmcp.CallToolRequest, input getNodeInput) (*sdkmcp.CallToolResult, getNodeOutput, error) {
-		view, err := svc.NodeView(input.ID, input.NodeID)
-		if err != nil {
-			// Unknown document id (STORAGE_NOT_FOUND) and unknown node id
-			// (CHANGESET_TARGET_NOT_FOUND) surface verbatim as distinct tool errors;
-			// resolution failures (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim too.
-			return nil, getNodeOutput{}, err
-		}
+// getNodeDescription is the get_node tool description, kept identical to the legacy
+// registration so downstream catalog text (get_manifest) holds parity.
+const getNodeDescription = "Drill into one node by document id + node id. Returns the STORED JSON subtree for that node (the exact shape a raw id-rooted patch edits), the node's editable field surface as a flat key+type list (so you know which field paths are valid to patch), and the current revision. Block addressing: naming a block returns the whole block subtree (wrapper + config/content) and surfaces the CONTENT item's editable fields. The surface gates FIELD edits only — structural edits (add/remove/move children) are NOT surface-gated; use get_outline to plan those."
 
-		out := getNodeOutput{
-			ID:       input.ID,
-			NodeID:   input.NodeID,
-			Revision: view.Revision,
-			Subtree:  view.Subtree,
-			Surface:  surfaceList(view.Surface),
-		}
-		return nil, out, nil
-	})
+// getNode calls service.NodeView to fetch the addressed node's stored subtree,
+// editable surface, and current revision, and projects the surface into a flat
+// {key, type} list. An unknown document id surfaces STORAGE_NOT_FOUND and an
+// unknown node id surfaces CHANGESET_TARGET_NOT_FOUND — distinct coded errors —
+// verbatim as a tool error.
+func getNode(_ context.Context, svc *service.Service, in getNodeInput) (getNodeOutput, error) {
+	view, err := svc.NodeView(in.ID, in.NodeID)
+	if err != nil {
+		// Unknown document id (STORAGE_NOT_FOUND) and unknown node id
+		// (CHANGESET_TARGET_NOT_FOUND) surface verbatim as distinct tool errors;
+		// resolution failures (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim too.
+		return getNodeOutput{}, err
+	}
+
+	out := getNodeOutput{
+		ID:       in.ID,
+		NodeID:   in.NodeID,
+		Revision: view.Revision,
+		Subtree:  view.Subtree,
+		Surface:  surfaceList(view.Surface),
+	}
+	return out, nil
 }
 
 // surfaceList projects the resolver's per-node configurable surface into the flat

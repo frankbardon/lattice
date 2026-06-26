@@ -6,21 +6,15 @@ import (
 	"sort"
 	"strings"
 
-	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
-
 	"github.com/frankbardon/lattice/service"
 )
 
-// The get_outline tool registered here is the token-cheap navigation entry point
-// (E2-S1): it resolves a dashboard server-side and returns a CONFIG-FREE skeleton
-// of the tree plus a document-scope summary and the current revision, so an MCP
-// host can locate a target node by id without pulling the whole (config-laden)
-// document through context. Like the other tools it calls ONLY the ./service
-// facade and surfaces the facade's *errors.CodedError verbatim as a tool error.
-
-func init() {
-	registrars = append(registrars, registerGetOutline)
-}
+// get_outline is the token-cheap navigation entry point: it resolves a dashboard
+// server-side and returns a CONFIG-FREE skeleton of the tree plus a document-scope
+// summary and the current revision, so an MCP host can locate a target node by id
+// without pulling the whole (config-laden) document through context. Like the
+// other tools it calls ONLY the ./service facade and surfaces the facade's
+// *errors.CodedError verbatim as a tool error.
 
 // getOutlineInput is the input for get_outline: the document's manifest id.
 type getOutlineInput struct {
@@ -71,12 +65,11 @@ type documentScope struct {
 // type ref, an optional title (only when the node's config exposes one), whether
 // it is a container, a compact placement summary, and its children.
 //
-// Children is typed `any` rather than []*outlineNode on purpose: the MCP SDK's
-// reflection-based output-schema generator panics on a Go type that is recursive
-// through itself (the same cycle that blocks using resolver.ResolvedInstance as a
-// typed output). Each element is in fact an *outlineNode; `any` only relaxes the
-// generated schema for the children field so the recursive shape is left
-// unconstrained.
+// Children is typed `any` rather than []*outlineNode on purpose: the schema
+// reflector panics on a Go type that is recursive through itself (the same cycle
+// that blocks using resolver.ResolvedInstance as a typed output). Each element is
+// in fact an *outlineNode; `any` only relaxes the generated schema for the
+// children field so the recursive shape is left unconstrained.
 type outlineNode struct {
 	// ID is the node's stable instance id. Empty only when the node declared none
 	// (the resolver permits an id-less node).
@@ -103,54 +96,52 @@ type outlineNode struct {
 	// (element-metadata E1), surfaced here so the editing LLM sees a node's
 	// correlations from the skeleton without fetching the full document. It is a
 	// flat map of scalar values (the resolver enforces eligibility + scalar-only),
-	// so it does NOT trip the reflective output-schema generator's recursive-type
-	// panic. Emitted ONLY for nodes that carry non-empty metadata (the eligible
-	// kinds — document root, region containers, block wrappers); omitted otherwise.
+	// so it does NOT trip the reflector's recursive-type panic. Emitted ONLY for
+	// nodes that carry non-empty metadata (the eligible kinds — document root,
+	// region containers, block wrappers); omitted otherwise.
 	Metadata map[string]any `json:"metadata,omitempty" jsonschema:"the node's freeform passthrough metadata, present only when the node carries it"`
 
 	// Children are the node's child skeletons (each an *outlineNode), in document
-	// order. Omitted for leaf nodes. Typed `any` to avoid the reflective
-	// output-schema generator's recursive-type panic.
+	// order. Omitted for leaf nodes. Typed `any` to avoid the schema reflector's
+	// recursive-type panic.
 	Children any `json:"children,omitempty" jsonschema:"the node's child skeletons, in document order"`
 }
 
-// registerGetOutline registers the get_outline tool: it resolves the document via
-// service.Resolve, projects the resolved tree into a config-free skeleton, adds
-// the document-scope summary and the current revision (service.Revision), and
-// returns them. An unknown id surfaces the store's STORAGE_NOT_FOUND coded error
-// verbatim as a tool error.
-func registerGetOutline(s *sdkmcp.Server, svc *service.Service) {
-	sdkmcp.AddTool(s, &sdkmcp.Tool{
-		Name:        "get_outline",
-		Description: "Resolve a dashboard by manifest id and return a config-free skeleton of its tree (per node: id, type, optional title, placement summary, children) plus a document-scope summary (variable names, connection ids, theme presence) and the current revision. Token-cheap navigation: use it to locate a node by id before a targeted read.",
-	}, func(_ context.Context, _ *sdkmcp.CallToolRequest, input getOutlineInput) (*sdkmcp.CallToolResult, getOutlineOutput, error) {
-		tree, err := svc.Resolve(input.ID, nil)
-		if err != nil {
-			// Unknown id surfaces STORAGE_NOT_FOUND verbatim; resolution failures
-			// (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim too.
-			return nil, getOutlineOutput{}, err
-		}
+// getOutlineDescription is the get_outline tool description, kept identical to the
+// legacy registration so downstream catalog text (get_manifest) holds parity.
+const getOutlineDescription = "Resolve a dashboard by manifest id and return a config-free skeleton of its tree (per node: id, type, optional title, placement summary, children) plus a document-scope summary (variable names, connection ids, theme presence) and the current revision. Token-cheap navigation: use it to locate a node by id before a targeted read."
 
-		out := getOutlineOutput{
-			ID: input.ID,
-			Document: documentScope{
-				Variables:   variableNames(tree),
-				Connections: connectionIDs(tree),
-				Theme:       tree.DefaultTheme != nil,
-			},
-			Root: outlineFromInstance(tree.Root),
-		}
+// getOutline resolves the document via service.Resolve, projects the resolved tree
+// into a config-free skeleton, adds the document-scope summary and the current
+// revision (service.Revision), and returns them. An unknown id surfaces the store's
+// STORAGE_NOT_FOUND coded error verbatim as a tool error.
+func getOutline(_ context.Context, svc *service.Service, in getOutlineInput) (getOutlineOutput, error) {
+	tree, err := svc.Resolve(in.ID, nil)
+	if err != nil {
+		// Unknown id surfaces STORAGE_NOT_FOUND verbatim; resolution failures
+		// (RESOLVE_*/SCHEMA_*/VAR_*) surface verbatim too.
+		return getOutlineOutput{}, err
+	}
 
-		// Revision is best-effort: a store that lacks the RevisionedStore capability
-		// reports STORAGE_CAPABILITY_UNSUPPORTED. The outline is still useful without
-		// a revision, so an unsupported store leaves Revision empty rather than
-		// failing the whole tool.
-		if rev, rerr := svc.Revision(input.ID); rerr == nil {
-			out.Revision = rev
-		}
+	out := getOutlineOutput{
+		ID: in.ID,
+		Document: documentScope{
+			Variables:   variableNames(tree),
+			Connections: connectionIDs(tree),
+			Theme:       tree.DefaultTheme != nil,
+		},
+		Root: outlineFromInstance(tree.Root),
+	}
 
-		return nil, out, nil
-	})
+	// Revision is best-effort: a store that lacks the RevisionedStore capability
+	// reports STORAGE_CAPABILITY_UNSUPPORTED. The outline is still useful without
+	// a revision, so an unsupported store leaves Revision empty rather than
+	// failing the whole tool.
+	if rev, rerr := svc.Revision(in.ID); rerr == nil {
+		out.Revision = rev
+	}
+
+	return out, nil
 }
 
 // outlineFromInstance projects a resolved instance into its config-free skeleton,

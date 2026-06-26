@@ -8,7 +8,7 @@ import (
 	cli "github.com/urfave/cli/v3"
 
 	"github.com/frankbardon/lattice/errors"
-	lmcp "github.com/frankbardon/lattice/internal/mcp"
+	"github.com/frankbardon/lattice/mcp/gosdk"
 	"github.com/frankbardon/lattice/service"
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -19,8 +19,8 @@ import (
 // is assembled from the same --store/--root/--schemas seam serve/patch use: the
 // store is the --store backend over the real filesystem rooted at --root, and
 // the resolver reads the --schemas catalog. That single *service.Service is
-// handed to the transport-agnostic registry (internal/mcp), which registers the
-// tool set and returns a *mcp.Server; the command then serves it over a
+// handed to the go-sdk adapter (mcp/gosdk), which registers the tool set onto a
+// bare *mcp.Server; the command then serves it over a
 // StdioTransport, blocking until the host disconnects or the CLI context is
 // cancelled.
 //
@@ -55,7 +55,8 @@ func McpCommand() *cli.Command {
 				return reportError(cmd, asJSON, err)
 			}
 
-			srv := lmcp.NewServer(svc, cmd.Root().Version)
+			srv := sdkmcp.NewServer(&sdkmcp.Implementation{Name: "lattice", Version: cmd.Root().Version}, nil)
+			gosdk.Register(srv, svc, cmd.Root().Version)
 
 			fmt.Fprintf(cmd.Writer, "lattice MCP server running on stdio (Ctrl-C to stop)\n")
 
