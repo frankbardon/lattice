@@ -202,6 +202,12 @@ func parseStringValue(s string, t VarType) (any, error) {
 			return nil, fmt.Errorf("not a JSON array: %q", s)
 		}
 		return arr, nil
+	case VarTypeObject:
+		var obj map[string]any
+		if err := json.Unmarshal([]byte(s), &obj); err != nil {
+			return nil, fmt.Errorf("not a JSON object: %q", s)
+		}
+		return obj, nil
 	default:
 		return s, nil
 	}

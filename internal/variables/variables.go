@@ -49,6 +49,12 @@ const (
 	VarTypeEnum VarType = "enum"
 	// VarTypeArray is a JSON array of arbitrary element values.
 	VarTypeArray VarType = "array"
+	// VarTypeObject is a JSON object of arbitrary keyed values. It backs the
+	// STRUCTURED configurable surfaces (a panel `spec`/`request`/`display`, a
+	// container `grid`) whose value is an object the create/edit modal drives by
+	// its sub-fields; the authoritative structure check is the item-type config
+	// schema re-validation, so the type check here is only "it is an object."
+	VarTypeObject VarType = "object"
 )
 
 // validTypes is the set of accepted declaration types.
@@ -59,6 +65,7 @@ var validTypes = map[VarType]bool{
 	VarTypeBoolean: true,
 	VarTypeEnum:    true,
 	VarTypeArray:   true,
+	VarTypeObject:  true,
 }
 
 // IsValidType reports whether t is one of the accepted variable types. It is the
@@ -212,6 +219,10 @@ func validateValue(v any, d Declaration, loc string) error {
 		}
 	case VarTypeArray:
 		if _, ok := v.([]any); !ok {
+			return typeErr()
+		}
+	case VarTypeObject:
+		if _, ok := v.(map[string]any); !ok {
 			return typeErr()
 		}
 	case VarTypeEnum:

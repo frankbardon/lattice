@@ -185,6 +185,22 @@
                 "rendering": "text-input"
               },
               {
+                "field": "tone",
+                "type": "enum",
+                "label": "Chrome",
+                "constraints": {
+                  "description": "The block's frame chrome, drawn from the shared theme TONE vocabulary. An omitted tone renders no chrome (a bare, frameless tile); `neutral` is the plain card; the status tones tint the card. A top-level per-block concern (not the nested `theme` override) so it is settable through the configurable-surface mechanism.",
+                  "enum": [
+                    "neutral",
+                    "accent",
+                    "positive",
+                    "caution",
+                    "critical"
+                  ]
+                },
+                "rendering": "select"
+              },
+              {
                 "field": "visibility",
                 "type": "boolean",
                 "label": "Visible",
@@ -314,6 +330,22 @@
                 "rendering": "text-input"
               },
               {
+                "field": "tone",
+                "type": "enum",
+                "label": "Chrome",
+                "constraints": {
+                  "description": "The block's frame chrome, drawn from the shared theme TONE vocabulary. An omitted tone renders no chrome (a bare, frameless tile); `neutral` is the plain card; the status tones tint the card. A top-level per-block concern (not the nested `theme` override) so it is settable through the configurable-surface mechanism.",
+                  "enum": [
+                    "neutral",
+                    "accent",
+                    "positive",
+                    "caution",
+                    "critical"
+                  ]
+                },
+                "rendering": "select"
+              },
+              {
                 "field": "visibility",
                 "type": "boolean",
                 "label": "Visible",
@@ -328,7 +360,7 @@
         "surface": [
           {
             "field": "grid",
-            "type": "array",
+            "type": "object",
             "label": "Grid tracks",
             "constraints": {
               "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",
@@ -399,7 +431,7 @@
     "surface": [
       {
         "field": "grid",
-        "type": "array",
+        "type": "object",
         "label": "Grid tracks",
         "constraints": {
           "description": "The container's relative-weight grid (E3-S2 surface). Editable at runtime: the column track weights, the row track weights, and the inter-track gap — all unitless, relative numbers. Column and row weights are positive-number arrays the resolver normalizes to fractions summing to 1 per axis; gap is a non-negative number in the same relative space. NO CSS units or keywords.",

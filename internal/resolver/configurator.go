@@ -305,6 +305,11 @@ var canonicalWidget = map[variables.VarType]string{
 	variables.VarTypeBoolean: "toggle",
 	variables.VarTypeEnum:    "select",
 	variables.VarTypeArray:   "multiselect",
+	// A structured object surface (a panel spec/request/display, a container grid)
+	// has no scalar editor widget — the create/edit modal drives its sub-fields. It
+	// maps to the same generic structured fallback an array surface does (the
+	// generated configurator form does not edit these structured fields itself).
+	variables.VarTypeObject: "multiselect",
 }
 
 // widgetForField selects the widget item-type that renders a surface field's

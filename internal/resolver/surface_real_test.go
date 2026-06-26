@@ -125,8 +125,8 @@ func TestContainerSurface(t *testing.T) {
 	}
 
 	grid := fieldByName(t, container.Surface, "grid")
-	if grid.Type != variables.VarTypeArray {
-		t.Errorf("grid.Type = %q, want %q", grid.Type, variables.VarTypeArray)
+	if grid.Type != variables.VarTypeObject {
+		t.Errorf("grid.Type = %q, want %q", grid.Type, variables.VarTypeObject)
 	}
 	if grid.Label == "" {
 		t.Errorf("grid.Label is empty, want a human label")

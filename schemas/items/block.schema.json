@@ -26,6 +26,15 @@
       "constraints": {
         "description": "Whether the block (and the content it wraps) is shown — editable at runtime to toggle the block on or off."
       }
+    },
+    "tone": {
+      "type": "enum",
+      "label": "Chrome",
+      "rendering": "select",
+      "constraints": {
+        "enum": ["neutral", "accent", "positive", "caution", "critical"],
+        "description": "The block's frame chrome, drawn from the shared theme TONE vocabulary. An omitted tone renders no chrome (a bare, frameless tile); `neutral` is the plain card; the status tones tint the card. A top-level per-block concern (not the nested `theme` override) so it is settable through the configurable-surface mechanism."
+      }
     }
   },
   "properties": {
@@ -50,6 +59,12 @@
       "description": "Whether the block is shown. Defaults to true (visible). Tunable at runtime via the configurable surface to hide or reveal the block and the content it wraps.",
       "type": "boolean",
       "default": true
+    },
+    "tone": {
+      "title": "Block Tone (chrome)",
+      "description": "The block's frame chrome, drawn from the shared theme TONE vocabulary (neutral|accent|positive|caution|critical). Omitted means no chrome — a bare, frameless tile; `neutral` is the plain card; the status tones tint the card's border and a faint background. A top-level per-block concern (distinct from the nested `theme` override) so it is settable at runtime through the configurable surface — the override's nested `theme.tone` cannot be, since the surface mechanism cannot create the optional `theme` parent object.",
+      "type": "string",
+      "enum": ["neutral", "accent", "positive", "caution", "critical"]
     },
     "content": {
       "title": "Block Content",

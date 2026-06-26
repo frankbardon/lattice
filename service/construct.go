@@ -9,7 +9,17 @@ import (
 	"github.com/frankbardon/lattice/errors"
 	"github.com/frankbardon/lattice/internal/resolver"
 	"github.com/frankbardon/lattice/internal/storage"
+	"github.com/frankbardon/lattice/schemas"
 )
+
+// CoreSchemas returns lattice's embedded core schema catalog (the dashboard
+// document schema, the built-in item types, the connection types, and the theme
+// vocabulary) as a read-only fs.FS. A downstream module that consumes lattice as
+// a library inherits the catalog through this accessor instead of copying the
+// .schema.json files into its own tree: pass it as Options.Schemas, or overlay
+// custom item types over it with OverlaySchemas. It is the same catalog Open and
+// NewResolver fall back to when Options.Schemas / the schemas argument is nil.
+func CoreSchemas() fs.FS { return schemas.FS() }
 
 // dashboardSchemaFile is the dashboard document schema's filename within the
 // schemas filesystem; it is loaded for the structural (Pass 1) validation. It
@@ -96,8 +106,11 @@ func New(store Store, res *Resolver) *Service {
 //
 // Schema-load/parse failures are returned as *errors.CodedError with the
 // existing SCHEMA_IO / SCHEMA_INVALID codes.
-func NewResolver(schemas fs.FS) (*Resolver, error) {
-	afs := afero.FromIOFS{FS: schemas}
+func NewResolver(schemaFS fs.FS) (*Resolver, error) {
+	if schemaFS == nil {
+		schemaFS = CoreSchemas() // zero-config: inherit the embedded core catalog
+	}
+	afs := afero.FromIOFS{FS: schemaFS}
 
 	dashSch, err := loadDashboardSchema(afs)
 	if err != nil {
