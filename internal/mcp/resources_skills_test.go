@@ -14,7 +14,7 @@ import (
 
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
-	"github.com/frankbardon/lattice/internal/mcp/skills"
+	"github.com/frankbardon/lattice/mcp/skills"
 )
 
 // skillResourceURIScheme mirrors the unexported scheme the resource registrar

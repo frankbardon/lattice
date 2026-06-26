@@ -6,12 +6,12 @@ import (
 	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/frankbardon/lattice/errors"
-	"github.com/frankbardon/lattice/internal/mcp/skills"
+	"github.com/frankbardon/lattice/mcp/skills"
 	"github.com/frankbardon/lattice/service"
 )
 
 // The two skill tools registered here — list_skills and get_skill — expose
-// lattice's embedded skill corpus (the internal/mcp/skills package) to an MCP
+// lattice's embedded skill corpus (the mcp/skills package) to an MCP
 // host: a guide/reference catalog the host enumerates to discover how to drive
 // the rest of the tool surface, then fetches on demand. They read ONLY the pure
 // embedded skills package (which itself imports nothing from internal/* and is
