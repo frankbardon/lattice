@@ -1,9 +1,9 @@
 ---
 name: items-layout
-description: The layout item family — `container` (the relative-weight grid region that groups and places children) and `block` (the mandatory single-leaf wrapper that carries per-block chrome). How layout nests under root, how containers place children, and how a block wraps exactly one content leaf. Pairs with placement-grid (the grid/coordinates), blocks (the wrapper↔content split), and get_schema (the per-type field grammar).
+description: The layout item family — `container` (the relative-weight grid region that groups and places children) and `block` (the mandatory single-leaf wrapper that carries per-block chrome). How layout nests under root, how containers place children, and how a block wraps exactly one content leaf. Pairs with placement-grid (the grid/coordinates), blocks (the wrapper↔content split), and lattice_get_schema (the per-type field grammar).
 type: reference
 kind: items
-applies_to: [get_schema, get_node, get_outline, validate_patch]
+applies_to: [lattice_get_schema, lattice_get_node, lattice_get_outline, lattice_validate_patch]
 covers: [container, block]
 ---
 
@@ -14,7 +14,7 @@ This is a per-item **reference** for the two layout-structural item types —
 position things on a grid, blocks wrap content leaves so they may sit in that
 grid. This skill covers what each is *for*, how they nest, and the gotchas — it
 does **not** list their fields. For the field grammar of either type call
-**`get_schema`** (`container`, `block`); the schema drifts per server, so any copy
+**`lattice_get_schema`** (`container`, `block`); the schema drifts per server, so any copy
 here would rot (see **session-bootstrap** → source layering).
 
 ## The two types at a glance
@@ -65,10 +65,10 @@ no CSS units, no pixels). Each child positions itself with explicit 1-indexed
 on a region fails `GRAMMAR_REGION_THEME_FORBIDDEN`; chrome lives on blocks.
 
 The grid model, the `colStart/colSpan/rowStart/rowSpan` placement keys, and how
-`get_outline`'s compact `"col 2+1, row 1+1"` summary maps to the verbatim config
+`lattice_get_outline`'s compact `"col 2+1, row 1+1"` summary maps to the verbatim config
 are all covered in **placement-grid** — read it before placing or moving nodes.
-For the exact grid/placement field grammar, call `get_schema container`. The grid
-is a **structured (object) configurable surface** — `get_node` surfaces the whole
+For the exact grid/placement field grammar, call `lattice_get_schema container`. The grid
+is a **structured (object) configurable surface** — `lattice_get_node` surfaces the whole
 `grid` field plus its nested `grid.columns` / `grid.rows` / `grid.gap` sub-paths;
 see **variables** (the `object` type) for what "structured surface" means.
 
@@ -105,10 +105,10 @@ Invariants the resolver guards fail-fast:
 `image`, `table`, …) under a container — wrapping is **mandatory**, not optional.
 You also reach for the block layer when you want to set a leaf's `title`, toggle
 its `visibility`, or attach a `theme` override: those are wrapper concerns, not
-leaf concerns. The full wrapper↔content split, how `get_node` surfaces the
+leaf concerns. The full wrapper↔content split, how `lattice_get_node` surfaces the
 *content's* editable fields against the wrapper node, and how to address each side
 in a patch live in **blocks**. For the wrapper's own field grammar, call
-`get_schema block`.
+`lattice_get_schema block`.
 
 ## Freeform `metadata` (intent)
 
@@ -124,9 +124,9 @@ content leaf it wraps.
 **Reach for `metadata` when** you want to attach open-ended, non-rendered
 annotations to a region or block (ownership, provenance, tags) that no fixed
 field models. For the exact shape and the allowed value kinds, call
-`get_schema` — the grammar is not restated here.
+`lattice_get_schema` — the grammar is not restated here.
 
-A node's `metadata` is **surfaced in `get_outline`** alongside its id, type, and
+A node's `metadata` is **surfaced in `lattice_get_outline`** alongside its id, type, and
 placement — present on the skeleton node only where the node carries it, omitted
 otherwise — so you see a node's correlations while navigating, without pulling the
 whole document (see **session-bootstrap** → Structure). To set or change it, patch
@@ -144,10 +144,10 @@ you need arbitrary grid nesting.
 
 ## Cross-links
 
-- **blocks** — the wrapper↔content split, how `get_node` resolves a block, and how
+- **blocks** — the wrapper↔content split, how `lattice_get_node` resolves a block, and how
   to address a block (and its inner leaf) in an id-rooted patch.
 - **placement-grid** — the relative-weight grid, the 1-indexed placement
-  coordinates, the `get_outline` placement summary, and place/move via patch.
+  coordinates, the `lattice_get_outline` placement summary, and place/move via patch.
 - **items-content** — the content leaves (`markdown`, `heading`, `image`) a block
   wraps.
 - **variables** — `variable-box`, the *other* positional region (widgets held
@@ -155,4 +155,4 @@ you need arbitrary grid nesting.
 - **custom-item-types** — publishing your own region or wrapper type by keyword,
   joining this family alongside `container` and `block`.
 - **session-bootstrap** — source layering: why the per-type field grammar stays in
-  `get_schema`.
+  `lattice_get_schema`.

@@ -1,9 +1,9 @@
 ---
 name: custom-item-types
-description: How a downstream consumer publishes a FIRST-CLASS custom item type — no fork, no Go — by tagging its `.schema.json` with the `latticeBehavior` keyword. Explains the three behavior roles (region, wrapper, widget), what each is FOR, and when to pick it, so a custom type joins the built-in catalog and resolves under the same grammar. The built-ins (container/variable-box/form are regions, block is a wrapper, the inputs are widgets) are just the first citizens of this scheme. Pairs with items-layout / items-inputs / items-forms (the built-in families per role), patch-authoring (editing instances), and get_schema (the live grammar, including each type's own latticeBehavior).
+description: How a downstream consumer publishes a FIRST-CLASS custom item type — no fork, no Go — by tagging its `.schema.json` with the `latticeBehavior` keyword. Explains the three behavior roles (region, wrapper, widget), what each is FOR, and when to pick it, so a custom type joins the built-in catalog and resolves under the same grammar. The built-ins (container/variable-box/form are regions, block is a wrapper, the inputs are widgets) are just the first citizens of this scheme. Pairs with items-layout / items-inputs / items-forms (the built-in families per role), patch-authoring (editing instances), and lattice_get_schema (the live grammar, including each type's own latticeBehavior).
 type: guide
 kind: workflow
-applies_to: [get_schema, list_schemas, get_manifest, validate_patch]
+applies_to: [lattice_get_schema, lattice_list_schemas, lattice_get_manifest, lattice_validate_patch]
 covers: [latticeBehavior, region, wrapper, widget]
 ---
 
@@ -14,14 +14,14 @@ forking it and without writing Go**. You ship one item-type `.schema.json`
 through the same pluggable schema `fs.FS` the built-ins load from, and you tag it
 with the **`latticeBehavior`** keyword. That keyword is the contract that makes
 the resolver treat your type exactly like a built-in: it joins the catalog
-`get_manifest` reports, `list_schemas` lists it, `get_schema` returns it, and it
+`lattice_get_manifest` reports, `lattice_list_schemas` lists it, `lattice_get_schema` returns it, and it
 resolves and validates under the *same* tree grammar — no name-string special
 cases anywhere.
 
 This skill teaches the **vocabulary and intent** of `latticeBehavior` — the three
 roles and *when to pick each*. It does **not** restate any type's field grammar.
 For the actual fields/types/enums of a type — *including the concrete shape of its
-`latticeBehavior` block* — call **`get_schema {type}`**; that grammar drifts per
+`latticeBehavior` block* — call **`lattice_get_schema {type}`**; that grammar drifts per
 server and per type, so any copy here would rot (see **session-bootstrap** →
 source layering).
 
@@ -54,7 +54,7 @@ A **region** is a positional container: it owns a `children` set and arranges
 them. Reach for it when your custom type's job is to *group and place* other
 items — a panel, a band, a split, a dedicated input area.
 
-Two attributes shape a region (read their exact form via `get_schema`):
+Two attributes shape a region (read their exact form via `lattice_get_schema`):
 
 - A **child-policy** attribute decides *what kind of children* the region admits —
   either nested regions and block **wrappers**, or **widgets** only. This is what
@@ -73,12 +73,12 @@ custom region picks its own policy + layout and slots in beside them.
 
 A **wrapper** carries cross-cutting, per-item concerns around **exactly one**
 inner instance, held in a single named **content field** (named by an attribute on
-the behavior — read it via `get_schema`). Reach for it when your type's job is to
+the behavior — read it via `lattice_get_schema`). Reach for it when your type's job is to
 *decorate a single child* (an id, a title, visibility, a theme override) rather
 than to hold many.
 
 The sole built-in wrapper is **`block`** — see **items-layout** and **blocks**
-for the wrapper↔content split and how `get_node` surfaces the *inner* item's
+for the wrapper↔content split and how `lattice_get_node` surfaces the *inner* item's
 editable fields against the wrapper node. A custom wrapper inherits the same
 guards (one inner instance; never re-wrap another wrapper) automatically.
 
@@ -107,16 +107,16 @@ are catalogued in **items-inputs**; **variables** owns the binding target itself
 1. **Author the schema.** Write `<your-type>.schema.json` like any item type, and
    add a `latticeBehavior` block: choose the role, fill its attributes. For the
    exact JSON shape of that block and of the surrounding schema, mirror a built-in
-   of the same role via **`get_schema`** (e.g. read `container` for a region) —
+   of the same role via **`lattice_get_schema`** (e.g. read `container` for a region) —
    do not transcribe fields from this skill.
 2. **Drop it in the schema `fs.FS`** the server loads (the same source the
    built-ins come from). No Go, no registration, no rebuild of lattice.
-3. **Confirm it landed.** `get_manifest` / `list_schemas` should now list your
-   type; `get_schema {your-type}` should return it. If the server rejected it at
+3. **Confirm it landed.** `lattice_get_manifest` / `lattice_list_schemas` should now list your
+   type; `lattice_get_schema {your-type}` should return it. If the server rejected it at
    index time, the `SCHEMA_BEHAVIOR_INVALID` error names the schema and the
    problem — fix the role/attributes and reload.
 4. **Author and simulate an instance.** Build a document/patch using your type and
-   run **`validate_patch`** — it resolves under the same grammar as any built-in,
+   run **`lattice_validate_patch`** — it resolves under the same grammar as any built-in,
    so the role's guarantees (child policy, wrapper count, widget type-match) are
    enforced on the simulated tree. Iterate to green before a human commits via
    `POST /api/patch`. The edit loop itself is **authoring-loop**.
@@ -135,4 +135,4 @@ to it unchanged: place its instances per **placement-grid**, edit them per
 - **patch-authoring** / **authoring-loop** — building and simulating instances of
   any type, custom or built-in.
 - **session-bootstrap** — source layering: why each type's real grammar (and its
-  own `latticeBehavior` shape) lives in `get_schema`, not here.
+  own `latticeBehavior` shape) lives in `lattice_get_schema`, not here.

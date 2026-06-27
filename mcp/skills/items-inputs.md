@@ -1,9 +1,9 @@
 ---
 name: items-inputs
-description: The runtime-input item family — the 13 variable widgets (text-input, textarea, number-field, slider, stepper, toggle, checkbox, select, radio-group, segmented, multiselect, checkbox-group, tag-input) that each SET one variable, plus the variable-box region that holds them. Grouped by binding shape (string / numeric / boolean / single-select enum / multi-value array) with the widget↔variable type-compatibility contract and "pick this when" guidance. Pairs with variables (the binding target), items-forms (grouping widgets), and get_schema (the per-type field grammar).
+description: The runtime-input item family — the 13 variable widgets (text-input, textarea, number-field, slider, stepper, toggle, checkbox, select, radio-group, segmented, multiselect, checkbox-group, tag-input) that each SET one variable, plus the variable-box region that holds them. Grouped by binding shape (string / numeric / boolean / single-select enum / multi-value array) with the widget↔variable type-compatibility contract and "pick this when" guidance. Pairs with variables (the binding target), items-forms (grouping widgets), and lattice_get_schema (the per-type field grammar).
 type: reference
 kind: items
-applies_to: [get_schema, get_node, get_outline, validate_patch]
+applies_to: [lattice_get_schema, lattice_get_node, lattice_get_outline, lattice_validate_patch]
 covers: [text-input, textarea, number-field, slider, stepper, toggle, checkbox, select, radio-group, segmented, multiselect, checkbox-group, tag-input, variable-box]
 ---
 
@@ -16,7 +16,7 @@ content; its whole job is to drive a variable's runtime override so dependent
 `${var}` / `$var` consumers re-resolve live. This skill groups the widgets by
 **binding shape**, states the one contract they all share, and says *which to
 reach for* — it does **not** list any type's fields. For the field grammar of any
-type call **`get_schema`** (the type name); schemas drift per server, so any copy
+type call **`lattice_get_schema`** (the type name); schemas drift per server, so any copy
 here would rot (see **session-bootstrap** → source layering).
 
 ## The binding contract (every widget)
@@ -42,7 +42,7 @@ authoritative default, and at resolve time *override beats default*. A widget's
 own `default` config (where present) is presentation-only — what's shown before
 the viewer interacts — never the resolution-time value. The shared presentation
 floor (`label`, `description`, `disabled`, and the family-typed `default`) is
-common across families; per-type extras live in `get_schema`.
+common across families; per-type extras live in `lattice_get_schema`.
 
 ## The five families (pick by variable type)
 
@@ -64,7 +64,7 @@ Free-text controls binding a `string` variable.
 - **`text-input`** — single-line. Pick for a short value: a label, a name, an id.
 - **`textarea`** — multi-line. Pick for a longer body: a note, a description.
 
-Both add an optional `placeholder` (see `get_schema`).
+Both add an optional `placeholder` (see `lattice_get_schema`).
 
 ### Number — `number-field`, `slider`, `stepper`
 
@@ -79,7 +79,7 @@ Numeric controls binding a `number` **or** `integer` variable.
 All three accept an optional `min` / `max` / `step` range. The resolver rejects an
 **inverted range** (`min` > `max`) or a non-positive `step` with
 `RESOLVE_CONFIG_INVALID`, naming the field — a cross-field check JSON Schema can't
-express. Confirm the exact fields with `get_schema`.
+express. Confirm the exact fields with `lattice_get_schema`.
 
 ### Boolean — `toggle`, `checkbox`
 
@@ -125,7 +125,7 @@ family); an absent/empty set fails `RESOLVE_CONFIG_INVALID`. `tag-input` is
 **freeform** — it declares **no** `options` (it takes a `placeholder` instead).
 Note the asymmetry vs enum: an `array` variable declaration carries no `options`
 of its own, so the bounded set — when required — lives on the widget. Confirm
-each type's option/placeholder fields with `get_schema`.
+each type's option/placeholder fields with `lattice_get_schema`.
 
 ## `variable-box` — where widgets live
 
@@ -134,7 +134,7 @@ A **`variable-box`** is a **positional region** (like `container`, layout-only,
 children are held **directly** — they are **NOT** block-wrapped (the box, not a
 per-widget block, supplies their grouped presentation). Its only surface is an
 `arrangement` (`stacked` — default, one widget per row — or `inline` — a single
-row); for that field call `get_schema variable-box`.
+row); for that field call `lattice_get_schema variable-box`.
 
 A variable-box may hold **only** variable widgets, directly — a block-wrapped or
 nested-region child fails `GRAMMAR_VARIABLE_BOX_CHILD_INVALID`. It is the
@@ -163,7 +163,7 @@ belongs beside other panels. Reach for the variable-box (or a `form`) when a
 | arbitrary typed-in values | `array` | `tag-input` |
 
 The variable type is the constraint a `WIDGET_TYPE_MISMATCH` enforces; the rest is
-presentation. Confirm required/optional fields per type with `get_schema` — never
+presentation. Confirm required/optional fields per type with `lattice_get_schema` — never
 guess them from this table.
 
 ## Inline example references
@@ -191,4 +191,4 @@ guess them from this table.
 - **custom-item-types** — publishing your own widget type by keyword, inheriting
   the same `binds` type-compatibility contract.
 - **session-bootstrap** — source layering: why per-type field grammar stays in
-  `get_schema`.
+  `lattice_get_schema`.

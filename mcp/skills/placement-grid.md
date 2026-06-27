@@ -1,9 +1,9 @@
 ---
 name: placement-grid
-description: Grid placement semantics — how get_outline's compact placement summary (e.g. "col 2+1, row 1+1") maps to the verbatim placement config (colStart/colSpan/rowStart/rowSpan), how a container's relative-weight grid works, and how to place or move a node via patch. Pairs with get_outline (the summary), get_node (verbatim config), patch-authoring (structural edits), and get_schema (grammar).
+description: Grid placement semantics — how lattice_get_outline's compact placement summary (e.g. "col 2+1, row 1+1") maps to the verbatim placement config (colStart/colSpan/rowStart/rowSpan), how a container's relative-weight grid works, and how to place or move a node via patch. Pairs with lattice_get_outline (the summary), lattice_get_node (verbatim config), patch-authoring (structural edits), and lattice_get_schema (grammar).
 type: guide
 kind: workflow
-applies_to: [get_outline, get_node, validate_patch, get_schema]
+applies_to: [lattice_get_outline, lattice_get_node, lattice_validate_patch, lattice_get_schema]
 ---
 
 # Placement & the grid
@@ -11,8 +11,8 @@ applies_to: [get_outline, get_node, validate_patch, get_schema]
 A **container** is a positional region: it arranges its children on a
 **relative-weight grid** (`config.grid`), and each child places itself with explicit
 1-indexed coordinates in its own `placement`. This skill covers the grid model, how
-to read `get_outline`'s placement **summary**, and how to place or move a node. It
-does NOT restate the grid/placement grammar — call `get_schema`.
+to read `lattice_get_outline`'s placement **summary**, and how to place or move a node. It
+does NOT restate the grid/placement grammar — call `lattice_get_schema`.
 
 ## The container grid
 
@@ -50,7 +50,7 @@ declared tracks).
 
 ## The placement summary ↔ config mapping
 
-`get_outline` reports each placed node's position as a **compact, lossy summary**
+`lattice_get_outline` reports each placed node's position as a **compact, lossy summary**
 (NOT the verbatim config object) — read it as **`<start>+<span>`** per axis:
 
 ```
@@ -71,7 +71,7 @@ Edge forms you may see:
   default to `1`).
 
 The summary is for **navigation**; for the exact placement object to edit, call
-`get_node` (the `subtree` carries the verbatim `placement`). The grid itself
+`lattice_get_node` (the `subtree` carries the verbatim `placement`). The grid itself
 (`config.grid`) is a normal field on the container's surface.
 
 ## Placing and moving nodes
@@ -88,7 +88,7 @@ Placement edits split the same way every edit does (see **patch-authoring**):
   surface-gated config field.
 - **Place a *new* node** — a **structural** `add` into the parent container's
   `children` array (`/<container-id>/children/-`), with `placement` set on the added
-  node. Plan the target from `get_outline`; a bare content leaf must be
+  node. Plan the target from `lattice_get_outline`; a bare content leaf must be
   block-wrapped first (see **blocks**).
 - **Move a node** — a structural `move` naming `from` and `path`, both id-rooted.
   A **same-parent reorder** (a `move` between two slots of one `children` array)
@@ -98,7 +98,7 @@ Placement edits split the same way every edit does (see **patch-authoring**):
 
 Placement and structural edits are **not** surface-gated — the mutated tree is
 re-resolved, so an out-of-bounds placement or a grammar break (e.g. an unwrapped
-leaf) rejects the whole patch. Prove every placement change with `validate_patch`
+leaf) rejects the whole patch. Prove every placement change with `lattice_validate_patch`
 before the human commits.
 
 ## Cross-links
@@ -107,4 +107,4 @@ before the human commits.
   rules, the runnable structural example.
 - **blocks** — content leaves must be block-wrapped before placing under a container.
 - **variables** — placing a variable-box region and its widgets.
-- **session-bootstrap** — source layering (grid/placement grammar lives in `get_schema`).
+- **session-bootstrap** — source layering (grid/placement grammar lives in `lattice_get_schema`).
