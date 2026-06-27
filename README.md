@@ -89,14 +89,16 @@ lattice mcp --store fs --root ./dashboards --schemas schemas
 ```
 
 Flags: `--store`/`--root` (backend selection, as for `resolve`/`serve`) and
-`--schemas <dir>`. The server advertises seven tools — `list_dashboards`,
-`get_outline`, `get_node`, `get_document`, `list_schemas`, `get_schema`, and
-`validate_patch` — all **read or dry-run only**. The model navigates a document,
+`--schemas <dir>`. The server advertises ten tools — `lattice_list_dashboards`,
+`lattice_get_document`, `lattice_get_outline`, `lattice_get_node`, `lattice_list_schemas`,
+`lattice_get_schema`, `lattice_validate_patch`, plus the skill-pack tools
+`lattice_list_skills`, `lattice_get_skill`, and `lattice_get_manifest` — all
+**read or dry-run only**. The model navigates a document,
 drills into a node or fetches a type schema, and **simulates** an edit with
-`validate_patch` (the same apply→validate pipeline as a real write, minus the
+`lattice_validate_patch` (the same apply→validate pipeline as a real write, minus the
 save). It **never persists**: a validated patch is committed separately by a
 human through the `POST /api/patch` endpoint above, passing the `baseRevision`
-`validate_patch` returned as `expectedRevision`.
+`lattice_validate_patch` returned as `expectedRevision`.
 
 > **Security:** like the HTTP write endpoint, MCP mode has **no authentication**
 > and assumes a localhost/trusted deployment — a known, accepted gap.

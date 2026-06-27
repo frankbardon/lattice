@@ -31,8 +31,8 @@ The MCP surface is split into an SDK-free core and a single SDK-coupled adapter:
 
 ## The MCP skill pack — what it is
 
-`mcp/skills/*.md` is an **LLM-facing** skill pack served over MCP (`list_skills`,
-`get_skill`, the `get_manifest` index, and `lattice-skill://` resources). Skills are embedded
+`mcp/skills/*.md` is an **LLM-facing** skill pack served over MCP (`lattice_list_skills`,
+`lattice_get_skill`, the `lattice_get_manifest` index, and `lattice-skill://` resources). Skills are embedded
 via `//go:embed *.md`, so **adding a `.md` file is all it takes to publish a skill** — no
 registration. `mcp/skills/session-bootstrap.md` is the keystone and the canonical
 statement of these conventions; this file enforces them, it does not replace them.
@@ -41,22 +41,22 @@ statement of these conventions; this file enforces them, it does not replace the
 
 Each live tool is authoritative for exactly one thing. **Skills describe workflow and intent;
 they NEVER restate what a live tool returns.** In particular, **a skill must never copy
-`get_schema` grammar** (fields/types/enums) — it drifts per server and per item type and would
+`lattice_get_schema` grammar** (fields/types/enums) — it drifts per server and per item type and would
 rot. When grammar is needed, the skill points the reader at the tool.
 
 | Source | Authoritative for |
 |---|---|
-| `get_schema` / `list_schemas` | Grammar (item-type JSON Schema: fields, types, enums) |
-| `get_outline` | Structure (node skeleton: ids, types, nesting, placement) |
-| `get_node` | Editable surface (one node's config + settable fields) |
-| `validate_patch` | Truth (dry-run an RFC 6902 changeset; never persists) |
+| `lattice_get_schema` / `lattice_list_schemas` | Grammar (item-type JSON Schema: fields, types, enums) |
+| `lattice_get_outline` | Structure (node skeleton: ids, types, nesting, placement) |
+| `lattice_get_node` | Editable surface (one node's config + settable fields) |
+| `lattice_validate_patch` | Truth (dry-run an RFC 6902 changeset; never persists) |
 | `POST /api/patch` (HTTP, not MCP) | The only write path (human commits) |
 
 ### Frontmatter schema (every skill file)
 
 ```yaml
-name:         # required — kebab id, equals the file stem, is the get_skill argument
-description:  # required — one line; shows in list_skills / get_manifest
+name:         # required — kebab id, equals the file stem, is the lattice_get_skill argument
+description:  # required — one line; shows in lattice_list_skills / lattice_get_manifest
 type:         # required — guide | reference
 kind:         # required — workflow | items | tool
 applies_to:   # required — list of MCP tools/flows this skill is relevant to
@@ -76,14 +76,14 @@ doubt, re-read `session-bootstrap.md` and the affected skill, then reconcile.
 
 | You change… | You MUST also update… |
 |---|---|
-| Add / rename / remove an MCP tool (`mcp/tool_*.go`) | (1) add a typed handler + a `NewTool(...)` registration in the `Tools(cfg)` catalog (`mcp/mcp.go`) — `get_manifest` DERIVES its catalog from those descriptors, so there is **nothing to hand-sync** for the manifest; (2) every skill whose `applies_to` names that tool; (3) if it changes the author loop, the `authoring-loop` skill and the source-layering table in `session-bootstrap.md`. If the tool is reachable over the transport, add its SDK registration via `mcp/gosdk` (never import the SDK from the core). |
-| Bump the build version wiring | nothing in skills; version flows as a parameter — `internal/cli/mcp.go` passes it to `gosdk.Register`, which threads it into `mcp.Config{Version}` so `get_manifest` reports it. There is no `serverVersion` global to keep in sync. |
+| Add / rename / remove an MCP tool (`mcp/tool_*.go`) | (1) add a typed handler + a `NewTool(...)` registration in the `Tools(cfg)` catalog (`mcp/mcp.go`) — `lattice_get_manifest` DERIVES its catalog from those descriptors, so there is **nothing to hand-sync** for the manifest; (2) every skill whose `applies_to` names that tool; (3) if it changes the author loop, the `authoring-loop` skill and the source-layering table in `session-bootstrap.md`. If the tool is reachable over the transport, add its SDK registration via `mcp/gosdk` (never import the SDK from the core). |
+| Bump the build version wiring | nothing in skills; version flows as a parameter — `internal/cli/mcp.go` passes it to `gosdk.Register`, which threads it into `mcp.Config{Version}` so `lattice_get_manifest` reports it. There is no `serverVersion` global to keep in sync. |
 | Add / remove / change an item type (`schemas/items/*.schema.json`) | the matching family skill's `covers` + guidance: `items-layout` (container, block), `items-content` (markdown, heading, image), `items-inputs` (the input widgets), `items-forms` (form, configurator). Do NOT copy field grammar — only intent/"pick this when". |
 | Change changeset / patch semantics (`internal/changeset/`) | `patch-authoring` (id-rooted pointers, field vs structural edits, surface gating) — re-verify its inline example still validates |
 | Change variable resolution (`internal/variables/`) | `variables` (`${name}` template vs `{"$var":...}` binding, scope) |
 | Change theme, connections, placement, blocks, or revision behavior | the matching workflow skill: `theming`, `connections`, `placement-grid`, `blocks`, `revisions` |
 | Change the write endpoint (`internal/server`, `POST /api/patch`) | `authoring-loop`, `revisions`, and the `POST /api/patch` row in `session-bootstrap.md` |
-| Add a brand-new skill | valid frontmatter (above); terse LLM-authored prose; obey source-layering (no `get_schema` grammar); cross-link related skills/tools. It auto-publishes via `go:embed`. |
+| Add a brand-new skill | valid frontmatter (above); terse LLM-authored prose; obey source-layering (no `lattice_get_schema` grammar); cross-link related skills/tools. It auto-publishes via `go:embed`. |
 | Add a new coded error for the MCP layer | add it in `errors/codes.go` (MCP domain block, e.g. `MCP_SKILL_NOT_FOUND`); return it verbatim from handlers (never flatten to a string) |
 
 After any skills/MCP change, run `go test ./mcp/...` (skills-loader + tool tests + the

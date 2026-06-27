@@ -70,22 +70,25 @@ directory, which is rarely your project root. To get commit history per edit
 
 ## The tool reference
 
-The server advertises seven tools, all **read or dry-run only** — none writes to
-the store. Every tool surfaces a failure as the lattice
+The server advertises ten tools, all **read or dry-run only** — none writes to
+the store. Seven address documents directly (detailed below); three more —
+`lattice_list_skills`, `lattice_get_skill`, and `lattice_get_manifest` — serve the
+embedded skill pack (the LLM-facing guides) and the `lattice_get_manifest` bootstrap
+index. Every tool surfaces a failure as the lattice
 [`CodedError`](error-codes.md) (code + message + structured `Details`) verbatim,
 returned as an MCP tool error so the model can read the code and self-correct.
 
 | Tool | Purpose | When to use |
 | --- | --- | --- |
-| [`list_dashboards`](#list_dashboards) | Enumerate stored documents (id + title). | First step — discover what exists. |
-| [`get_outline`](#get_outline) | Config-free skeleton of one document + revision. | Navigate a document cheaply; locate a node by id. |
-| [`get_node`](#get_node) | One node's stored subtree + editable field surface. | Read a node you intend to **edit in place**. |
-| [`get_document`](#get_document) | Whole document, raw and (optionally) resolved. | Escape hatch — only when a slice won't do. |
-| [`list_schemas`](#list_schemas) | The grammar catalog (item types + envelope). | Discover what node types you may **build**. |
-| [`get_schema`](#get_schema) | One type's JSON Schema. | Author a **new** node/document validly. |
-| [`validate_patch`](#validate_patch) | Dry-run a changeset; never persists. | Check a proposed edit before a human commits it. |
+| [`lattice_list_dashboards`](#lattice_list_dashboards) | Enumerate stored documents (id + title). | First step — discover what exists. |
+| [`lattice_get_outline`](#lattice_get_outline) | Config-free skeleton of one document + revision. | Navigate a document cheaply; locate a node by id. |
+| [`lattice_get_node`](#lattice_get_node) | One node's stored subtree + editable field surface. | Read a node you intend to **edit in place**. |
+| [`lattice_get_document`](#lattice_get_document) | Whole document, raw and (optionally) resolved. | Escape hatch — only when a slice won't do. |
+| [`lattice_list_schemas`](#lattice_list_schemas) | The grammar catalog (item types + envelope). | Discover what node types you may **build**. |
+| [`lattice_get_schema`](#lattice_get_schema) | One type's JSON Schema. | Author a **new** node/document validly. |
+| [`lattice_validate_patch`](#lattice_validate_patch) | Dry-run a changeset; never persists. | Check a proposed edit before a human commits it. |
 
-### `list_dashboards`
+### `lattice_list_dashboards`
 
 The discover-and-enumerate entry point.
 
@@ -96,7 +99,7 @@ The discover-and-enumerate entry point.
   appears, listed by id with no title.
 - **When:** the first call in any session — to learn which ids exist.
 
-### `get_outline`
+### `lattice_get_outline`
 
 The token-cheap navigation tool. Resolves a document server-side and returns a
 **config-free skeleton** of the tree — no config bodies, so the host can locate a
@@ -115,10 +118,10 @@ target node without pulling the whole (config-laden) document through context.
     **summary** (e.g. `"col 2+1, row 1+1"`, never the verbatim placement object),
     and `children`.
 - **When:** to navigate. Use the outline to find the `id` of the node you want,
-  then drill in with `get_node` — *not* `get_document`, whose config bodies the
+  then drill in with `lattice_get_node` — *not* `lattice_get_document`, whose config bodies the
   outline deliberately omits.
 
-### `get_node`
+### `lattice_get_node`
 
 The drill-in read for **editing an existing node**. Given a document id and a
 node id (from the outline), it returns the exact stored shape a patch edits plus
@@ -138,16 +141,16 @@ the set of field paths that are valid to patch.
   item's** editable fields — a block delegates its knobs to what it wraps.
 - **Surface gates field edits only.** The `surface` lists which *field* paths a
   patch may touch. Structural edits (add/remove/move children) are **not**
-  surface-listed — plan those from `get_outline`.
+  surface-listed — plan those from `lattice_get_outline`.
 - **When:** to edit a node that already exists. The `surface` tells you which
-  field paths `validate_patch` will accept. (Distinct errors make the two failure
+  field paths `lattice_validate_patch` will accept. (Distinct errors make the two failure
   modes clear: an unknown document id is `STORAGE_NOT_FOUND`; an unknown node id
   is `CHANGESET_TARGET_NOT_FOUND`.)
 
-### `get_document`
+### `lattice_get_document`
 
-The whole-document **escape hatch**. Prefer the slicing tools (`get_outline` +
-`get_node`) for targeted reads; reach for this only when you genuinely need the
+The whole-document **escape hatch**. Prefer the slicing tools (`lattice_get_outline` +
+`lattice_get_node`) for targeted reads; reach for this only when you genuinely need the
 entire document.
 
 - **Input:** `{id, resolved?}` — the document id, and an optional flag.
@@ -157,7 +160,7 @@ entire document.
 - **When:** rarely — when no slice suffices. Pulling a whole document is the
   expensive path the outline/node tools exist to avoid.
 
-### `list_schemas`
+### `lattice_list_schemas`
 
 The grammar-discovery tool: what node types **may** be built, independent of any
 existing node.
@@ -165,27 +168,27 @@ existing node.
 - **Input:** none.
 - **Output:** `{types: [string]}` — every item-type name in the schema catalog,
   plus the reserved `"dashboard"` envelope token. Every entry is a valid
-  `get_schema` input.
+  `lattice_get_schema` input.
 - **When:** before **building** a new node or document — to discover the legal
   type tokens.
 
-### `get_schema`
+### `lattice_get_schema`
 
 The grammar-detail tool: one type's JSON Schema, so a **new** node of that type
 (or a whole new dashboard) can be authored validly.
 
-- **Input:** `{type}` — an item-type name from `list_schemas`, or `"dashboard"`
+- **Input:** `{type}` — an item-type name from `lattice_list_schemas`, or `"dashboard"`
   for the envelope.
 - **Output:** `{type, schema}` — the type's JSON Schema (config fields, required
   keys, `$ref` form) as JSON.
-- **When:** when **building new**. The contrast with `get_node` is the key
+- **When:** when **building new**. The contrast with `lattice_get_node` is the key
   distinction:
-  - **Editing an existing node →** `get_node` (its `surface` tells you which
+  - **Editing an existing node →** `lattice_get_node` (its `surface` tells you which
     field paths are valid to patch).
-  - **Building a new node →** `get_schema` (its schema tells you the full config
+  - **Building a new node →** `lattice_get_schema` (its schema tells you the full config
     grammar a new node must satisfy).
 
-### `validate_patch`
+### `lattice_validate_patch`
 
 The **simulate** step of the propose-then-commit loop. It runs the same atomic
 apply → re-resolve pipeline a real write runs, under every guardrail — but
@@ -206,7 +209,7 @@ reachable through MCP at all.
   `PATCH_*` for a malformed op set, a configurable-surface or structural rejection,
   or a re-resolution `RESOLVE_*`/`SCHEMA_*`/`VAR_*`) as a tool error. Correct the
   ops and call again.
-- **When:** to check a proposed edit. Iterate `validate_patch` until `ok: true`,
+- **When:** to check a proposed edit. Iterate `lattice_validate_patch` until `ok: true`,
   then hand `baseRevision` to the human for the commit. **The model stops here** —
   it cannot and does not persist.
 
@@ -215,15 +218,15 @@ reachable through MCP at all.
 The whole point of MCP mode is a clean split between the model (which proposes and
 validates an edit) and the human (who commits it). The end-to-end loop:
 
-1. **List.** `list_dashboards` → pick the target document `id`.
-2. **Navigate.** `get_outline {id}` → locate the node `id` to change; note the
+1. **List.** `lattice_list_dashboards` → pick the target document `id`.
+2. **Navigate.** `lattice_get_outline {id}` → locate the node `id` to change; note the
    `revision` and the document-scope summary.
 3. **Drill or discover.**
-   - Editing an existing node → `get_node {id, nodeId}` for the stored `subtree`
+   - Editing an existing node → `lattice_get_node {id, nodeId}` for the stored `subtree`
      and the editable `surface` (which field paths are patchable).
-   - Building a new node → `list_schemas` then `get_schema {type}` for the config
+   - Building a new node → `lattice_list_schemas` then `lattice_get_schema {type}` for the config
      grammar a new node must satisfy.
-4. **Validate (iterate).** `validate_patch {id, ops}` with the cumulative,
+4. **Validate (iterate).** `lattice_validate_patch {id, ops}` with the cumulative,
    id-rooted RFC 6902 patch. On a coded error, correct the ops and re-validate;
    repeat until `ok: true`. Keep the returned `baseRevision`. **Nothing has been
    persisted.**
@@ -239,14 +242,14 @@ mode (`lattice serve --store … --root … <id>`). The endpoint:
 
 ```
 POST /api/patch
-{"id": "<id>", "ops": [<RFC 6902 id-rooted JSON Patch>], "expectedRevision": "<baseRevision from validate_patch>"}
+{"id": "<id>", "ops": [<RFC 6902 id-rooted JSON Patch>], "expectedRevision": "<baseRevision from lattice_validate_patch>"}
 ```
 
 It commits the changeset through the same atomic apply → validate → save pipeline
-`validate_patch` simulated, and returns `{"revision": "<new>", "result":
+`lattice_validate_patch` simulated, and returns `{"revision": "<new>", "result":
 <resolved tree>}` on success. The `expectedRevision` is an
 **optimistic-concurrency precondition**: if the stored document moved on since
-`validate_patch` read `baseRevision`, the commit is rejected with `409`
+`lattice_validate_patch` read `baseRevision`, the commit is rejected with `409`
 (`CHANGESET_REVISION_CONFLICT`) — re-run the flow against the new revision. An
 unknown id is `404`; a malformed/off-surface/invalid changeset is `422`. Each
 error is the coded-error JSON envelope. (The field is optional; omitting it skips
@@ -254,7 +257,7 @@ the precondition, but passing the `baseRevision` is what makes the handoff safe.
 
 > **The MCP server never reaches this endpoint.** `POST /api/patch` is served by
 > the `serve` command, not the `mcp` command. The model's last step is a
-> successful `validate_patch`; a human performs the commit.
+> successful `lattice_validate_patch`; a human performs the commit.
 
 ## No auth — known gap
 
@@ -276,7 +279,7 @@ not an oversight — revisit the trust assumption before adding a remote transpo
 The MCP tools are thin wrappers over the public [`service`](../getting-started/library.md)
 facade. The exact facade calls each tool makes — `List`, `Resolve`, `NodeView`,
 `ListSchemas`/`Schema`, `ParseChangeset` + `DryRunPatch` (the dry-run behind
-`validate_patch`), and `Revision` — are demonstrated as a runnable, compile-checked
+`lattice_validate_patch`), and `Revision` — are demonstrated as a runnable, compile-checked
 Go example in
 [`service/mcp_example_test.go`](https://github.com/frankbardon/lattice/blob/main/service/mcp_example_test.go).
 Because it is a real `Example` function, it cannot drift from the facade
