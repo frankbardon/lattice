@@ -1,9 +1,9 @@
 ---
 name: revisions
-description: Optimistic concurrency for the propose-then-commit loop — the opaque revision token from get_outline / get_node / validate_patch's baseRevision, passing it as `expectedRevision` on POST /api/patch to avoid clobbering a concurrent write (409 CHANGESET_REVISION_CONFLICT), and the capability-gated reality that the token is best-effort (may be absent; STORAGE_CAPABILITY_UNSUPPORTED on stores without RevisionedStore) — and what to do then.
+description: Optimistic concurrency for the propose-then-commit loop — the opaque revision token from lattice_get_outline / lattice_get_node / lattice_validate_patch's baseRevision, passing it as `expectedRevision` on POST /api/patch to avoid clobbering a concurrent write (409 CHANGESET_REVISION_CONFLICT), and the capability-gated reality that the token is best-effort (may be absent; STORAGE_CAPABILITY_UNSUPPORTED on stores without RevisionedStore) — and what to do then.
 type: guide
 kind: workflow
-applies_to: [get_outline, get_node, validate_patch]
+applies_to: [lattice_get_outline, lattice_get_node, lattice_validate_patch]
 ---
 
 # Revisions
@@ -20,9 +20,9 @@ MCP itself never writes.
 
 Three read/simulate tools surface the document's **current** revision:
 
-- **`get_outline {id}`** → `revision` (top-level field).
-- **`get_node {id, nodeId}`** → `revision` (top-level field).
-- **`validate_patch {id, ops}`** → `baseRevision` (in the success result) — the
+- **`lattice_get_outline {id}`** → `revision` (top-level field).
+- **`lattice_get_node {id, nodeId}`** → `revision` (top-level field).
+- **`lattice_validate_patch {id, ops}`** → `baseRevision` (in the success result) — the
   same value, named for its role as the *base* the eventual write builds on.
 
 The token is **opaque**: treat it as **compare-only**. Never parse it, derive
@@ -51,7 +51,7 @@ checks the stored document's current revision against it:
 
 The field is a **pointer / optional**: omitting it skips the precondition
 entirely (last-writer-wins). Passing the `baseRevision` from your latest
-`validate_patch` is exactly what makes the hand-off safe — always thread it
+`lattice_validate_patch` is exactly what makes the hand-off safe — always thread it
 through.
 
 ## Handling a `409` conflict
@@ -62,10 +62,10 @@ concurrent write landed first. Do **not** retry blindly with the same
 precondition could clobber the other change). Instead **re-run the loop against
 the new state**:
 
-1. Re-read — `get_outline {id}` (and `get_node` if drilling) to pick up the
+1. Re-read — `lattice_get_outline {id}` (and `lattice_get_node` if drilling) to pick up the
    **current** revision and the post-concurrent-write structure.
 2. Re-build / re-simulate — rebuild the cumulative ops against the new tree and
-   `validate_patch` until `ok: true`, capturing the **new** `baseRevision`.
+   `lattice_validate_patch` until `ok: true`, capturing the **new** `baseRevision`.
 3. Re-commit — the human re-issues `POST /api/patch` with the fresh
    `expectedRevision`.
 
@@ -86,14 +86,14 @@ token is the optional `RevisionedStore` capability:
 - A **custom / injected store** that lacks the capability does not. The facade's
   `Revision(id)` then returns a `STORAGE_CAPABILITY_UNSUPPORTED` coded error.
 
-Crucially, the read tools treat a revision miss as **non-fatal**: `get_outline`
-and `get_node` simply **omit** the `revision` field rather than failing the whole
+Crucially, the read tools treat a revision miss as **non-fatal**: `lattice_get_outline`
+and `lattice_get_node` simply **omit** the `revision` field rather than failing the whole
 call (the outline/node read is still useful without it). So **an absent
 `revision` is expected, not an error.**
 
 What to do when the token is absent:
 
-- **Still propose and validate normally.** `validate_patch` works without a
+- **Still propose and validate normally.** `lattice_validate_patch` works without a
   revision; its `baseRevision` is likewise simply omitted.
 - **The commit proceeds without the precondition.** With no token to pass,
   `POST /api/patch` is sent **without** `expectedRevision` — a last-writer-wins

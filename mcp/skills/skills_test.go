@@ -44,7 +44,7 @@ func TestListOrderingAndParse(t *testing.T) {
 	if boot.Description == "" {
 		t.Error("session-bootstrap description is empty")
 	}
-	wantApplies := []string{"get_manifest", "list_skills", "get_skill"}
+	wantApplies := []string{"lattice_get_manifest", "lattice_list_skills", "lattice_get_skill"}
 	if !reflect.DeepEqual(boot.AppliesTo, wantApplies) {
 		t.Errorf("session-bootstrap applies_to = %v, want %v", boot.AppliesTo, wantApplies)
 	}
@@ -99,7 +99,7 @@ func TestParseMetadata(t *testing.T) {
 				"description: a thing\n" +
 				"type: reference\n" +
 				"kind: items\n" +
-				"applies_to: [get_node, get_schema]\n" +
+				"applies_to: [lattice_get_node, lattice_get_schema]\n" +
 				"covers: [markdown, image]\n" +
 				"---\n\n# Foo\n",
 			wantOK: true,
@@ -108,7 +108,7 @@ func TestParseMetadata(t *testing.T) {
 				Description: "a thing",
 				Type:        "reference",
 				Kind:        "items",
-				AppliesTo:   []string{"get_node", "get_schema"},
+				AppliesTo:   []string{"lattice_get_node", "lattice_get_schema"},
 				Covers:      []string{"markdown", "image"},
 			},
 		},

@@ -18,7 +18,7 @@ import (
 // TestListSchemasRegistered asserts list_schemas is present in the Tools() catalog
 // with a reflection-generated input+output schema and the legacy description.
 func TestListSchemasRegistered(t *testing.T) {
-	d := findDescriptor(t, "list_schemas")
+	d := findDescriptor(t, "lattice_list_schemas")
 	if d.Description != listSchemasDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, listSchemasDescription)
 	}
@@ -36,7 +36,7 @@ func TestListSchemasRegistered(t *testing.T) {
 // shape is exercised end to end.
 func TestListSchemas(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "list_schemas")
+	d := findDescriptor(t, "lattice_list_schemas")
 
 	raw, err := d.Invoke(context.Background(), svc, nil)
 	if err != nil {
@@ -63,7 +63,7 @@ func TestListSchemas(t *testing.T) {
 // a reflection-generated schema (the `any` schema field did not panic the
 // reflector) and the legacy description.
 func TestGetSchemaRegistered(t *testing.T) {
-	d := findDescriptor(t, "get_schema")
+	d := findDescriptor(t, "lattice_get_schema")
 	if d.Description != getSchemaDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, getSchemaDescription)
 	}
@@ -79,7 +79,7 @@ func TestGetSchemaRegistered(t *testing.T) {
 // known item type, with the type echoed and the schema carrying its $id.
 func TestGetSchemaKnownType(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_schema")
+	d := findDescriptor(t, "lattice_get_schema")
 
 	raw, err := d.Invoke(context.Background(), svc, json.RawMessage(`{"type":"block"}`))
 	if err != nil {

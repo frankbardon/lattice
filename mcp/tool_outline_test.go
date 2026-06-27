@@ -44,7 +44,7 @@ type decodedOutline struct {
 // with a reflection-generated input+output schema — i.e. NewTool reflected the
 // recursive skeleton without panicking.
 func TestGetOutlineRegistered(t *testing.T) {
-	d := findDescriptor(t, "get_outline")
+	d := findDescriptor(t, "lattice_get_outline")
 	if d.Description != getOutlineDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, getOutlineDescription)
 	}
@@ -62,7 +62,7 @@ func TestGetOutlineRegistered(t *testing.T) {
 // shape (the same a transport adapter dispatches) is exercised end to end.
 func TestGetOutline(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_outline")
+	d := findDescriptor(t, "lattice_get_outline")
 
 	raw, err := d.Invoke(context.Background(), svc, json.RawMessage(`{"id":"`+fixtureID+`"}`))
 	if err != nil {

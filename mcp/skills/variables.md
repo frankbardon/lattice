@@ -1,9 +1,9 @@
 ---
 name: variables
-description: How lattice variables work — declaring typed variables at document or container scope, the two reference forms (${name} string template and {"$var": "name"} typed binding), tree-scoped shadowing, the variable-box region + widgets that set them, and how values flow into resolved config. Pairs with get_outline (in-scope names), get_node (consumer config), and get_schema (declaration grammar).
+description: How lattice variables work — declaring typed variables at document or container scope, the two reference forms (${name} string template and {"$var": "name"} typed binding), tree-scoped shadowing, the variable-box region + widgets that set them, and how values flow into resolved config. Pairs with lattice_get_outline (in-scope names), lattice_get_node (consumer config), and lattice_get_schema (declaration grammar).
 type: guide
 kind: workflow
-applies_to: [get_outline, get_node, validate_patch, get_schema]
+applies_to: [lattice_get_outline, lattice_get_node, lattice_validate_patch, lattice_get_schema]
 ---
 
 # Variables
@@ -12,7 +12,7 @@ Variables let a document declare named, typed values once and reference them fro
 item config. References are substituted **before** config is validated, so the
 item schema sees concrete, typed values. This skill covers declaration scope, the
 two reference forms, shadowing, and the variable-box. It does NOT restate the
-declaration grammar — call `get_schema` for that.
+declaration grammar — call `lattice_get_schema` for that.
 
 ## Declaring
 
@@ -83,9 +83,9 @@ item-local  →  ancestor containers  →  document
 
 Each resolved node carries its visible environment as `varEnv`, and each entry
 records `declaredAt` (the path of the declaring node). To see **which names are in
-scope at the document root**, call `get_outline` — its `document.variables` is
+scope at the document root**, call `lattice_get_outline` — its `document.variables` is
 exactly that sorted name list. To inspect a consumer node's interpolated config,
-call `get_node`.
+call `lattice_get_node`.
 
 ## Runtime inputs: widgets + the variable-box
 
@@ -122,4 +122,4 @@ drive a `${var}` consumer (directly, or through an `expr`).
   variable-box vs block-wrapping.
 - **placement-grid** — placing a variable-box and its widgets in a grid.
 - **patch-authoring** — editing a variable scope via `/$variables/...` id-rooted ops.
-- **session-bootstrap** — source layering (declaration grammar lives in `get_schema`).
+- **session-bootstrap** — source layering (declaration grammar lives in `lattice_get_schema`).

@@ -1,9 +1,9 @@
 ---
 name: items-forms
-description: The form-composition item family — `form` (a widget-only container that groups variable widgets in a flow or grid layout) and `configurator` (a leaf that auto-generates an editor for another item's configurable surface, targeting it by id or a reserved document scope). How each composes typed inputs and how their bindings/overrides flow. Pairs with items-inputs (the widgets a form groups), variables (the override model), and get_schema (the per-type field grammar + configurable surface).
+description: The form-composition item family — `form` (a widget-only container that groups variable widgets in a flow or grid layout) and `configurator` (a leaf that auto-generates an editor for another item's configurable surface, targeting it by id or a reserved document scope). How each composes typed inputs and how their bindings/overrides flow. Pairs with items-inputs (the widgets a form groups), variables (the override model), and lattice_get_schema (the per-type field grammar + configurable surface).
 type: reference
 kind: items
-applies_to: [get_schema, get_node, get_outline, validate_patch]
+applies_to: [lattice_get_schema, lattice_get_node, lattice_get_outline, lattice_validate_patch]
 covers: [form, configurator]
 ---
 
@@ -15,7 +15,7 @@ from opposite directions: a `form` is **authored** (you place widgets inside it)
 a `configurator` is **generated** (it derives its controls from another item's
 surface). This skill covers what each is *for* and how its bindings/overrides
 flow — it does **not** list their fields. For the field grammar of either type
-call **`get_schema`** (`form`, `configurator`); the schema drifts per server, so a
+call **`lattice_get_schema`** (`form`, `configurator`); the schema drifts per server, so a
 copy here would rot (see **session-bootstrap** → source layering).
 
 ## The two types at a glance
@@ -59,7 +59,7 @@ and grid are two modes of the one `form` type, not two types:
 
 No CSS units anywhere: flow `columns` is a plain count (schema-bounded `[1,12]`);
 grid weights are unitless relative weights. For the exact `layout` grammar call
-`get_schema form` — and see **placement-grid** for the grid mechanics grid-mode
+`lattice_get_schema form` — and see **placement-grid** for the grid mechanics grid-mode
 shares with `container`.
 
 > **`form` vs `variable-box`.** Both group widgets directly (neither
@@ -80,9 +80,9 @@ item in the same document** — its *target* — or for a reserved document scop
 Instead of hand-authoring widgets, you point at a target and the resolver builds
 the controls from that target's **configurable surface** — the schema-level list
 of an item type's runtime-tunable fields (a `configurable` keyword on the type
-schema; inspect it via `get_schema <type>`). Its authored config is just two
+schema; inspect it via `lattice_get_schema <type>`). Its authored config is just two
 fields — a required `target` and an optional `title` (for the grammar,
-`get_schema configurator`).
+`lattice_get_schema configurator`).
 
 **Targeting.** `target` is either:
 
@@ -144,7 +144,7 @@ controls drive *document variables* rather than one item's config.
 
 - **items-inputs** — the widgets a `form` groups, the binding contract, and
   `variable-box` (the *other* widget home contrasted with `form`).
-- **get_schema** — the `configurable` keyword on a type schema (the surface a
+- **lattice_get_schema** — the `configurable` keyword on a type schema (the surface a
   `configurator` generates its editor from; it enumerates a target's tunable
   fields).
 - **variables** — the variable-override model a form's widgets use, and the
@@ -155,4 +155,4 @@ controls drive *document variables* rather than one item's config.
 - **custom-item-types** — `form` as a `region` behavior, and publishing your own
   region/widget types by keyword.
 - **session-bootstrap** — source layering: why per-type field grammar stays in
-  `get_schema`.
+  `lattice_get_schema`.

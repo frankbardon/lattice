@@ -24,7 +24,7 @@ const bootstrapSkill = "session-bootstrap"
 // TestListSkillsRegistered asserts list_skills is present in the Tools() catalog
 // with a reflection-generated input+output schema and the legacy description.
 func TestListSkillsRegistered(t *testing.T) {
-	d := findDescriptor(t, "list_skills")
+	d := findDescriptor(t, "lattice_list_skills")
 	if d.Description != listSkillsDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, listSkillsDescription)
 	}
@@ -41,7 +41,7 @@ func TestListSkillsRegistered(t *testing.T) {
 // drives the descriptor's erased Invoke so the wire shape is exercised end to end.
 func TestListSkills(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "list_skills")
+	d := findDescriptor(t, "lattice_list_skills")
 
 	raw, err := d.Invoke(context.Background(), svc, nil)
 	if err != nil {
@@ -92,7 +92,7 @@ func TestListSkills(t *testing.T) {
 // TestGetSkillRegistered asserts get_skill is present in the Tools() catalog with a
 // reflection-generated schema and the legacy description.
 func TestGetSkillRegistered(t *testing.T) {
-	d := findDescriptor(t, "get_skill")
+	d := findDescriptor(t, "lattice_get_skill")
 	if d.Description != getSkillDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, getSkillDescription)
 	}
@@ -108,7 +108,7 @@ func TestGetSkillRegistered(t *testing.T) {
 // verbatim, with the leading frontmatter block intact and the name echoed.
 func TestGetSkillHit(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_skill")
+	d := findDescriptor(t, "lattice_get_skill")
 
 	raw, err := d.Invoke(context.Background(), svc, json.RawMessage(`{"name":"`+bootstrapSkill+`"}`))
 	if err != nil {

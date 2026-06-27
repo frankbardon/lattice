@@ -88,9 +88,9 @@ func TestRegisterMountsAllTools(t *testing.T) {
 		}
 	}
 	want := []string{
-		"list_dashboards", "get_document", "get_outline", "get_node",
-		"list_schemas", "get_schema", "validate_patch",
-		"list_skills", "get_skill", "get_manifest",
+		"lattice_list_dashboards", "lattice_get_document", "lattice_get_outline", "lattice_get_node",
+		"lattice_list_schemas", "lattice_get_schema", "lattice_validate_patch",
+		"lattice_list_skills", "lattice_get_skill", "lattice_get_manifest",
 	}
 	if len(res.Tools) != len(want) {
 		t.Errorf("tool count = %d, want %d (%v)", len(res.Tools), len(want), toolNames(res.Tools))
@@ -116,7 +116,7 @@ func toolNames(tools []*sdkmcp.Tool) []string {
 func TestSuccessfulCallReturnsStructuredOutput(t *testing.T) {
 	cs := connect(t)
 	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{
-		Name:      "get_outline",
+		Name:      "lattice_get_outline",
 		Arguments: map[string]any{"id": fixtureID},
 	})
 	if err != nil {
@@ -137,7 +137,7 @@ func TestSuccessfulCallReturnsStructuredOutput(t *testing.T) {
 // version-aware manifest tool (retiring the legacy serverVersion global).
 func TestVersionFlowsToManifest(t *testing.T) {
 	cs := connect(t)
-	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{Name: "get_manifest"})
+	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{Name: "lattice_get_manifest"})
 	if err != nil {
 		t.Fatalf("CallTool get_manifest: %v", err)
 	}
@@ -155,7 +155,7 @@ func TestVersionFlowsToManifest(t *testing.T) {
 func TestErrorCallSurfacesCodedError(t *testing.T) {
 	cs := connect(t)
 	res, err := cs.CallTool(context.Background(), &sdkmcp.CallToolParams{
-		Name:      "get_skill",
+		Name:      "lattice_get_skill",
 		Arguments: map[string]any{"name": "no-such-skill"},
 	})
 	if err != nil {

@@ -23,7 +23,7 @@ import (
 // catalog with a reflection-generated input+output schema — i.e. NewTool reflected
 // the `any` preview without panicking — and the legacy description.
 func TestValidatePatchRegistered(t *testing.T) {
-	d := findDescriptor(t, "validate_patch")
+	d := findDescriptor(t, "lattice_validate_patch")
 	if d.Description != validatePatchDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, validatePatchDescription)
 	}
@@ -42,7 +42,7 @@ func TestValidatePatchRegistered(t *testing.T) {
 // end.
 func TestValidatePatchValid(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "validate_patch")
+	d := findDescriptor(t, "lattice_validate_patch")
 
 	before, err := svc.Load(fixtureID)
 	if err != nil {

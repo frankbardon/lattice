@@ -1,10 +1,10 @@
 ---
 name: connections
-description: Document-scoped data sources — the http connection (a query-style endpoint) vs the static connection (inline rows), how connections are declared in the top-level `connections` array (`{id, $ref, config?, secretRefs?}`) and bound by an item's `config.connectionId` + `query`, plus secret handling ($secret env refs are never inlined or persisted). Connections are declared + validated only, never dialed. Grammar stays in get_schema {type: "dashboard"}.
+description: Document-scoped data sources — the http connection (a query-style endpoint) vs the static connection (inline rows), how connections are declared in the top-level `connections` array (`{id, $ref, config?, secretRefs?}`) and bound by an item's `config.connectionId` + `query`, plus secret handling ($secret env refs are never inlined or persisted). Connections are declared + validated only, never dialed. Grammar stays in lattice_get_schema {type: "dashboard"}.
 type: guide
 kind: workflow
 covers: [http, static]
-applies_to: [get_outline, get_node, get_schema, validate_patch]
+applies_to: [lattice_get_outline, lattice_get_node, lattice_get_schema, lattice_validate_patch]
 ---
 
 # Connections
@@ -15,7 +15,7 @@ validated only — never dialed**: no live fetch, no network request, no real
 data. The point is to validate the *model* — that the wiring is well-formed and
 the shapes line up. This skill covers the two connection types and how
 connections are declared and referenced; the exact field grammar stays in
-`get_schema` (see **Reading the grammar**).
+`lattice_get_schema` (see **Reading the grammar**).
 
 ## The two connection types
 
@@ -114,20 +114,20 @@ value-free.
 Per **session-bootstrap**, a skill never re-emits schema grammar. The connection
 **instance** shape and both connection-type schemas are referenced by the
 dashboard envelope's `connections` member — the type schemas are not standalone
-`get_schema` type tokens, so fetch the envelope:
+`lattice_get_schema` type tokens, so fetch the envelope:
 
-- **`get_schema {type: "dashboard"}`** — the authoritative grammar for the
+- **`lattice_get_schema {type: "dashboard"}`** — the authoritative grammar for the
   `connections` array, the `{id, $ref, config?, secretRefs?}` instance shape, and
   (via `$ref`) the http/static config fields.
-- **`get_outline {id}`** — its document-scope summary lists the declared
+- **`lattice_get_outline {id}`** — its document-scope summary lists the declared
   connection **ids** (names only — no config bodies), so you can see what an item
   may bind to before drilling in.
-- **`get_node {id, nodeId}`** — a bound item's `subtree` shows its
+- **`lattice_get_node {id, nodeId}`** — a bound item's `subtree` shows its
   `config.connectionId` / `config.query`; the `surface` lists which of those
   fields are settable.
 
 Author or edit a connection (or a binding), then prove it with
-**`validate_patch`** before a human commits — it surfaces the coded errors above
+**`lattice_validate_patch`** before a human commits — it surfaces the coded errors above
 (`CONNECTION_*`, `BINDING_*`, `CONTRACT_*`, `RESULT_SHAPE_INVALID`,
 `SECRET_*`) verbatim so you can correct and re-validate.
 
@@ -135,4 +135,4 @@ Author or edit a connection (or a binding), then prove it with
 
 - **variables** — the `$var` / `${}` interpolation a `query` may use.
 - **patch-authoring** — the `$connections` scope and id-rooted pointer dialect.
-- **session-bootstrap** — why the connection-type grammar stays in `get_schema`.
+- **session-bootstrap** — why the connection-type grammar stays in `lattice_get_schema`.

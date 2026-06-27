@@ -42,7 +42,7 @@ type manifestPayload struct {
 // TestGetManifestRegistered asserts get_manifest is present in the Tools() catalog
 // with reflection-generated schemas and the legacy CALL-FIRST description.
 func TestGetManifestRegistered(t *testing.T) {
-	d := findDescriptor(t, "get_manifest")
+	d := findDescriptor(t, "lattice_get_manifest")
 	if d.Description != getManifestDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, getManifestDescription)
 	}
@@ -62,7 +62,7 @@ func TestGetManifestRegistered(t *testing.T) {
 // wire shape is exercised end to end.
 func TestGetManifestSections(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_manifest")
+	d := findDescriptor(t, "lattice_get_manifest")
 
 	raw, err := d.Invoke(context.Background(), svc, nil)
 	if err != nil {
@@ -80,7 +80,7 @@ func TestGetManifestSections(t *testing.T) {
 		{"server name set", out.Server == "lattice", "server should be \"lattice\""},
 		{"version threaded", out.Version == "test", "version should be Config.Version (\"test\")"},
 		{"tool catalog non-empty", len(out.Tools) > 0, "tool catalog should list registered tools"},
-		{"tool catalog includes get_manifest", manifestHasTool(out, "get_manifest"), "tool catalog should include get_manifest itself"},
+		{"tool catalog includes get_manifest", manifestHasTool(out, "lattice_get_manifest"), "tool catalog should include get_manifest itself"},
 		{"item types non-empty", len(out.ItemTypes) > 0, "item types should come from service.ListSchemas"},
 		{"item types include dashboard envelope", containsStr(out.ItemTypes, "dashboard"), "item types should include the dashboard envelope token"},
 		{"connection types present", len(out.ConnectionTypes) > 0, "connection types (http, static) should be listed"},
@@ -116,7 +116,7 @@ func TestGetManifestDerivedFromCatalog(t *testing.T) {
 	var foundManifest bool
 	for _, d := range catalog {
 		want[d.Name] = true
-		if d.Name == "get_manifest" {
+		if d.Name == "lattice_get_manifest" {
 			manifest = d
 			foundManifest = true
 		}
@@ -163,7 +163,7 @@ func TestGetManifestDerivedFromCatalog(t *testing.T) {
 // the full catalog has exactly 10 entries (no drop, no duplication).
 func TestManifestCatalogIncludesReadTools(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_manifest")
+	d := findDescriptor(t, "lattice_get_manifest")
 
 	raw, err := d.Invoke(context.Background(), svc, nil)
 	if err != nil {
@@ -185,8 +185,8 @@ func TestManifestCatalogIncludesReadTools(t *testing.T) {
 		name string
 		desc string
 	}{
-		{"list_dashboards", listDashboardsDescription},
-		{"get_document", getDocumentDescription},
+		{"lattice_list_dashboards", listDashboardsDescription},
+		{"lattice_get_document", getDocumentDescription},
 	} {
 		got, ok := byName[tc.name]
 		if !ok {

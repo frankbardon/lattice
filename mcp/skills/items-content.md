@@ -1,9 +1,9 @@
 ---
 name: items-content
-description: The content-leaf item family — `markdown` (prose), `heading` (a section heading), and `image` (an image reference). The page-like leaves that read like an article. They are non-positional, always block-wrapped, carry opaque (never rendered/fetched) text, and support `${var}` / `$var` interpolation in their text fields. Pairs with blocks (the mandatory wrapper), variables (interpolation), and get_schema (the per-type field grammar).
+description: The content-leaf item family — `markdown` (prose), `heading` (a section heading), and `image` (an image reference). The page-like leaves that read like an article. They are non-positional, always block-wrapped, carry opaque (never rendered/fetched) text, and support `${var}` / `$var` interpolation in their text fields. Pairs with blocks (the mandatory wrapper), variables (interpolation), and lattice_get_schema (the per-type field grammar).
 type: reference
 kind: items
-applies_to: [get_schema, get_node, get_outline, validate_patch]
+applies_to: [lattice_get_schema, lattice_get_node, lattice_get_outline, lattice_validate_patch]
 covers: [markdown, heading, image]
 ---
 
@@ -14,7 +14,7 @@ This is a per-item **reference** for the three **content leaves** —
 (prose, a section heading, an image) rather than data or a control, and together
 let a dashboard read like an article. This skill covers what each is *for* and the
 two rules that bind all three; it does **not** list their fields. For the field
-grammar of any type call **`get_schema`** (`markdown`, `heading`, `image`) — the
+grammar of any type call **`lattice_get_schema`** (`markdown`, `heading`, `image`) — the
 schema is authoritative and drifts per server (see **session-bootstrap** → source
 layering).
 
@@ -66,7 +66,7 @@ and the two forms are covered in **variables**.
   for accessibility and `caption` for a rendered label when the figure needs one.
 
 For the exact required/optional fields and their constraints (e.g. `heading.level`
-range, which fields are required), call `get_schema` for the type — do not guess
+range, which fields are required), call `lattice_get_schema` for the type — do not guess
 them from this table.
 
 ## Inline example reference
@@ -81,10 +81,10 @@ references substituted before validation.
 
 ## Cross-links
 
-- **blocks** — the mandatory wrapper a content leaf must sit inside; how `get_node`
+- **blocks** — the mandatory wrapper a content leaf must sit inside; how `lattice_get_node`
   surfaces the leaf's editable fields against the wrapping block node.
 - **items-layout** — the `container` + `block` family that hosts these leaves.
 - **variables** — `${name}` vs `{ "$var": "name" }`, scope and shadowing, and how
   values flow into a leaf's resolved config.
 - **session-bootstrap** — source layering: why the per-type field grammar stays in
-  `get_schema`.
+  `lattice_get_schema`.

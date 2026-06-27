@@ -27,8 +27,8 @@ func TestReadToolsRegistered(t *testing.T) {
 		name string
 		desc string
 	}{
-		{"list_dashboards", listDashboardsDescription},
-		{"get_document", getDocumentDescription},
+		{"lattice_list_dashboards", listDashboardsDescription},
+		{"lattice_get_document", getDocumentDescription},
 	} {
 		d := findDescriptor(t, tc.name)
 		if d.Description != tc.desc {
@@ -48,7 +48,7 @@ func TestReadToolsRegistered(t *testing.T) {
 // transport adapter dispatches is exercised end to end.
 func TestListDashboards(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "list_dashboards")
+	d := findDescriptor(t, "lattice_list_dashboards")
 
 	raw, err := d.Invoke(context.Background(), svc, nil)
 	if err != nil {
@@ -79,7 +79,7 @@ func TestListDashboards(t *testing.T) {
 // Invoke.
 func TestGetDocumentRaw(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_document")
+	d := findDescriptor(t, "lattice_get_document")
 
 	raw, err := d.Invoke(context.Background(), svc, json.RawMessage(`{"id":"`+fixtureID+`"}`))
 	if err != nil {
@@ -195,7 +195,7 @@ func TestGetDocumentUnknownIDIsCodedError(t *testing.T) {
 	}
 
 	// The erased Invoke must surface the same coded error verbatim (not flattened).
-	d := findDescriptor(t, "get_document")
+	d := findDescriptor(t, "lattice_get_document")
 	_, ierr := d.Invoke(context.Background(), svc, json.RawMessage(`{"id":"does-not-exist"}`))
 	if !errors.HasCode(ierr, errors.STORAGE_NOT_FOUND) {
 		t.Errorf("Invoke error = %v, want it to carry STORAGE_NOT_FOUND verbatim", ierr)
