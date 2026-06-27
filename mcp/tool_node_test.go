@@ -20,7 +20,7 @@ import (
 // reflection-generated input+output schema — i.e. NewTool reflected the `any`
 // subtree + flat surface without panicking.
 func TestGetNodeRegistered(t *testing.T) {
-	d := findDescriptor(t, "get_node")
+	d := findDescriptor(t, "lattice_get_node")
 	if d.Description != getNodeDescription {
 		t.Errorf("description mismatch:\n got %q\nwant %q", d.Description, getNodeDescription)
 	}
@@ -38,7 +38,7 @@ func TestGetNodeRegistered(t *testing.T) {
 // erased Invoke so the wire shape is exercised end to end.
 func TestGetNodeBlock(t *testing.T) {
 	svc := newTestService(t)
-	d := findDescriptor(t, "get_node")
+	d := findDescriptor(t, "lattice_get_node")
 
 	raw, err := d.Invoke(context.Background(), svc, json.RawMessage(`{"id":"`+fixtureID+`","nodeId":"fruits-block"}`))
 	if err != nil {

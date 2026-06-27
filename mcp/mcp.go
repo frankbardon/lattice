@@ -79,24 +79,24 @@ func Tools(cfg Config) []ToolDescriptor {
 	// Names and descriptions match the legacy internal/mcp registrations so the
 	// downstream catalog text holds parity.
 	descriptors = append(descriptors,
-		NewTool("list_dashboards", listDashboardsDescription, listDashboards),
-		NewTool("get_document", getDocumentDescription, getDocument),
+		NewTool("lattice_list_dashboards", listDashboardsDescription, listDashboards),
+		NewTool("lattice_get_document", getDocumentDescription, getDocument),
 	)
 
 	// Navigation/read tools (E2-S1). Names and descriptions match the legacy
 	// internal/mcp registrations so the downstream catalog text holds parity.
 	descriptors = append(descriptors,
-		NewTool("get_outline", getOutlineDescription, getOutline),
-		NewTool("get_node", getNodeDescription, getNode),
+		NewTool("lattice_get_outline", getOutlineDescription, getOutline),
+		NewTool("lattice_get_node", getNodeDescription, getNode),
 	)
 
 	// Grammar + truth tools (E2-S2). list_schemas/get_schema expose the dashboard
 	// grammar catalog; validate_patch is the never-persists dry-run. Names and
 	// descriptions match the legacy internal/mcp registrations for catalog parity.
 	descriptors = append(descriptors,
-		NewTool("list_schemas", listSchemasDescription, listSchemas),
-		NewTool("get_schema", getSchemaDescription, getSchema),
-		NewTool("validate_patch", validatePatchDescription, validatePatch),
+		NewTool("lattice_list_schemas", listSchemasDescription, listSchemas),
+		NewTool("lattice_get_schema", getSchemaDescription, getSchema),
+		NewTool("lattice_validate_patch", validatePatchDescription, validatePatch),
 	)
 
 	// Skill-pack tools (E2-S3). list_skills/get_skill expose the embedded skill
@@ -104,8 +104,8 @@ func Tools(cfg Config) []ToolDescriptor {
 	// facade. Names and descriptions match the legacy internal/mcp registrations
 	// for catalog parity.
 	descriptors = append(descriptors,
-		NewTool("list_skills", listSkillsDescription, listSkills),
-		NewTool("get_skill", getSkillDescription, getSkill),
+		NewTool("lattice_list_skills", listSkillsDescription, listSkills),
+		NewTool("lattice_get_skill", getSkillDescription, getSkill),
 	)
 
 	// Bootstrap tool (E2-S4). get_manifest is appended LAST and on purpose: its

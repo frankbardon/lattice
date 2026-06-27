@@ -149,7 +149,7 @@ func newManifestDescriptor(catalog []ToolDescriptor, cfg Config) ToolDescriptor 
 	for _, d := range catalog {
 		entries = append(entries, manifestToolEntry{Name: d.Name, Description: d.Description})
 	}
-	entries = append(entries, manifestToolEntry{Name: "get_manifest", Description: getManifestDescription})
+	entries = append(entries, manifestToolEntry{Name: "lattice_get_manifest", Description: getManifestDescription})
 
 	// Bake the build version from cfg into the closure, retiring the legacy
 	// serverVersion process-global.
@@ -191,5 +191,5 @@ func newManifestDescriptor(catalog []ToolDescriptor, cfg Config) ToolDescriptor 
 		}, nil
 	}
 
-	return NewTool("get_manifest", getManifestDescription, handler)
+	return NewTool("lattice_get_manifest", getManifestDescription, handler)
 }
