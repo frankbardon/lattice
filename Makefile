@@ -3,6 +3,10 @@
 BINARY_NAME=lattice
 BUILD_DIR=bin
 GO=go
+
+# Packages for vet/lint/test. Default: everything. flow's scoped pre-push gate
+# narrows it to the packages an effort touched (see .claude/flow/gates/pre-push.sh).
+PKGS ?= ./...
 LDFLAGS=-s -w
 BUILD_FLAGS=-trimpath -ldflags="$(LDFLAGS)"
 
@@ -25,7 +29,7 @@ clean:
 	rm -rf $(BUILD_DIR) coverage.out
 
 test:
-	$(GO) test ./...
+	$(GO) test $(PKGS)
 
 cover:
 	$(GO) test -coverprofile=coverage.out ./...
@@ -35,10 +39,10 @@ fmt:
 	$(GO) fmt ./...
 
 vet:
-	$(GO) vet ./...
+	$(GO) vet $(PKGS)
 
 lint: vet
-	$(GO) run honnef.co/go/tools/cmd/staticcheck@latest ./...
+	$(GO) run honnef.co/go/tools/cmd/staticcheck@latest $(PKGS)
 
 # bench runs the in-tree benchmark suite. Manual target — not wired into
 # `make test`. New bench packages should be added here.
